@@ -96,6 +96,16 @@ export function createRoomScene(game, roomId) {
     entry.x = x;
     entry.y = host.top;
     entry.z = (host.item.z ?? 0) + 1;
+
+    // Something landing in a shelf is scaled to the headroom, so a book put on
+    // a bookshelf sits in the shelf instead of standing through the one above.
+    const def = catalog.get(entry.item);
+    if (def && Number.isFinite(host.maxHeight)) {
+      const natural = def.h * entry.scale;
+      if (natural > host.maxHeight) {
+        entry.scale = clampScale(entry.scale * (host.maxHeight / natural));
+      }
+    }
     return true;
   }
 

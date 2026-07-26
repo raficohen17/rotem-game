@@ -265,3 +265,45 @@ test('books stack, each sitting squarely on the one below', () => {
   assert.deepEqual(stack.map((b) => b.z), [0, 1, 2], 'each layer above the last');
   assert.deepEqual(drawOrder(stack, lookupBook), stack, 'drawn bottom of the pile first');
 });
+
+test('a book lands on a shelf, not on the roof of the bookshelf', () => {
+  // With only "the top of an item" as a surface, a book aimed at a shelf
+  // balanced on top of the whole unit instead.
+  const defs = {
+    bookshelf: { w: 240, h: 320, shelves: [0.66, 0.36, 0.06], shelfGap: 0.26 },
+    book: { w: 96, h: 136 },
+  };
+  const lookupShelf = (id) => defs[id];
+  const shelf = placeItem('bookshelf', 600, 500);
+
+  for (const fraction of defs.bookshelf.shelves) {
+    const aim = 500 - fraction * 320;
+    const host = findSurface(placeItem('book', 600, aim), [shelf], lookupShelf, 600, aim, defs.book);
+    assert.ok(host, `a shelf at ${fraction} is reachable`);
+    assert.equal(Math.round(host.top), Math.round(aim), 'it lands on that shelf');
+    assert.ok(host.maxHeight < 136, 'and reports headroom the book must fit into');
+  }
+});
+
+test('the top of a shelf unit is still a surface', () => {
+  const defs = {
+    bookshelf: { w: 240, h: 320, shelves: [0.66, 0.36, 0.06], shelfGap: 0.26 },
+    book: { w: 96, h: 136 },
+  };
+  const lookupShelf = (id) => defs[id];
+  const shelf = placeItem('bookshelf', 600, 500);
+
+  const host = findSurface(placeItem('book', 600, 180), [shelf], lookupShelf, 600, 180, defs.book);
+  assert.equal(host.top, 180, 'the roof of the unit');
+  assert.equal(host.maxHeight, Infinity, 'with nothing above it');
+});
+
+test('an item with no declared shelves offers only its top', () => {
+  const defs = { table: { w: 300, h: 145 }, book: { w: 96, h: 136 } };
+  const lookupPlain = (id) => defs[id];
+  const table = placeItem('table', 600, 480);
+
+  const host = findSurface(placeItem('book', 600, 335), [table], lookupPlain, 600, 335, defs.book);
+  assert.equal(host.top, 335);
+  assert.equal(host.maxHeight, Infinity);
+});

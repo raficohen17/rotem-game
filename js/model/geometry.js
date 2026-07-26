@@ -76,6 +76,28 @@ export function clampScale(scale) {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
 }
 
+/**
+ * Every surface an item offers, top first.
+ *
+ * Most items offer only their own top. A bookshelf declares its shelves, so a
+ * book lands on a shelf rather than balancing on the roof of the shelf unit —
+ * which is where it went when the only surface an item could have was its top.
+ *
+ * `maxHeight` is the headroom above a surface, so the caller can size what
+ * lands there.
+ */
+function surfacesOf(placed, def, bounds) {
+  const list = [{ top: bounds.top, maxHeight: Infinity }];
+  if (!Array.isArray(def.shelves)) return list;
+
+  const height = def.h * placed.scale;
+  const gap = (def.shelfGap ?? 0.25) * height;
+  for (const fraction of def.shelves) {
+    list.push({ top: placed.y - fraction * height, maxHeight: gap });
+  }
+  return list;
+}
+
 /** How close a dropped baseline must be to a surface to land on it. */
 export const SNAP_REACH = 62;
 
@@ -110,15 +132,20 @@ export function findSurface(moving, items, lookup, x, y, movingDef) {
     if (!def || def.surface === 'wall') continue;
 
     const bounds = itemBounds(candidate, def);
-    const drop = y - bounds.top;
-    if (drop < -SNAP_REACH || drop > SNAP_REACH) continue;
 
     const overlap = Math.min(right, bounds.right) - Math.max(left, bounds.left);
     const needed = Math.min(halfWidth * 2, bounds.w) * SNAP_OVERLAP;
     if (overlap < Math.max(needed, 8)) continue;
 
-    // Prefer the highest surface in reach, so stacking works.
-    if (!best || bounds.top < best.top) best = { item: candidate, top: bounds.top, bounds };
+    for (const surface of surfacesOf(candidate, def, bounds)) {
+      const drop = y - surface.top;
+      if (drop < -SNAP_REACH || drop > SNAP_REACH) continue;
+
+      // Prefer the highest surface in reach, so stacking works.
+      if (!best || surface.top < best.top) {
+        best = { item: candidate, top: surface.top, maxHeight: surface.maxHeight, bounds };
+      }
+    }
   }
 
   return best;
