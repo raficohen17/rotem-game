@@ -5,10 +5,14 @@
  * furniture does and sorts into the same depth order. Height is CHAR_H at
  * scale 1.
  *
- * The proportions are deliberately not realistic. A big head, short chunky
- * limbs, mitten hands and rounded ends everywhere are what separate a
- * character a child wants to play with from a jointed shop dummy. Nothing here
- * has a square corner.
+ * The head is built to be configured rather than decorated. The skull is a
+ * parametric outline, not a circle; the eyes have a sclera, an iris, a pupil,
+ * a highlight and a lid; brows, nose and mouth are separate parts. Feature
+ * placement is measured off the face shape, so a wide face gets wider-set eyes
+ * instead of the same face with a different border.
+ *
+ * The body stays stylised — short chunky limbs, mitten hands, rounded ends —
+ * so the detail sits where a player actually looks.
  *
  * The design language is cut paper: flat shapes stacked with a soft shadow
  * between them rather than outlines. See `paperLayer` in shapes.js for why.
@@ -19,12 +23,33 @@
  */
 
 import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, paperLayer } from './shapes.js';
-import { SKIN_TONES, HAIR_COLORS, CLOTH_COLORS, LIP_COLORS, clampSpec } from '../model/character.js';
+import {
+  SKIN_TONES, HAIR_COLORS, CLOTH_COLORS, LIP_COLORS, EYE_COLORS, FACE_SHAPES,
+  clampSpec,
+} from '../model/character.js';
 
-export const CHAR_H = 260;
+/** How far the skull rises above the head origin. */
+const HEAD_TOP = 58;
+
+export const CHAR_H = 276;
 export const CHAR_W = 150;
 
-const HEAD_Y = -198;
+/**
+ * The head is drawn at its natural size and then scaled down onto the body.
+ * Doing it this way means the face parts keep one set of numbers regardless of
+ * how the head sits, and shrinking the head never distorts a feature.
+ */
+const HEAD_SCALE = 0.82;
+
+/**
+ * The chin lands here whatever the face shape. Anchoring by the chin rather
+ * than by the head's centre is what lets a long face and a round one both sit
+ * correctly on the same neck.
+ */
+const CHIN_Y = -166;
+
+/** Nominal head centre, still used by hair and accessories. */
+const HEAD_Y = -206;
 const HEAD_R = 58;
 const SHOULDER_Y = -146;
 const TORSO_TOP = -152;
@@ -71,7 +96,10 @@ export function drawCharacter(ctx, rawSpec, time = 0) {
 
   // Arms sit behind the body so the wide head and torso stay unbroken.
   paperLayer(ctx, () => drawArms(ctx, skin, sway), 0.7);
-  paperLayer(ctx, () => drawTorso(ctx, skin), 0.9);
+  paperLayer(ctx, () => {
+    drawNeck(ctx, skin);
+    drawTorso(ctx, skin);
+  }, 0.9);
 
   paperLayer(ctx, () => {
     if (spec.bottom === 4) {
@@ -93,6 +121,10 @@ export function drawCharacter(ctx, rawSpec, time = 0) {
 function drawLegs(ctx, skin) {
   capsule(ctx, -17, HIP_Y - 6, -14, 26, skin);
   capsule(ctx, 17, HIP_Y - 6, -14, 26, skin);
+}
+
+function drawNeck(ctx, skin) {
+  capsule(ctx, 0, CHIN_Y - 12, TORSO_TOP + 20, 30, shade(skin, -0.1));
 }
 
 function drawTorso(ctx, skin) {
@@ -138,130 +170,243 @@ function drawHands(ctx, skin, sway) {
 
 // ------------------------------------------------------------------- head
 
+/**
+ * The skull outline, built from the chosen face shape's parameters.
+ *
+ * Drawn as a path rather than a circle because the face is meant to be
+ * configured, not decorated: a heart face and a square jaw have to be
+ * genuinely different heads, and everything else — where the eyes sit, how
+ * wide the hairline runs — is measured off these numbers.
+ */
+function facePath(ctx, s) {
+  // A square chin needs its control points pushed out toward the jaw corners;
+  // a round one pulls them in.
+  const square = 1 - s.chinRound;
+  const corner = s.jaw * (0.5 + square * 0.45);
+
+  ctx.beginPath();
+  ctx.moveTo(0, -HEAD_TOP);
+  ctx.bezierCurveTo(s.temple * 0.92, -HEAD_TOP, s.cheek, -HEAD_TOP * 0.5, s.cheek, -4);
+  ctx.bezierCurveTo(s.cheek, s.chin * 0.34, s.jaw * 1.06, s.chin * 0.66, corner, s.chin - 6);
+  ctx.quadraticCurveTo(corner * square * 0.8, s.chin, 0, s.chin);
+  ctx.quadraticCurveTo(-corner * square * 0.8, s.chin, -corner, s.chin - 6);
+  ctx.bezierCurveTo(-s.jaw * 1.06, s.chin * 0.66, -s.cheek, s.chin * 0.34, -s.cheek, -4);
+  ctx.bezierCurveTo(-s.cheek, -HEAD_TOP * 0.5, -s.temple * 0.92, -HEAD_TOP, 0, -HEAD_TOP);
+  ctx.closePath();
+}
+
+/** Builds the face path scaled about the head centre, for hair that hugs it. */
+function facePathScaled(ctx, s, k) {
+  ctx.save();
+  ctx.scale(k, k);
+  facePath(ctx, s);
+  ctx.restore();
+}
+
+/** Where the features sit, measured off the face shape rather than fixed. */
+function layout(s) {
+  return {
+    eyeX: s.cheek * 0.4,
+    eyeY: -4,
+    browY: -26,
+    noseY: s.chin * 0.3,
+    mouthY: s.chin * 0.63,
+  };
+}
+
+/**
+ * Ears go on before the face and are overdrawn by it, so only the outer rim
+ * shows. Drawn on top at cheek height they read as swelling, not as ears.
+ */
+function drawEars(ctx, s, skin) {
+  for (const side of [-1, 1]) {
+    fillEllipse(ctx, side * (s.cheek + 3), 4, 11, 16, shade(skin, -0.06));
+    fillEllipse(ctx, side * (s.cheek + 6), 4, 5, 9, shade(skin, -0.2));
+  }
+}
+
 function drawHead(ctx, skin, spec, hairColor, blinking, sway) {
+  const shape = FACE_SHAPES[spec.face];
+  const place = layout(shape);
+
   ctx.save();
   // The head leads the sway very slightly, which reads as looking around.
-  ctx.translate(0, HEAD_Y);
+  ctx.translate(0, CHIN_Y - shape.chin * HEAD_SCALE);
   ctx.rotate(sway * 0.02);
+  ctx.scale(HEAD_SCALE, HEAD_SCALE);
 
   paperLayer(ctx, () => {
-    fillCircle(ctx, 0, 0, HEAD_R, skin);
-    fillEllipse(ctx, -HEAD_R + 3, 10, 8, 12, shade(skin, -0.1));
-    fillEllipse(ctx, HEAD_R - 3, 10, 8, 12, shade(skin, -0.1));
+    drawEars(ctx, shape, skin);
+    facePath(ctx, shape);
+    ctx.fillStyle = skin;
+    ctx.fill();
   }, 1.1);
 
-  drawEyes(ctx, spec.eyes, blinking);
-  drawNose(ctx, spec.nose, skin);
-  drawMouth(ctx, spec.mouth, LIP_COLORS[spec.mouthColor]);
+  drawBrows(ctx, spec.brows, place, shade(hairColor, -0.12));
+  drawEyes(ctx, spec.eyes, EYE_COLORS[spec.eyeColor], place, blinking);
+  drawNose(ctx, spec.nose, place, skin);
+  drawMouth(ctx, spec.mouth, LIP_COLORS[spec.mouthColor], place);
 
-  paperLayer(ctx, () => drawFrontHair(ctx, spec.hair, hairColor), 0.7);
+  paperLayer(ctx, () => drawFrontHair(ctx, spec.hair, hairColor, shape), 0.7);
   paperLayer(ctx, () => drawExtra(ctx, spec.extra, CLOTH_COLORS[spec.extraColor]), 0.7);
   ctx.restore();
 }
 
 // ------------------------------------------------------------------- face
-// All face parts are drawn in head-local coordinates: the origin is the middle
-// of the head, and the head has radius HEAD_R.
+//
+// Face parts are drawn in head-local coordinates — the origin is the middle of
+// the head — and take a `place` object giving where the shape puts each
+// feature, so a wide face gets wider-set eyes rather than the same face with a
+// different border.
+//
+// Eyes are built from real parts: sclera, iris, pupil, highlight and a lash
+// line. That is what separates a configurable face from two dots.
 
-function closedEye(ctx, x) {
+/** Eye geometry per style. `tilt` in radians, positive turning the outer corner down. */
+const EYE_SHAPES = [
+  { w: 13, h: 10.5, tilt: 0, lid: 3.2, lash: false }, // almond
+  { w: 12, h: 13, tilt: 0, lid: 3, lash: false }, // round
+  { w: 16, h: 10, tilt: 0, lid: 3, lash: false }, // wide
+  { w: 14, h: 7.5, tilt: 0, lid: 3.4, lash: false }, // narrow
+  { w: 13.5, h: 10.5, tilt: -0.2, lid: 3.2, lash: true }, // upturned
+  { w: 13.5, h: 10.5, tilt: 0.2, lid: 3.2, lash: false }, // downturned
+  { w: 14, h: 9, tilt: 0, lid: 5.5, lash: false }, // hooded
+  { w: 15, h: 14, tilt: 0, lid: 3, lash: true }, // large
+  { w: 10, h: 8.5, tilt: 0, lid: 2.6, lash: false }, // small
+  { w: 13, h: 6, tilt: 0.08, lid: 4.5, lash: false }, // sleepy
+];
+
+/** Brow geometry per style. `arch` is how far the middle lifts. */
+const BROW_SHAPES = [
+  { thick: 5, arch: 6, tilt: 0, len: 21 }, // natural
+  { thick: 4, arch: 11, tilt: 0, len: 21 }, // arched
+  { thick: 8.5, arch: 4, tilt: 0, len: 23 }, // thick
+  { thick: 3, arch: 5, tilt: 0, len: 18 }, // fine
+  { thick: 5.5, arch: 1, tilt: 0.26, len: 21 }, // angled
+  { thick: 6, arch: 13, tilt: 0, len: 22 }, // high arch
+  { thick: 10, arch: 2, tilt: -0.12, len: 25 }, // bushy
+  { thick: 4, arch: 0, tilt: 0, len: 20 }, // flat
+];
+
+function drawBrows(ctx, style, place, color) {
+  const b = BROW_SHAPES[style];
+  ctx.strokeStyle = color;
+  ctx.lineWidth = b.thick;
+  ctx.lineCap = 'round';
+
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(side * place.eyeX, place.browY);
+    ctx.rotate(b.tilt * side);
+    ctx.beginPath();
+    ctx.moveTo(-b.len * 0.5 * side, 2);
+    ctx.quadraticCurveTo(0, -b.arch, b.len * 0.5 * side, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/** A shut eye: the lash line curved down over the closed lid. */
+function closedEye(ctx, e) {
   ctx.strokeStyle = DARK;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = e.lid;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.arc(x, -2, 10, Math.PI * 1.12, Math.PI * 1.88);
+  ctx.moveTo(-e.w * 0.9, -1);
+  ctx.quadraticCurveTo(0, e.h * 0.75, e.w * 0.9, -1);
   ctx.stroke();
 }
 
-function brow(ctx, x, side, lift, angle = 0) {
-  ctx.save();
-  ctx.translate(x, -22 - lift);
-  ctx.rotate(angle * side);
-  strokeLine(ctx, -10, 0, 10, 0, shade(DARK, 0.15), 4);
-  ctx.restore();
-}
+function drawEyes(ctx, style, iris, place, blinking) {
+  const e = EYE_SHAPES[style];
+  const sleepy = style === 9;
 
-function drawEyes(ctx, style, blinking) {
-  const y = -6;
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(side * place.eyeX, place.eyeY);
+    ctx.rotate(e.tilt * side);
 
-  const eye = (x, side) => {
-    if (blinking && style !== 1) { closedEye(ctx, x); return; }
-
-    switch (style) {
-      case 1: // closed and happy
-        closedEye(ctx, x);
-        break;
-      case 2: // wide, with a lash
-        fillEllipse(ctx, x, y, 10, 11.5, DARK);
-        fillCircle(ctx, x + 3.2, y - 4, 3, PAPER);
-        strokeLine(ctx, x + side * 11, y - 8, x + side * 17, y - 12, DARK, 3);
-        break;
-      case 3: // winking on one side
-        if (side < 0) closedEye(ctx, x);
-        else fillEllipse(ctx, x, y, 8.5, 10, DARK);
-        break;
-      case 4: // sleepy half-lids
-        fillEllipse(ctx, x, y + 2, 9, 5, DARK);
-        break;
-      case 5: // bright, with two highlights
-        fillEllipse(ctx, x, y, 11, 12.5, DARK);
-        fillCircle(ctx, x + 4, y - 5, 3.4, PAPER);
-        fillCircle(ctx, x - 3.5, y + 5, 2, PAPER);
-        break;
-      case 6: // almond, angled
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(side * -0.18);
-        fillEllipse(ctx, 0, 0, 11, 7, DARK);
-        ctx.restore();
-        break;
-      case 7: // small dots, wide set
-        fillCircle(ctx, x + side * 3, y, 5.5, DARK);
-        break;
-      case 8: // surprised, with raised brows
-        brow(ctx, x, side, 10);
-        fillEllipse(ctx, x, y + 2, 9, 10, PAPER);
-        fillEllipse(ctx, x, y + 2, 6, 7, DARK);
-        break;
-      case 9: // stern, with angled brows
-        brow(ctx, x, side, 2, 0.28);
-        fillEllipse(ctx, x, y + 1, 8, 8.5, DARK);
-        break;
-      default: // the everyday eye — a clean cut oval, nothing more
-        fillEllipse(ctx, x, y, 8, 9.5, DARK);
+    if (blinking) {
+      closedEye(ctx, e);
+      ctx.restore();
+      continue;
     }
-  };
 
-  eye(-22, -1);
-  eye(22, 1);
+    // Sclera, clipped so nothing inside it spills over the lids.
+    fillEllipse(ctx, 0, 0, e.w, e.h, '#efe9dd');
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(0, 0, e.w, e.h, 0, 0, Math.PI * 2);
+    ctx.clip();
+
+    const irisR = Math.min(e.w, e.h) * 0.92;
+    fillCircle(ctx, side * 1.5, sleepy ? 1 : 0, irisR, iris);
+    fillCircle(ctx, side * 1.5, sleepy ? 1 : 0, irisR * 0.46, '#241d1a');
+    fillCircle(ctx, side * 1.5 + irisR * 0.36, -irisR * 0.38, irisR * 0.26, PAPER);
+    fillCircle(ctx, side * 1.5 - irisR * 0.3, irisR * 0.42, irisR * 0.13, '#ffffff88');
+
+    // The upper lid sits inside the clip, so it thickens the eye's top edge.
+    ctx.fillStyle = DARK;
+    ctx.beginPath();
+    ctx.moveTo(-e.w - 1, -e.h - 1);
+    ctx.lineTo(e.w + 1, -e.h - 1);
+    ctx.lineTo(e.w + 1, -e.h + e.lid);
+    ctx.quadraticCurveTo(0, -e.h + e.lid * 2.6, -e.w - 1, -e.h + e.lid);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Lash line and outer corner, drawn over the sclera edge.
+    ctx.strokeStyle = DARK;
+    ctx.lineWidth = e.lid * 0.62;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-e.w, -e.h * 0.35);
+    ctx.quadraticCurveTo(0, -e.h * 1.25, e.w, -e.h * 0.35);
+    ctx.stroke();
+
+    if (e.lash) {
+      strokeLine(ctx, side * e.w * 0.95, -e.h * 0.5, side * (e.w + 7), -e.h - 4, DARK, 2.8);
+    }
+    ctx.restore();
+  }
 }
 
 /** Index 0 is no nose at all, which suits the plainest faces. */
-function drawNose(ctx, style, skin) {
-  const ink = shade(skin, -0.28);
-  const y = 8;
+function drawNose(ctx, style, place, skin) {
+  const ink = shade(skin, -0.24);
+  const deep = shade(skin, -0.34);
+  const y = place.noseY;
 
   switch (style) {
-    case 1: // a small soft button
-      fillEllipse(ctx, 0, y, 5, 4, ink);
+    case 1: // small and soft, a shadow under the tip
+      fillEllipse(ctx, 0, y, 5.5, 4, ink);
+      fillEllipse(ctx, 0, y - 2, 3.5, 2.5, shade(skin, 0.12));
       break;
-    case 2: // a little rounded triangle
-      fillPoly(ctx, [0, y - 6, 6, y + 4, -6, y + 4], ink);
+    case 2: // straight bridge with a defined tip
+      capsule(ctx, 0, y - 15, y + 1, 6, ink);
+      fillEllipse(ctx, 0, y + 1, 6, 4, deep);
+      fillCircle(ctx, -7, y + 1, 2.4, deep);
+      fillCircle(ctx, 7, y + 1, 2.4, deep);
       break;
-    case 3: // a curved line, drawn rather than filled
+    case 3: // a curved line only, the lightest touch
       ctx.strokeStyle = ink;
       ctx.lineWidth = 3.5;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.arc(0, y - 3, 6, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.moveTo(-1, y - 10);
+      ctx.quadraticCurveTo(-6, y + 2, 2, y + 3);
       ctx.stroke();
       break;
-    case 4: // longer, with a rounded tip
-      capsule(ctx, 0, y - 12, y + 4, 7, ink);
+    case 4: // broad, with wide nostrils
+      fillEllipse(ctx, 0, y - 1, 9, 6, ink);
+      fillEllipse(ctx, -8, y + 1, 3.6, 2.8, deep);
+      fillEllipse(ctx, 8, y + 1, 3.6, 2.8, deep);
       break;
-    case 5: // a button nose with freckles across it
+    case 5: // button nose with freckles scattered across the cheeks
       fillEllipse(ctx, 0, y, 5, 4, ink);
-      for (const [fx, fy] of [[-20, 4], [-13, 9], [13, 9], [20, 4], [-16, -2], [16, -2]]) {
-        fillCircle(ctx, fx, fy, 1.9, shade(skin, -0.3));
+      for (const [fx, fy] of [[-22, 2], [-15, 8], [-28, 8], [15, 8], [22, 2], [28, 8], [-18, -3], [18, -3]]) {
+        fillCircle(ctx, fx, y + fy, 1.9, shade(skin, -0.26));
       }
       break;
     default:
@@ -269,52 +414,58 @@ function drawNose(ctx, style, skin) {
   }
 }
 
-function drawMouth(ctx, style, lip) {
-  const y = 26;
+function drawMouth(ctx, style, lip, place) {
+  const y = place.mouthY;
   ctx.lineCap = 'round';
 
   switch (style) {
     case 1: // open, delighted
-      ctx.fillStyle = DARK;
+      ctx.fillStyle = '#5c3a3a';
       ctx.beginPath();
       ctx.ellipse(0, y, 13, 11, 0, 0, Math.PI);
       ctx.fill();
       fillEllipse(ctx, 0, y + 7, 8, 4.5, lip);
+      strokeLine(ctx, -13, y, 13, y, shade(lip, -0.2), 3);
       break;
     case 2: // a small round o
-      fillEllipse(ctx, 0, y + 1, 6, 7, DARK);
+      fillEllipse(ctx, 0, y + 1, 6.5, 7.5, shade(lip, -0.35));
+      fillEllipse(ctx, 0, y + 2.5, 4, 4, '#5c3a3a');
       break;
-    case 3: // straight and thoughtful
-      strokeLine(ctx, -9, y, 9, y, DARK, 4);
+    case 3: // closed and level
+      strokeLine(ctx, -10, y, 10, y, shade(lip, -0.3), 4);
+      fillEllipse(ctx, 0, y - 3.5, 9, 3.5, lip);
+      fillEllipse(ctx, 0, y + 3.5, 10, 4, shade(lip, -0.1));
       break;
     case 4: // tongue out
-      ctx.fillStyle = DARK;
+      ctx.fillStyle = '#5c3a3a';
       ctx.beginPath();
       ctx.ellipse(0, y, 12, 9, 0, 0, Math.PI);
       ctx.fill();
-      fillEllipse(ctx, 0, y + 8, 7, 6, lip);
+      fillEllipse(ctx, 0, y + 8, 7, 6, shade(lip, 0.2));
       break;
     case 5: // full lips
-      fillEllipse(ctx, 0, y - 2, 13, 6, lip);
-      fillEllipse(ctx, 0, y + 5, 15, 8, shade(lip, -0.12));
-      strokeLine(ctx, -13, y + 1, 13, y + 1, shade(lip, -0.35), 2.5);
+      fillEllipse(ctx, -6, y - 3, 7, 4.5, lip);
+      fillEllipse(ctx, 6, y - 3, 7, 4.5, lip);
+      fillEllipse(ctx, 0, y + 4, 14, 7, shade(lip, -0.1));
+      strokeLine(ctx, -13, y + 0.5, 13, y + 0.5, shade(lip, -0.4), 2.2);
       break;
     case 6: // a grin showing teeth
-      ctx.fillStyle = DARK;
+      ctx.fillStyle = '#5c3a3a';
       ctx.beginPath();
       ctx.ellipse(0, y, 15, 10, 0, 0, Math.PI);
       ctx.fill();
-      fillRR(ctx, -13, y, 26, 5, 2, PAPER);
+      fillRR(ctx, -13, y, 26, 5.5, 2, PAPER);
+      strokeLine(ctx, -15, y, 15, y, shade(lip, -0.2), 3);
       break;
     case 7: // downturned
-      ctx.strokeStyle = DARK;
+      ctx.strokeStyle = shade(lip, -0.35);
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(0, y + 12, 12, Math.PI * 1.2, Math.PI * 1.8);
       ctx.stroke();
       break;
     case 8: // a one-sided smirk
-      ctx.strokeStyle = DARK;
+      ctx.strokeStyle = shade(lip, -0.35);
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.moveTo(-11, y);
@@ -323,14 +474,15 @@ function drawMouth(ctx, style, lip) {
       break;
     case 9: // pursed
       fillEllipse(ctx, 0, y, 9, 8, lip);
-      fillEllipse(ctx, 0, y, 5, 3, shade(lip, -0.3));
+      fillEllipse(ctx, 0, y, 4.5, 3, shade(lip, -0.4));
       break;
-    default: // an easy smile
-      ctx.strokeStyle = DARK;
+    default: // an easy smile, with a hint of lower lip
+      ctx.strokeStyle = shade(lip, -0.3);
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(0, y - 7, 13, Math.PI * 0.18, Math.PI * 0.82);
       ctx.stroke();
+      fillEllipse(ctx, 0, y + 5, 8, 3, lip);
   }
 }
 
@@ -392,15 +544,24 @@ function drawBackHair(ctx, style, color) {
 }
 
 /** The cap over the skull and the fringe, in head-local coordinates. */
-function drawFrontHair(ctx, style, color) {
-  // Style 8 is cropped so close that it needs no separate fringe.
+function drawFrontHair(ctx, style, color, shape) {
+  // The cap is the face's own outline, grown slightly and filled from the
+  // crown down to the hairline. Clipping to the skull is what lets one set of
+  // hairstyles sit correctly on eight different head shapes.
+  const hairline = style === 8 ? -26 : -14; // style 8 is cropped close
+
   ctx.save();
-  ctx.beginPath();
-  ctx.arc(0, 0, HEAD_R + 4, Math.PI * 0.98, Math.PI * 2.02);
-  ctx.lineTo(HEAD_R + 4, style === 8 ? -26 : -14);
-  ctx.lineTo(-HEAD_R - 4, style === 8 ? -26 : -14);
-  ctx.closePath();
+  facePathScaled(ctx, shape, 1.07);
+  ctx.clip();
+  // The bottom edge is a curve, not a straight cut — a level hairline right
+  // across the forehead is what made this read as a helmet.
   ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(-95, -HEAD_TOP * 1.3);
+  ctx.lineTo(95, -HEAD_TOP * 1.3);
+  ctx.lineTo(95, hairline + 4);
+  ctx.quadraticCurveTo(0, hairline - 22, -95, hairline + 4);
+  ctx.closePath();
   ctx.fill();
   ctx.restore();
 

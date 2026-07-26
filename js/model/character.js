@@ -32,16 +32,44 @@ export const LIP_COLORS = [
   '#7d3a44', '#b8656f', '#9c5750', '#e0a3a2',
 ];
 
+export const EYE_COLORS = [
+  '#4a3728', '#6b4b2e', '#8a6a3f', '#4f6b52',
+  '#3f5f70', '#5a7f96', '#6a5878', '#2f2b2e',
+];
+
+/**
+ * Face shapes, as parameters rather than eight hand-drawn outlines.
+ *
+ * `temple` is the width at the browline, `cheek` the widest point, `jaw` the
+ * width where the jaw turns toward the chin, `chin` how far the chin drops and
+ * `chinRound` how square it is (0 square, 1 rounded). Feature placement reads
+ * these too, so a wide face gets wider-set eyes rather than the same face with
+ * a different border.
+ */
+export const FACE_SHAPES = [
+  { id: 'oval', temple: 50, cheek: 55, jaw: 40, chin: 64, chinRound: 0.55 },
+  { id: 'round', temple: 53, cheek: 59, jaw: 51, chin: 56, chinRound: 0.95 },
+  { id: 'heart', temple: 55, cheek: 53, jaw: 31, chin: 66, chinRound: 0.3 },
+  { id: 'square', temple: 52, cheek: 55, jaw: 53, chin: 58, chinRound: 0.2 },
+  { id: 'long', temple: 46, cheek: 49, jaw: 41, chin: 76, chinRound: 0.5 },
+  { id: 'diamond', temple: 41, cheek: 58, jaw: 35, chin: 68, chinRound: 0.35 },
+  { id: 'pear', temple: 43, cheek: 52, jaw: 55, chin: 60, chinRound: 0.65 },
+  { id: 'soft', temple: 49, cheek: 57, jaw: 46, chin: 61, chinRound: 0.8 },
+];
+
 /**
  * Number of styles per part. The character creator builds its option grids
  * from these counts, so adding a hairstyle means bumping one number and
  * drawing it — no UI work.
  */
 export const PART_COUNTS = {
+  face: FACE_SHAPES.length,
   skin: SKIN_TONES.length,
   hair: 14,
   hairColor: HAIR_COLORS.length,
+  brows: 8,
   eyes: 10,
+  eyeColor: EYE_COLORS.length,
   nose: 6, // index 0 is "nothing"
   mouth: 10,
   mouthColor: LIP_COLORS.length,
@@ -70,9 +98,11 @@ export const PART_KEYS = Object.keys(PART_COUNTS);
 
 /** Parts offered as their own tab in the creator, in the order shown. */
 export const EDITABLE_PARTS = [
-  { key: 'skin', colorKey: null, icon: 'face' },
+  { key: 'face', colorKey: null, icon: 'face' },
+  { key: 'skin', colorKey: null, icon: 'skin' },
   { key: 'hair', colorKey: 'hairColor', icon: 'hair' },
-  { key: 'eyes', colorKey: null, icon: 'eyes' },
+  { key: 'brows', colorKey: null, icon: 'brows' },
+  { key: 'eyes', colorKey: 'eyeColor', icon: 'eyes' },
   { key: 'nose', colorKey: null, icon: 'nose' },
   { key: 'mouth', colorKey: 'mouthColor', icon: 'mouth' },
   { key: 'top', colorKey: 'topColor', icon: 'top' },
@@ -83,7 +113,8 @@ export const EDITABLE_PARTS = [
 
 export function createCharacterSpec() {
   return {
-    skin: 3, hair: 0, hairColor: 1, eyes: 0, nose: 1, mouth: 0, mouthColor: 0,
+    face: 0, skin: 3, hair: 0, hairColor: 1, brows: 0,
+    eyes: 0, eyeColor: 0, nose: 1, mouth: 0, mouthColor: 0,
     top: 0, topColor: 0, bottom: 0, bottomColor: 5,
     shoes: 0, shoesColor: 9, extra: 0, extraColor: 2,
   };
