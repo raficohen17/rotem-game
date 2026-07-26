@@ -11,7 +11,7 @@ import { fillRR } from '../render/shapes.js';
 import { drawCharacter, headBounds, CHAR_H } from '../render/character.js';
 import {
   EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS, LIP_COLORS, EYE_COLORS,
-  SKIN_TONES, createCharacterSpec, clampSpec,
+  SKIN_TONES, LOOKS, applyLook, createCharacterSpec, clampSpec,
 } from '../model/character.js';
 
 /** Parts shown as a head close-up; the rest are shown full length. */
@@ -33,7 +33,7 @@ const PALETTES = {
 
 // Eleven parts no longer fit in one column at a finger-sized target, so the
 // tabs run two across.
-const TAB = { x: 22, y: 92, size: 66, step: 74, cols: 2 };
+const TAB = { x: 20, y: 76, size: 64, step: 70, cols: 2 };
 
 // Five across and three down holds the largest part list (fourteen hairstyles)
 // on one screen, so no part needs paging.
@@ -42,13 +42,32 @@ const GRID_Y = 122;
 const CELL = { w: 112, h: 128, stepX: 120, stepY: 136, cols: 5 };
 const SWATCH_Y = 566;
 
+/**
+ * The looks gallery, plus every individual part.
+ *
+ * The gallery comes first because facing sixteen tabs on a blank character is
+ * not a starting point. Picking a look sets several parts at once and leaves
+ * every one of them editable afterwards.
+ */
+const TABS = [{ key: 'looks', colorKey: null, icon: 'looks' }, ...EDITABLE_PARTS];
+
 export function createCharacterCreator(game, onDone, onCancel, initialSpec = null) {
   let spec = initialSpec ? clampSpec(initialSpec) : createCharacterSpec();
   let partIndex = 0;
 
-  const part = () => EDITABLE_PARTS[partIndex];
+  const part = () => TABS[partIndex];
+  const onLooks = () => part().key === 'looks';
 
   function optionControls() {
+    if (onLooks()) {
+      return LOOKS.map((look, i) => button(
+        `look:${look.id}`,
+        GRID_X + (i % 3) * 200,
+        GRID_Y + Math.floor(i / 3) * 230,
+        190, 220,
+        { look },
+      ));
+    }
     const count = PART_COUNTS[part().key];
     return Array.from({ length: count }, (unused, i) => button(
       `opt:${i}`,
@@ -61,7 +80,7 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
 
   function swatchControls() {
     const colorKey = part().colorKey;
-    if (!colorKey) return [];
+    if (!colorKey || onLooks()) return [];
     const palette = PALETTES[colorKey] ?? CLOTH_COLORS;
     return palette.map((color, i) => button(
       `col:${i}`, GRID_X + i * 58, SWATCH_Y, 52, 52,
@@ -70,7 +89,7 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
   }
 
   function tabControls() {
-    return EDITABLE_PARTS.map((entry, i) => button(
+    return TABS.map((entry, i) => button(
       `tab:${i}`,
       TAB.x + (i % TAB.cols) * TAB.step,
       TAB.y + Math.floor(i / TAB.cols) * TAB.step,
@@ -95,6 +114,8 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
       if (hit.id === 'cancel') { onCancel(); return; }
 
       const [kind, value] = hit.id.split(':');
+      if (kind === 'look') { spec = applyLook(spec, value); return; }
+
       const index = Number(value);
       if (kind === 'tab') partIndex = index;
       else if (kind === 'opt') spec = { ...spec, [part().key]: index };
@@ -116,7 +137,8 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
       drawPanel(ctx, 620, 96, 636, 600, COLORS.panel, 22);
 
       for (const control of optionControls()) {
-        drawOption(ctx, control, spec, part(), game.time);
+        if (control.look) drawLookCard(ctx, control, spec, game.time);
+        else drawOption(ctx, control, spec, part(), game.time);
       }
       for (const control of tabControls()) {
         drawTab(ctx, control, spec);
@@ -162,6 +184,23 @@ function tabTint(key, spec, active) {
     case 'extra': return CLOTH_COLORS[spec.extraColor];
     default: return active ? '#2c262e' : COLORS.ink;
   }
+}
+
+/** A whole look, shown full length with its name underneath. */
+function drawLookCard(ctx, control, spec, time) {
+  fillRR(ctx, control.x, control.y, control.w, control.h, 16,
+    control.active ? COLORS.buttonActive : '#413945');
+
+  const preview = applyLook(spec, control.look.id);
+  drawMini(ctx, preview, {
+    x: control.x, y: control.y, w: control.w, h: control.h - 30,
+  }, 'body', time);
+
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = '600 20px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(control.look.label, control.x + control.w / 2, control.y + control.h - 18);
 }
 
 /** How closely a cell should frame the character for a given part. */

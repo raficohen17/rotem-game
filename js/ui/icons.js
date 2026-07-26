@@ -206,6 +206,19 @@ export const ICONS = {
    * feature itself can.
    */
 
+  looks(ctx, c) {
+    // A rail of hanging outfits: the gallery of whole looks.
+    strokeLine(ctx, -19, -15, 19, -15, c, 3);
+    for (const [x, w] of [[-11, 12], [0, 12], [11, 12]]) {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.arc(x, -12, 3.2, Math.PI * 0.8, Math.PI * 2.4);
+      ctx.stroke();
+      fillPoly(ctx, [x - w / 2, -4, x + w / 2, -4, x + w / 2 - 1.5, 16, x - w / 2 + 1.5, 16], c);
+    }
+  },
+
   build(ctx, c) {
     fillCircle(ctx, 0, -13, 6.5, c);
     fillPoly(ctx, [-8, -5, 8, -5, 5, 5, -5, 5], c);

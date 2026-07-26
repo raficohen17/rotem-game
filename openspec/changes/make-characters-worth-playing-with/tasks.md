@@ -24,12 +24,12 @@
 
 ## 4. Creator
 
-- [ ] 4.1 Add the looks gallery as the first tab
-- [ ] 4.2 Regroup the tabs so eighteen parts still fit a phone screen
-- [ ] 4.3 Check all twelve top styles by eye — they were changed to the new
+- [x] 4.1 Add the looks gallery as the first tab
+- [x] 4.2 Regroup the tabs so eighteen parts still fit a phone screen
+- [x] 4.3 Check all twelve top styles by eye — they were changed to the new
       garment shape and never verified
 
 ## 5. Ship
 
-- [ ] 5.1 Full test run, version bump in both version.js and sw.js
-- [ ] 5.2 Deploy and confirm the live version marker
+- [x] 5.1 Full test run, version bump in both version.js and sw.js
+- [x] 5.2 Deploy and confirm the live version marker
