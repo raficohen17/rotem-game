@@ -15,6 +15,7 @@
 
 import { PLACEHOLDERS } from './placeholders.js';
 import { paperLayer } from './shapes.js';
+import { drawBook } from './book.js';
 
 const DRAWINGS_DIR = 'assets/drawings';
 
@@ -74,7 +75,7 @@ export function drawItem(ctx, placed, def) {
   ctx.save();
   ctx.translate(placed.x, placed.y);
   ctx.scale(placed.flip ? -placed.scale : placed.scale, placed.scale);
-  drawItemArt(ctx, def, placed.tint);
+  drawItemArt(ctx, def, placed.tint, placed.design);
   ctx.restore();
 }
 
@@ -85,8 +86,14 @@ export function drawItem(ctx, placed, def) {
  * placeholders, which also means one of Rotem's scanned drawings picks up the
  * same treatment and sits in the room the same way the placeholders do.
  */
-export function drawItemArt(ctx, def, tint = 0) {
+export function drawItemArt(ctx, def, tint = 0, design = null) {
   paperLayer(ctx, () => {
+    // A book is the one item whose art comes from the player rather than from
+    // a placeholder or a drawing.
+    if (def.id === 'book') {
+      drawBook(ctx, design ?? { cover: tint }, def.w, def.h);
+      return;
+    }
     if (def.image) {
       ctx.drawImage(def.image, -def.w / 2, -def.h, def.w, def.h);
       return;

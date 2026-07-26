@@ -241,3 +241,27 @@ test('a walk to an unknown room is refused rather than hanging', () => {
   assert.equal(beginWalk(her, 'attic', 300, 1200), false);
   assert.equal(isWalking(her), false);
 });
+
+test('books stack, each sitting squarely on the one below', () => {
+  // The whole point of designing a cover is showing it off, so a pile of books
+  // has to put each one fully above the last rather than overlapping them.
+  const defs = { book: { w: 96, h: 136 } };
+  const lookupBook = (id) => defs[id];
+
+  const stack = [];
+  let dropY = 500;
+  for (let i = 0; i < 3; i += 1) {
+    const book = placeItem('book', 600, dropY);
+    const host = findSurface(book, stack, lookupBook, 600, dropY, defs.book);
+    if (host) {
+      book.y = host.top;
+      book.z = (host.item.z ?? 0) + 1;
+    }
+    stack.push(book);
+    dropY = book.y - defs.book.h + 20;
+  }
+
+  assert.deepEqual(stack.map((b) => b.y), [500, 364, 228], 'one book-height apart');
+  assert.deepEqual(stack.map((b) => b.z), [0, 1, 2], 'each layer above the last');
+  assert.deepEqual(drawOrder(stack, lookupBook), stack, 'drawn bottom of the pile first');
+});
