@@ -81,6 +81,29 @@ export function strokeLine(ctx, x1, y1, x2, y2, color, width = 4) {
  * Shifts a #rrggbb colour toward black or white.
  * @param {number} amount -1 (black) to 1 (white)
  */
+/**
+ * Darkens toward a warm brown rather than toward black.
+ *
+ * `shade` mixes toward pure black, which drains the colour out as it goes — a
+ * cream wall pushed two thirds of the way to black is grey, and a grey recess
+ * in a warm room looks like a photograph with the colour missing. Real shadow
+ * in a room this colour is brown.
+ */
+const SHADOW = [0x3a, 0x2a, 0x24];
+
+export function deepen(hex, amount) {
+  const value = parseInt(hex.slice(1), 16);
+  const channel = (shift, target) => {
+    const c = (value >> shift) & 0xff;
+    return Math.round(c + (target - c) * amount);
+  };
+
+  const r = channel(16, SHADOW[0]);
+  const g = channel(8, SHADOW[1]);
+  const b = channel(0, SHADOW[2]);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
 export function shade(hex, amount) {
   const value = parseInt(hex.slice(1), 16);
   const target = amount < 0 ? 0 : 255;

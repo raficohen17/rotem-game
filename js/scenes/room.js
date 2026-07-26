@@ -530,13 +530,11 @@ function drawFloorSwatch(ctx, control, color) {
   ctx.beginPath();
   roundRect(ctx, control.x, control.y, control.w, control.h, 10);
   ctx.clip();
-  // Draw the room's floor band scaled down into the cell.
-  ctx.translate(control.x, control.y - FLOOR_Y * (control.h / (ROOM_H - FLOOR_Y)));
-  const s = control.w / ROOM_W;
-  ctx.scale(s, control.h / (ROOM_H - FLOOR_Y));
   ctx.fillStyle = color;
-  ctx.fillRect(0, FLOOR_Y, ROOM_W, ROOM_H - FLOOR_Y);
-  drawFloorSample(ctx, color, control.floorStyle);
+  ctx.fillRect(control.x, control.y, control.w, control.h);
+  // Drawn at the chip's own size rather than scaled down from the room, so
+  // the seams stay a visible width and the patterns are told apart.
+  drawFloorSample(ctx, color, control.floorStyle, control);
   ctx.restore();
 
   if (control.active) {

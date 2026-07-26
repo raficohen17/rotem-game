@@ -10,7 +10,7 @@
 import { drawItem } from './catalog.js';
 import { drawCharacter } from './character.js';
 import { drawOrder } from '../model/geometry.js';
-import { shade, fillRR, roundRect, strokeLine } from './shapes.js';
+import { shade, deepen, fillRR, roundRect, strokeLine } from './shapes.js';
 import { litFill } from './materials.js';
 import { partitionSide } from '../model/travel.js';
 
@@ -78,28 +78,96 @@ function drawOpenings(ctx, room) {
   const doorX = side === 'right' ? ROOM_W - DOOR.w : 0;
   const top = FLOOR_Y - DOOR.h;
 
+  // Light falls out of the opening onto this room's floor before anything
+  // else is drawn, so furniture stands on top of the spill rather than under
+  // it. A hole that throws light is the thing that stops it reading as a grey
+  // panel stuck to the wall.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, FLOOR_Y, ROOM_W, ROOM_H - FLOOR_Y);
+  ctx.clip();
+  const spill = ctx.createLinearGradient(0, FLOOR_Y, 0, ROOM_H);
+  spill.addColorStop(0, 'rgba(255, 246, 224, 0.34)');
+  spill.addColorStop(1, 'rgba(255, 246, 224, 0)');
+  ctx.fillStyle = spill;
+  ctx.beginPath();
+  const inner = side === 'right' ? doorX : DOOR.w;
+  const outer = side === 'right' ? ROOM_W : 0;
+  ctx.moveTo(inner, FLOOR_Y);
+  ctx.lineTo(outer, FLOOR_Y);
+  ctx.lineTo(outer + (side === 'right' ? 46 : -46), ROOM_H);
+  ctx.lineTo(inner + (side === 'right' ? -80 : 80), ROOM_H);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
   ctx.save();
   ctx.beginPath();
   ctx.rect(doorX, top, DOOR.w, DOOR.h);
   ctx.clip();
-  // The room beyond, falling away into shadow, with its floor running through.
-  ctx.fillStyle = shade(room.wall, -0.44);
+
+  // The room beyond, falling away into shadow. A smooth ramp rather than the
+  // two flat bands it used to be — a hard edge across the middle of a dark
+  // rectangle is exactly what a raised panel looks like.
+  const depth = ctx.createLinearGradient(0, top, 0, FLOOR_Y);
+  depth.addColorStop(0, deepen(room.wall, 0.88));
+  depth.addColorStop(0.55, deepen(room.wall, 0.74));
+  depth.addColorStop(1, deepen(room.wall, 0.58));
+  ctx.fillStyle = depth;
   ctx.fillRect(doorX, top, DOOR.w, DOOR.h);
-  ctx.fillStyle = shade(room.wall, -0.58);
-  ctx.fillRect(doorX, top, DOOR.w, DOOR.h * 0.4);
-  ctx.fillStyle = shade(room.floor, -0.34);
-  ctx.fillRect(doorX, FLOOR_Y - 30, DOOR.w, 30);
+
+  // Its floor, running away from us and catching a little light.
+  ctx.fillStyle = deepen(room.floor, 0.58);
+  ctx.fillRect(doorX, FLOOR_Y - 34, DOOR.w, 34);
+  ctx.fillStyle = deepen(room.floor, 0.38);
+  ctx.fillRect(doorX, FLOOR_Y - 12, DOOR.w, 12);
+
+  // A wedge of light down the far jamb, so the opening has a near side and a
+  // far side instead of being uniformly dark.
+  const wedge = ctx.createLinearGradient(
+    side === 'right' ? doorX + DOOR.w : doorX, 0,
+    side === 'right' ? doorX + DOOR.w * 0.35 : doorX + DOOR.w * 0.65, 0,
+  );
+  wedge.addColorStop(0, 'rgba(255, 244, 220, 0.22)');
+  wedge.addColorStop(1, 'rgba(255, 244, 220, 0)');
+  ctx.fillStyle = wedge;
+  ctx.fillRect(doorX, top, DOOR.w, DOOR.h);
   ctx.restore();
 
-  // Lintel over the top and a jamb on the room side only — the other side is
-  // the partition itself.
-  ctx.fillStyle = litFill(ctx, top - 4, 18, shade(room.wall, 0.16), 0.2);
-  ctx.fillRect(doorX - (side === 'right' ? 10 : 0), top - 4, DOOR.w + 10, 18);
-  ctx.fillStyle = shade(room.wall, 0.08);
-  ctx.fillRect(side === 'right' ? doorX - 10 : doorX + DOOR.w, top - 4, 10, DOOR.h + 4);
+  // The casing: an architrave around the opening, mitred at the corner. The
+  // old door had a jamb on one side only, which read as a picture frame with a
+  // missing edge.
+  const CASE = 14;
+  const jambX = side === 'right' ? doorX - CASE : doorX + DOOR.w;
+  ctx.fillStyle = litFill(ctx, top - CASE, CASE + 4, shade(room.wall, 0.2), 0.24);
+  ctx.fillRect(
+    side === 'right' ? doorX - CASE : doorX, top - CASE,
+    DOOR.w + CASE, CASE + 4,
+  );
+  ctx.fillStyle = shade(room.wall, side === 'right' ? 0.02 : 0.14);
+  ctx.fillRect(jambX, top - CASE, CASE, DOOR.h + CASE);
 
-  ctx.fillStyle = shade(room.floor, 0.18);
-  ctx.fillRect(doorX, FLOOR_Y - 6, DOOR.w, 6);
+  // A shadow the casing casts onto the wall beside it.
+  ctx.fillStyle = 'rgba(60, 44, 40, 0.1)';
+  ctx.fillRect(side === 'right' ? jambX - 7 : jambX + CASE, top - CASE, 7, DOOR.h + CASE);
+
+  // The threshold, worn lighter than the floor it interrupts.
+  ctx.fillStyle = shade(room.floor, 0.2);
+  ctx.fillRect(doorX, FLOOR_Y - 7, DOOR.w, 7);
+  ctx.fillStyle = deepen(room.floor, 0.45);
+  ctx.fillRect(doorX, FLOOR_Y - 8, DOOR.w, 1.5);
+}
+
+/**
+ * A patch of floor for the pattern chips in the drawer.
+ *
+ * Given its own rectangle rather than the room's, because the chip is 94px
+ * wide and the room is 1200. Scaling the room down into the chip squashed
+ * every seam to a sixth of a pixel, which is why four of the six patterns used
+ * to look like blank cream tiles — there was nothing to choose between them.
+ */
+export function drawFloorSample(ctx, color, style, area) {
+  drawFloorPattern(ctx, color, style, area);
 }
 
 /**
@@ -109,135 +177,128 @@ function drawOpenings(ctx, room) {
  * floor recedes. It is the cheapest depth cue available and the reason the
  * floor stops reading as a stripe of colour. The colour is chosen separately,
  * so six patterns and ten colours give sixty floors.
+ *
+ * Every feature size is a fraction of the area rather than a pixel count, so
+ * the same code draws a plank floor across a 1200px room and across a 94px
+ * chip with the same number of planks in both. Only the stroke widths are
+ * absolute — a hairline has to stay a hairline at either size.
  */
-export function drawFloorSample(ctx, color, style = 'boards') {
-  drawFloorPattern(ctx, color, style);
-}
-
-function drawFloorPattern(ctx, color, style = 'boards') {
+function drawFloorPattern(ctx, color, style, area = FLOOR_AREA) {
   if (style === 'plain') return;
-
-  const depth = ROOM_H - FLOOR_Y;
-  const rows = 5;
 
   ctx.save();
   ctx.beginPath();
-  ctx.rect(0, FLOOR_Y, ROOM_W, depth);
+  ctx.rect(area.x, area.y, area.w, area.h);
   ctx.clip();
 
-  // Row boundaries, each band taller than the one behind it.
+  // Row boundaries, each band taller than the one behind it — the front of
+  // the floor is nearer, so it takes up more room.
+  const rows = 5;
   const bands = [];
-  let y = FLOOR_Y;
+  let y = area.y;
   for (let row = 0; row < rows; row += 1) {
-    const h = (depth / rows) * (0.62 + row * 0.19);
-    bands.push({ top: y, height: h });
+    const h = (area.h / rows) * (0.62 + row * 0.19);
+    bands.push({ top: y, height: h, row });
     y += h;
   }
 
-  if (style === 'carpet') drawCarpet(ctx, color, bands);
-  else if (style === 'checker') drawChecker(ctx, color, bands);
-  else if (style === 'tiles') drawTiles(ctx, color, bands, false);
-  else if (style === 'herringbone') drawHerringbone(ctx, color, bands);
-  else drawBoards(ctx, color, bands);
-
+  const painter = PATTERNS[style] ?? drawBoards;
+  painter(ctx, color, bands, area);
   ctx.restore();
 }
 
+/** The floor band of a full-size room. */
+const FLOOR_AREA = { x: 0, y: FLOOR_Y, w: ROOM_W, h: ROOM_H - FLOOR_Y };
+
+/** A horizontal rule at the back of a band, where one row meets the next. */
+function bandLine(ctx, band, area) {
+  ctx.beginPath();
+  ctx.moveTo(area.x, band.top + band.height);
+  ctx.lineTo(area.x + area.w, band.top + band.height);
+  ctx.stroke();
+}
+
 /** Long planks with staggered end joints. */
-function drawBoards(ctx, color, bands) {
+function drawBoards(ctx, color, bands, area) {
   ctx.strokeStyle = shade(color, -0.22);
   ctx.lineWidth = 2;
 
-  bands.forEach((band, row) => {
-    const bottom = band.top + band.height;
+  for (const band of bands) {
     ctx.globalAlpha = 0.7;
-    ctx.beginPath();
-    ctx.moveTo(0, bottom);
-    ctx.lineTo(ROOM_W, bottom);
-    ctx.stroke();
+    bandLine(ctx, band, area);
 
     ctx.globalAlpha = 0.45;
-    const boardW = 190 + row * 30;
-    const offset = (row % 2) * boardW * 0.5;
-    for (let x = offset; x < ROOM_W; x += boardW) {
+    const boardW = area.w * (0.158 + band.row * 0.025);
+    const offset = (band.row % 2) * boardW * 0.5;
+    for (let x = area.x + offset; x < area.x + area.w; x += boardW) {
       ctx.beginPath();
       ctx.moveTo(x, band.top);
-      ctx.lineTo(x, bottom);
+      ctx.lineTo(x, band.top + band.height);
       ctx.stroke();
     }
-  });
+  }
   ctx.globalAlpha = 1;
 }
 
 /** Square tiles with a grout line, aligned row to row. */
-function drawTiles(ctx, color, bands) {
+function drawTiles(ctx, color, bands, area) {
   ctx.strokeStyle = shade(color, -0.26);
   ctx.lineWidth = 2.5;
   ctx.globalAlpha = 0.65;
 
-  bands.forEach((band, row) => {
-    const bottom = band.top + band.height;
-    ctx.beginPath();
-    ctx.moveTo(0, bottom);
-    ctx.lineTo(ROOM_W, bottom);
-    ctx.stroke();
+  for (const band of bands) {
+    bandLine(ctx, band, area);
 
-    const tileW = 96 + row * 16;
-    for (let x = 0; x < ROOM_W; x += tileW) {
+    const tileW = area.w * (0.08 + band.row * 0.013);
+    for (let x = area.x; x < area.x + area.w; x += tileW) {
       ctx.beginPath();
       ctx.moveTo(x, band.top);
-      ctx.lineTo(x, bottom);
+      ctx.lineTo(x, band.top + band.height);
       ctx.stroke();
     }
-    // A highlight along the top of each tile, so they read as glazed.
+    // A highlight along the top of each row, so they read as glazed.
     ctx.save();
     ctx.globalAlpha = 0.18;
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, band.top + 2, ROOM_W, 3);
+    ctx.fillRect(area.x, band.top + 2, area.w, Math.max(2, area.h * 0.02));
     ctx.restore();
-  });
+  }
   ctx.globalAlpha = 1;
 }
 
 /** Two-tone squares in a chequerboard. */
-function drawChecker(ctx, color, bands) {
+function drawChecker(ctx, color, bands, area) {
   const dark = shade(color, -0.24);
 
-  bands.forEach((band, row) => {
-    const tileW = 96 + row * 16;
-    let i = row % 2;
-    for (let x = 0; x < ROOM_W; x += tileW) {
+  for (const band of bands) {
+    const tileW = area.w * (0.08 + band.row * 0.013);
+    let i = band.row % 2;
+    for (let x = area.x; x < area.x + area.w; x += tileW) {
       if (i % 2 === 0) {
         ctx.fillStyle = dark;
         ctx.fillRect(x, band.top, tileW, band.height);
       }
       i += 1;
     }
-  });
+  }
 
   ctx.strokeStyle = shade(color, -0.34);
   ctx.lineWidth = 1.5;
   ctx.globalAlpha = 0.5;
-  bands.forEach((band) => {
-    const bottom = band.top + band.height;
-    ctx.beginPath();
-    ctx.moveTo(0, bottom);
-    ctx.lineTo(ROOM_W, bottom);
-    ctx.stroke();
-  });
+  for (const band of bands) bandLine(ctx, band, area);
   ctx.globalAlpha = 1;
 }
 
 /** Short planks laid at alternating angles. */
-function drawHerringbone(ctx, color, bands) {
+function drawHerringbone(ctx, color, bands, area) {
   ctx.strokeStyle = shade(color, -0.24);
   ctx.lineWidth = 2;
   ctx.globalAlpha = 0.6;
 
-  bands.forEach((band, row) => {
+  for (const band of bands) {
     const bottom = band.top + band.height;
-    const step = 54 + row * 10;
-    for (let x = -step; x < ROOM_W + step; x += step) {
+    const step = area.w * (0.045 + band.row * 0.008);
+    for (let x = area.x - step; x < area.x + area.w + step; x += step) {
       ctx.beginPath();
       ctx.moveTo(x, bottom);
       ctx.lineTo(x + step * 0.5, band.top);
@@ -247,30 +308,35 @@ function drawHerringbone(ctx, color, bands) {
       ctx.lineTo(x + step * 0.5, bottom);
       ctx.stroke();
     }
-    ctx.beginPath();
-    ctx.moveTo(0, bottom);
-    ctx.lineTo(ROOM_W, bottom);
-    ctx.stroke();
-  });
+    bandLine(ctx, band, area);
+  }
   ctx.globalAlpha = 1;
 }
 
 /** Flecked pile, with no seams at all. */
-function drawCarpet(ctx, color, bands) {
+function drawCarpet(ctx, color, bands, area) {
   ctx.globalAlpha = 0.4;
-  bands.forEach((band, row) => {
-    const size = 3 + row * 0.8;
-    const step = 26 - row * 2;
-    for (let x = (row * 11) % step; x < ROOM_W; x += step) {
+  for (const band of bands) {
+    const step = area.w * (0.0217 - band.row * 0.0017);
+    const size = Math.max(1.5, step * 0.14);
+    for (let x = area.x + ((band.row * 11) % step); x < area.x + area.w; x += step) {
       for (let y = band.top + step / 2; y < band.top + band.height; y += step) {
         const shift = ((x / step) | 0) % 2 ? step / 2 : 0;
         ctx.fillStyle = ((x + y) | 0) % 3 ? shade(color, -0.14) : shade(color, 0.14);
         ctx.fillRect(x, y + shift, size, size);
       }
     }
-  });
+  }
   ctx.globalAlpha = 1;
 }
+
+const PATTERNS = {
+  boards: drawBoards,
+  tiles: drawTiles,
+  checker: drawChecker,
+  herringbone: drawHerringbone,
+  carpet: drawCarpet,
+};
 
 /**
  * Everything standing in the room, back to front.

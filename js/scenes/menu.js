@@ -10,7 +10,7 @@ import { button, hitTest, drawButtons, drawButton, drawPanel, drawTitle, createC
 import { drawIcon } from '../ui/icons.js';
 import { fillRR } from '../render/shapes.js';
 import { MAX_WORLDS, addWorld, removeWorld } from '../model/storage.js';
-import { createWorld } from '../model/world.js';
+import { createWorld, nextHouseName } from '../model/world.js';
 import { VERSION } from '../version.js';
 
 const COLS = 5;
@@ -68,7 +68,7 @@ export function createMenu(game) {
   }
 
   function createNew() {
-    const world = createWorld(`House ${game.worlds.length + 1}`);
+    const world = createWorld(nextHouseName(game.worlds));
     world.createdAt = Date.now();
     game.worlds = addWorld(game.worlds, world);
     game.persist();
@@ -99,7 +99,9 @@ export function createMenu(game) {
         openWorld(game.worlds[index]);
       } else if (action === 'delete') {
         const doomed = game.worlds[index];
-        confirm = createConfirm('Delete this house?', () => {
+        // Naming it matters: the dialog covers the shelf, so once it is up
+        // there is nothing left on screen to say which house she tapped.
+        confirm = createConfirm(`Delete ${doomed.name}?`, () => {
           game.worlds = removeWorld(game.worlds, doomed.id);
           thumbCache.delete(doomed.id);
           game.persist();

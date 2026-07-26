@@ -54,6 +54,22 @@ function emptyRoom(id) {
   return { id, wall: DEFAULT_WALL, floor: DEFAULT_FLOOR, floorStyle: 'boards', items: [] };
 }
 
+/**
+ * The next free "House N" name.
+ *
+ * Counting the houses on the shelf gives a name that is already taken as soon
+ * as one has been deleted — delete House 3 of ten and the replacement is a
+ * second House 10. Two identical names on the shelf are impossible to tell
+ * apart, so pick the lowest number nobody is using instead.
+ */
+export function nextHouseName(worlds) {
+  const taken = new Set((worlds ?? []).map((world) => world.name));
+  for (let n = 1; ; n += 1) {
+    const name = `House ${n}`;
+    if (!taken.has(name)) return name;
+  }
+}
+
 /** @returns {object} a brand new world, ready to save. */
 export function createWorld(name = 'My House') {
   const rooms = {};

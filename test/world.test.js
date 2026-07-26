@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   CURRENT_VERSION, ROOM_IDS, MIGRATIONS, DEFAULT_WALL, DEFAULT_FLOOR,
   createWorld, migrateWorld, repairWorld, placeItem, placeCharacter,
-  frontZ, backZ,
+  frontZ, backZ, nextHouseName,
 } from '../js/model/world.js';
 
 test('a new world has all four rooms, empty', () => {
@@ -120,4 +120,25 @@ test('bringing to front and sending back clear every other layer', () => {
 
   entries[2].z = backZ(entries);
   assert.ok(entries[2].z < entries[0].z && entries[2].z < entries[1].z);
+});
+
+test('a new house never takes a name already on the shelf', () => {
+  // Counting the shelf gave the replacement for a deleted House 3 the name
+  // "House 10" when a House 10 already existed.
+  const worlds = [1, 2, 3, 4].map((n) => createWorld(`House ${n}`));
+  const afterDelete = worlds.filter((w) => w.name !== 'House 2');
+
+  assert.equal(nextHouseName(afterDelete), 'House 2', 'reuses the freed number');
+  assert.equal(nextHouseName(worlds), 'House 5', 'otherwise counts on');
+  assert.equal(nextHouseName([]), 'House 1', 'the first house');
+});
+
+test('house names stay unique however many are made and deleted', () => {
+  let worlds = [];
+  for (let i = 0; i < 10; i += 1) worlds.push(createWorld(nextHouseName(worlds)));
+  worlds = worlds.filter((w) => !['House 3', 'House 7'].includes(w.name));
+  for (let i = 0; i < 2; i += 1) worlds.push(createWorld(nextHouseName(worlds)));
+
+  const names = worlds.map((w) => w.name);
+  assert.equal(new Set(names).size, names.length, 'no two houses share a name');
 });
