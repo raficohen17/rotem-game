@@ -186,11 +186,12 @@ function drawTitle(ctx, design, x, y, w, h) {
     fillRR(ctx, x + 4, top - padY, w - 8, blockH + padY * 2, 4, ink);
     fillRR(ctx, x + 4, top - padY, w - 8, 4, 2, shade(ink, 0.4));
   } else if (style === 'boxed') {
-    ctx.save();
-    ctx.globalAlpha = 0.55;
+    // Opaque, and tinted from the cover rather than a flat grey: a printed
+    // label sits on the cover, where a translucent panel let the pattern show
+    // through it as a smear.
+    const bg = effectiveBackground(design);
     fillRR(ctx, cx - widest / 2 - padX, top - padY, widest + padX * 2,
-      blockH + padY * 2, 5, plate);
-    ctx.restore();
+      blockH + padY * 2, 5, blend(bg, contrastTo(bg), 0.86));
     ctx.strokeStyle = ink;
     ctx.lineWidth = 2.5;
     roundRect(ctx, cx - widest / 2 - padX + 4, top - padY + 4,
@@ -199,7 +200,7 @@ function drawTitle(ctx, design, x, y, w, h) {
   }
 
   const textInk = style === 'banner' ? contrastTo(ink) : ink;
-  const halo = style === 'plain' || arch ? plate : null;
+  const halo = (style === 'plain' || arch) && needsHalo(design) ? plate : null;
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
@@ -244,16 +245,58 @@ function plateColour(ink) {
 }
 
 /** Black or white, whichever the given colour can carry. */
-function contrastTo(color) {
+export function contrastTo(color) {
   return luminance(color) > 0.55 ? '#2e2a30' : '#f7f2e8';
 }
 
-function luminance(hex) {
+export function luminance(hex) {
   const v = parseInt(hex.slice(1), 16);
   const r = ((v >> 16) & 255) / 255;
   const g = ((v >> 8) & 255) / 255;
   const b = (v & 255) / 255;
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Halfway between two colours, as the eye sees a pattern over a cover. */
+function blend(a, b, amount = 0.5) {
+  const av = parseInt(a.slice(1), 16);
+  const bv = parseInt(b.slice(1), 16);
+  const mix = (shift) => {
+    const ac = (av >> shift) & 255;
+    const bc = (bv >> shift) & 255;
+    return Math.round(ac + (bc - ac) * amount);
+  };
+  const value = (mix(16) << 16) | (mix(8) << 8) | mix(0);
+  return `#${value.toString(16).padStart(6, '0')}`;
+}
+
+/**
+ * What the title is actually sitting on.
+ *
+ * A patterned cover reads as somewhere between its own colour and the
+ * pattern's, so contrast has to be judged against the mixture rather than
+ * against the cover alone.
+ */
+export function effectiveBackground(design) {
+  const cover = COVER_COLORS[design.cover];
+  if (COVER_PATTERNS[design.pattern] === 'plain') return cover;
+  return blend(cover, COVER_COLORS[design.patternColor], 0.35);
+}
+
+/** Below this the ink and its background are too close to tell apart. */
+export const CONTRAST_FLOOR = 0.34;
+
+/**
+ * Whether a title needs a glow behind it.
+ *
+ * The glow is insurance, not decoration. Cream lettering on a charcoal cover
+ * already separates perfectly, and adding a dark glow underneath it only
+ * smudged the area — which is what made dark covers look murky. So the glow
+ * appears exactly when the ink and its background are too close.
+ */
+export function needsHalo(design) {
+  const ink = COVER_COLORS[design.titleColor];
+  return Math.abs(luminance(ink) - luminance(effectiveBackground(design))) < CONTRAST_FLOOR;
 }
 
 /**
