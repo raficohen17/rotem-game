@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   PART_COUNTS, PART_KEYS, EDITABLE_PARTS, SKIN_TONES, HAIR_COLORS, CLOTH_COLORS,
   LIP_COLORS, createCharacterSpec, clampSpec, nextPart, countCombinations,
+  LOOKS, applyLook,
 } from '../js/model/character.js';
 
 /** The agreed floor for how many different characters can be made. */
@@ -112,4 +113,63 @@ test('a character saved before the nose existed still loads', () => {
   assert.equal(safe.top, 1);
   assert.ok(safe.nose >= 0 && safe.nose < PART_COUNTS.nose, 'and a nose is filled in');
   assert.ok(safe.extraColor >= 0 && safe.extraColor < PART_COUNTS.extraColor);
+});
+
+// --- layers, held items and looks -----------------------------------------
+
+test('a character saved before layers keeps every choice she had', () => {
+  // The exact case on Rotem's phone tonight: her characters predate layers,
+  // socks and held items entirely.
+  const before = {
+    build: 4, face: 2, skin: 1, hair: 7, hairColor: 3, hairpin: 2,
+    brows: 5, eyes: 3, eyeColor: 4, nose: 5, mouth: 6, mouthColor: 2,
+    top: 9, topColor: 6, bottom: 3, bottomColor: 1,
+    shoes: 5, shoesColor: 7, extra: 4, extraColor: 8,
+  };
+  const after = clampSpec(before);
+
+  for (const [key, value] of Object.entries(before)) {
+    assert.equal(after[key], value, `${key} survived`);
+  }
+  assert.equal(after.layer, 0, 'and she wears no layer');
+  assert.equal(after.held, 0, 'and holds nothing');
+  assert.equal(after.socks, 0, 'and has bare legs');
+});
+
+test('every look produces a valid character', () => {
+  for (const look of LOOKS) {
+    const spec = applyLook(createCharacterSpec(), look.id);
+    for (const key of PART_KEYS) {
+      assert.ok(spec[key] >= 0 && spec[key] < PART_COUNTS[key],
+        `${look.id}: ${key} = ${spec[key]} is in range`);
+    }
+  }
+});
+
+test('the three characters the change is judged on exist', () => {
+  // The acceptance test, as a test: if these ids go away, the looks that make
+  // a schoolgirl, a dreamer and a girl with red braids went away with them.
+  for (const id of ['school', 'dreamer', 'orchard']) {
+    assert.ok(LOOKS.some((look) => look.id === id), `the ${id} look exists`);
+  }
+});
+
+test('the looks differ from one another in more than colour', () => {
+  // Six looks that share a silhouette are one look in six colourways.
+  const shapes = LOOKS.map((look) => [
+    look.spec.build, look.spec.hair, look.spec.top, look.spec.bottom,
+  ].join(':'));
+  assert.equal(new Set(shapes).size, LOOKS.length, 'each look has its own shape');
+});
+
+test('a look leaves untouched parts alone', () => {
+  const mine = { ...createCharacterSpec(), eyeColor: 6 };
+  const dressed = applyLook(mine, 'school');
+  assert.equal(dressed.top, LOOKS.find((l) => l.id === 'school').spec.top);
+  assert.ok(dressed.eyeColor >= 0, 'eye colour is still valid');
+});
+
+test('an unknown look leaves the character as she was', () => {
+  const mine = createCharacterSpec();
+  assert.deepEqual(applyLook(mine, 'nonexistent'), clampSpec(mine));
 });

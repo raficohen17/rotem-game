@@ -1,10 +1,10 @@
 ## 1. Model
 
-- [ ] 1.1 Add `layer` and `layerColor` parts, with `none` at index 0
-- [ ] 1.2 Add `held` (book, wand, basket, flowers, teddy, none) as its own part
-- [ ] 1.3 Add `socks` and `socksColor`, chosen independently of shoes
-- [ ] 1.4 Define the looks table: each look writes several parts at once
-- [ ] 1.5 Test that a character saved before layers loads with every choice intact
+- [x] 1.1 Add `layer` and `layerColor` parts, with `none` at index 0
+- [x] 1.2 Add `held` (book, wand, basket, flowers, teddy, none) as its own part
+- [x] 1.3 Add `socks` and `socksColor`, chosen independently of shoes
+- [x] 1.4 Define the looks table: each look writes several parts at once
+- [x] 1.5 Test that a character saved before layers loads with every choice intact
 
 ## 2. Drawing
 
