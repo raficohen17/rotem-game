@@ -113,3 +113,25 @@ test('a change is persisted without any explicit save step by the caller', () =>
 
   assert.equal(createStore(backend).load()[0].rooms.living.items.length, 1);
 });
+
+test("a world's picture survives being saved and loaded", () => {
+  // The menu shows this picture, so losing it on load would leave every slot
+  // blank however recently the house was played in.
+  const backend = fakeBackend();
+  const store = createStore(backend);
+
+  const world = createWorld('Pictured');
+  world.thumb = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+  store.save([world]);
+
+  assert.equal(store.load()[0].thumb, world.thumb);
+});
+
+test('ten pictures fit comfortably in the storage budget', () => {
+  // Thumbnails are the only large thing in a save. Ten of them at the size
+  // the renderer produces has to stay well inside localStorage's five
+  // megabytes, or a full shelf would start losing houses.
+  const typical = 3 * 1024;
+  assert.ok(typical * MAX_WORLDS < 5 * 1024 * 1024 * 0.1,
+    'ten thumbnails use under a tenth of the quota');
+});

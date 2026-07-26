@@ -17,7 +17,7 @@ import { button, hitTest, drawButtons, drawTitle, COLORS, TOUCH } from '../ui/wi
 import { fillRR, fillEllipse, fillPoly, roundRect, shade } from '../render/shapes.js';
 import { litFill, sideLit, woodGrain, within } from '../render/materials.js';
 import {
-  drawRoomShell, drawRoomContents, ROOM_W, ROOM_H, FLOOR_Y, renderHouseThumbnail,
+  drawRoomShell, drawRoomContents, ROOM_W, ROOM_H, FLOOR_Y,
 } from '../render/room.js';
 import { HOUSE_LAYOUT } from '../model/world.js';
 import { beginWalk, STAIR_X, LINKS, HOUSE_GRID } from '../model/travel.js';
@@ -123,10 +123,7 @@ export function createHouse(game) {
       if (!hit) return;
 
       if (hit.id === 'back') {
-        // The thumbnail is refreshed on the way out, so the menu always shows
-        // the house as Rotem last left it.
-        game.world.thumb = renderHouseThumbnail(game.world, HOUSE_LAYOUT, game.catalog);
-        game.persist();
+        // goMenu captures the picture on the way out, whatever route is taken.
         game.goMenu();
         return;
       }

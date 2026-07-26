@@ -10,6 +10,8 @@ import { createMenu } from './scenes/menu.js';
 import { createHouse } from './scenes/house.js';
 import { createArtSheet } from './scenes/artsheet.js';
 import { stepWalk } from './model/travel.js';
+import { renderHouseThumbnail } from './render/room.js';
+import { HOUSE_LAYOUT } from './model/world.js';
 import { ROOM_W } from './render/room.js';
 
 const canvas = document.getElementById('stage');
@@ -73,12 +75,32 @@ const game = {
     game.pendingSave = true;
   },
 
+  /**
+   * Re-renders the picture of the house shown in the menu.
+   *
+   * This used to happen only when leaving the house by its home button, so a
+   * world closed any other way — or simply never left — showed a blank slot on
+   * the shelf. It now refreshes on a timer while a world is open, which costs a
+   * small canvas render every few seconds and means the menu always shows the
+   * house as it currently stands.
+   */
+  captureThumb() {
+    if (!game.world || !game.catalog) return;
+    game.world.thumb = renderHouseThumbnail(game.world, HOUSE_LAYOUT, game.catalog);
+    game.pendingSave = true;
+  },
+
   openWorld(world) {
     game.world = world;
     game.setScene(createHouse(game));
+    // A brand new world gets a picture straight away, so its slot is never
+    // blank even if she backs straight out again.
+    game.captureThumb();
   },
 
   goMenu() {
+    game.captureThumb();
+    game.persist();
     game.world = null;
     game.setScene(createMenu(game));
   },
@@ -102,6 +124,14 @@ function frame(now) {
     game.pendingSave = false;
     game.saveTimer = 0;
     game.persist();
+  }
+
+  // Keep the menu's picture of the house roughly current, so closing the app
+  // mid-play still leaves a recognisable slot on the shelf.
+  game.thumbTimer = (game.thumbTimer ?? 0) + dt;
+  if (game.world && game.thumbTimer > 5) {
+    game.thumbTimer = 0;
+    game.captureThumb();
   }
 
   // Characters keep walking whichever scene is showing, so a journey started
