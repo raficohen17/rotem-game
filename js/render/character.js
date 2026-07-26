@@ -155,6 +155,7 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   paperLayer(ctx, () => onHead(() => drawBackHair(ctx, spec.hair, hairColor)), 0.8);
   paperLayer(ctx, () => {
     drawLegs(ctx, skin, stride);
+    drawSocks(ctx, spec.socks, CLOTH_COLORS[spec.socksColor], stride);
     drawShoes(ctx, spec.shoes, CLOTH_COLORS[spec.shoesColor], stride);
   }, 0.7);
 
@@ -174,7 +175,13 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
     }
   });
 
+  // The layer always goes over the top, whatever either of them is. Fixing
+  // the order rather than making it a choice is what keeps an outfit
+  // coherent — a cardigan under a dress is never what anyone meant.
+  paperLayer(ctx, () => drawLayer(ctx, spec.layer, CLOTH_COLORS[spec.layerColor], sway));
+
   paperLayer(ctx, () => drawHands(ctx, skin, sway), 0.6);
+  paperLayer(ctx, () => drawHeld(ctx, spec.held, sway), 0.5);
   onHead(() => drawHead(ctx, skin, spec, shape, hairColor, blinking));
 
   ctx.restore();
@@ -597,16 +604,43 @@ function hairSheen(ctx, color, width = 44, y = -34) {
   ctx.restore();
 }
 
-/** A lock of hair with a curled tip, used by most of the long styles. */
+/**
+ * A lock of hair with a curled tip, used by most of the long styles.
+ *
+ * The strand lines matter more than the silhouette does: without them hair is
+ * a flat block of colour, which is most of why it read as a shape rather than
+ * as hair.
+ */
 function tress(ctx, x, top, length, width, color, curl = 1) {
+  const path = () => {
+    ctx.beginPath();
+    ctx.moveTo(x - width / 2, top);
+    ctx.quadraticCurveTo(x - width * 0.75, top + length * 0.6, x - width * 0.2 * curl, top + length);
+    ctx.quadraticCurveTo(x + width * 0.5 * curl, top + length * 1.08, x + width * 0.7, top + length * 0.72);
+    ctx.quadraticCurveTo(x + width * 0.62, top + length * 0.3, x + width / 2, top);
+    ctx.closePath();
+  };
+
   ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(x - width / 2, top);
-  ctx.quadraticCurveTo(x - width * 0.75, top + length * 0.6, x - width * 0.2 * curl, top + length);
-  ctx.quadraticCurveTo(x + width * 0.5 * curl, top + length * 1.08, x + width * 0.7, top + length * 0.72);
-  ctx.quadraticCurveTo(x + width * 0.62, top + length * 0.3, x + width / 2, top);
-  ctx.closePath();
+  path();
   ctx.fill();
+
+  ctx.save();
+  path();
+  ctx.clip();
+  // The underside falls into shadow, and strands follow the fall of the lock.
+  ctx.fillStyle = shade(color, -0.18);
+  ctx.fillRect(x - width, top + length * 0.55, width * 2, length);
+  ctx.strokeStyle = shade(color, -0.24);
+  ctx.lineWidth = 2.2;
+  for (let i = -1; i <= 1; i += 1) {
+    const sx = x + i * width * 0.26;
+    ctx.beginPath();
+    ctx.moveTo(sx, top + 4);
+    ctx.quadraticCurveTo(sx - width * 0.3 * curl, top + length * 0.6, sx + width * 0.12 * curl, top + length);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /** Drawn before the body, so it falls behind the shoulders. */
@@ -770,7 +804,26 @@ function drawFrontHair(ctx, style, color, shape) {
       break;
   }
 
+  hairStrands(ctx, color);
   hairSheen(ctx, color);
+}
+
+/** Fine lines radiating from the parting, so the crown is not a flat cap. */
+function hairStrands(ctx, color) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, -6, HEAD_R + 6, Math.PI * 0.96, Math.PI * 2.04);
+  ctx.clip();
+  ctx.strokeStyle = shade(color, -0.2);
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.7;
+  for (let i = -3; i <= 3; i += 1) {
+    ctx.beginPath();
+    ctx.moveTo(-14, -HEAD_R - 2);
+    ctx.quadraticCurveTo(i * 14, -HEAD_R * 0.5, i * 21, -6);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 // --------------------------------------------------------------- clothing
@@ -825,8 +878,10 @@ function garment(ctx, color, options = {}) {
   ctx.quadraticCurveTo(0, top + 14, sw * neck, top + 4);
   ctx.quadraticCurveTo(sw - 2, top, sw, top + 14);
   ctx.quadraticCurveTo(ww, waist - 12, ww, waist);
-  ctx.quadraticCurveTo(hw, bottom - 14, hw, bottom);
-  ctx.quadraticCurveTo(0, bottom + 7, -hw, bottom);
+  ctx.quadraticCurveTo(hw, bottom - 14, hw, bottom + 2);
+  // The hem dips in the middle and lifts at the sides, the way cloth hangs.
+  ctx.quadraticCurveTo(hw * 0.45, bottom + 12, 0, bottom + 9);
+  ctx.quadraticCurveTo(-hw * 0.45, bottom + 12, -hw, bottom + 2);
   ctx.quadraticCurveTo(-hw, bottom - 14, -ww, waist);
   ctx.quadraticCurveTo(-ww, waist - 12, -sw, top + 14);
   ctx.closePath();
@@ -961,7 +1016,10 @@ function skirt(ctx, color, hem, flare) {
   ctx.moveTo(-w, B.hipY - 14);
   ctx.lineTo(w, B.hipY - 14);
   ctx.quadraticCurveTo(flare, hem - 16, flare, hem);
-  ctx.quadraticCurveTo(0, hem + 14, -flare, hem);
+  // A scalloped hem: three shallow dips, so a skirt hangs instead of ending.
+  ctx.quadraticCurveTo(flare * 0.62, hem + 15, flare * 0.34, hem + 5);
+  ctx.quadraticCurveTo(0, hem + 18, -flare * 0.34, hem + 5);
+  ctx.quadraticCurveTo(-flare * 0.62, hem + 15, -flare, hem);
   ctx.quadraticCurveTo(-flare, hem - 16, -w, B.hipY - 14);
   ctx.closePath();
   ctx.fill();
@@ -1159,6 +1217,242 @@ function drawHairpin(ctx, style, color, shape) {
     default:
       break;
   }
+}
+
+// ---------------------------------------------------------- socks & legs
+
+/** Runs a draw call in one leg's space, swung by the walk. */
+function onLeg(ctx, side, stride, draw) {
+  ctx.save();
+  ctx.translate(side * B.legX, B.hipY - 6);
+  ctx.rotate(stride * 0.34 * side);
+  draw(Math.abs(B.hipY) - 4);
+  ctx.restore();
+}
+
+/**
+ * Socks and tights, between the leg and the shoe.
+ *
+ * Their own part rather than a variant of shoes, because knee socks under a
+ * pleated skirt are half a school uniform and bare legs in sandals are the
+ * other half of a summer one.
+ */
+function drawSocks(ctx, style, color, stride = 0) {
+  if (style === 0) return;
+
+  for (const side of [-1, 1]) {
+    onLeg(ctx, side, stride, (length) => {
+      const w = B.legW + 2;
+      const top = {
+        1: length - 34, // ankle
+        2: length * 0.42, // knee
+        3: 0, // tights
+        4: length * 0.42, // striped knee
+        5: length * 0.5, // slouch
+      }[style] ?? length - 34;
+
+      ctx.fillStyle = litFill(ctx, top, length - top, color, 0.12);
+      fillRR(ctx, -w / 2, top, w, length - top, w * 0.3, ctx.fillStyle);
+
+      if (style === 4) {
+        for (let y = top + 8; y < length - 12; y += 16) {
+          fillRR(ctx, -w / 2, y, w, 6, 2, shade(color, 0.4));
+        }
+      }
+      if (style === 5) {
+        // Bunched at the ankle: a couple of folds where it slouches.
+        for (const y of [length - 26, length - 14]) {
+          fillRR(ctx, -w / 2 - 2, y, w + 4, 9, 4, shade(color, -0.14));
+        }
+      }
+      // A turned cuff, which is what tells a sock from a painted leg.
+      if (style !== 3) fillRR(ctx, -w / 2 - 1, top, w + 2, 8, 4, shade(color, 0.28));
+    });
+  }
+}
+
+// --------------------------------------------------------------- layering
+
+/**
+ * A garment worn over the top: cardigan, coat, cloak, apron, pinafore, gilet.
+ *
+ * This exists because a jumper and the cardigan over it were competing for one
+ * slot, so nothing could be layered and nothing looked put together. Index 0
+ * is nothing at all.
+ */
+function drawLayer(ctx, style, color, sway) {
+  if (style === 0) return;
+  const top = B.torsoTop - 7;
+
+  switch (style) {
+    case 1: { // cardigan, open down the front
+      sleeve(ctx, -1, 66, color, sway, 9);
+      sleeve(ctx, 1, 66, color, sway, 9);
+      openFront(ctx, color, top, B.hipY + 16);
+      break;
+    }
+    case 2: { // coat, longer with a collar and buttons
+      sleeve(ctx, -1, 72, color, sway, 11);
+      sleeve(ctx, 1, 72, color, sway, 11);
+      openFront(ctx, color, top, B.hipY + 44, 0.5);
+      collar(ctx, color);
+      for (let i = 0; i < 3; i += 1) {
+        fillCircle(ctx, -7, top + 40 + i * 22, 3.4, shade(color, -0.34));
+      }
+      break;
+    }
+    case 3: { // cloak, hanging open so the outfit underneath still shows
+      const hem = B.hipY + 62;
+      const spread = B.hipW + 42;
+
+      for (const side of [-1, 1]) {
+        ctx.fillStyle = litFill(ctx, top, hem - top, color, 0.14);
+        ctx.beginPath();
+        ctx.moveTo(side * (B.shoulderW + 8), top + 12);
+        ctx.quadraticCurveTo(side * spread, B.waistY, side * spread, hem);
+        ctx.quadraticCurveTo(side * spread * 0.6, hem + 14, side * 14, hem + 4);
+        ctx.lineTo(side * 12, top + 22);
+        ctx.quadraticCurveTo(side * 30, top + 4, side * (B.shoulderW + 8), top + 12);
+        ctx.closePath();
+        ctx.fill();
+        strokeLine(ctx, side * 26, top + 30, side * spread * 0.72, hem - 12,
+          shade(color, -0.16), 3);
+      }
+
+      // A collar across the shoulders and the clasp that holds it.
+      fillRR(ctx, -B.shoulderW - 6, top + 2, (B.shoulderW + 6) * 2, 18, 8,
+        shade(color, -0.12));
+      fillCircle(ctx, 0, top + 11, 7, shade(color, 0.42));
+      break;
+    }
+    case 4: { // apron, tied over whatever is underneath
+      const hem = B.hipY + 30;
+      ctx.fillStyle = shade(color, 0.05);
+      fillRR(ctx, -B.waistW - 2, top + 30, (B.waistW + 2) * 2, 46, 5, ctx.fillStyle);
+      ctx.beginPath();
+      ctx.moveTo(-B.waistW - 6, B.waistY - 6);
+      ctx.lineTo(B.waistW + 6, B.waistY - 6);
+      ctx.quadraticCurveTo(B.hipW + 12, hem - 14, B.hipW + 10, hem);
+      ctx.quadraticCurveTo(0, hem + 12, -B.hipW - 10, hem);
+      ctx.quadraticCurveTo(-B.hipW - 12, hem - 14, -B.waistW - 6, B.waistY - 6);
+      ctx.closePath();
+      ctx.fill();
+      // Straps up over the shoulders and a tie at the waist.
+      fillRR(ctx, -20, top + 12, 8, 24, 3, color);
+      fillRR(ctx, 12, top + 12, 8, 24, 3, color);
+      fillRR(ctx, -B.waistW - 8, B.waistY - 10, (B.waistW + 8) * 2, 9, 4,
+        shade(color, -0.18));
+      break;
+    }
+    case 5: { // pinafore: a dress worn over a blouse
+      const hem = B.hipY + 48;
+      ctx.fillStyle = litFill(ctx, top, hem - top, color, 0.12);
+      fillRR(ctx, -B.waistW - 4, top + 26, (B.waistW + 4) * 2, 52, 6, ctx.fillStyle);
+      skirt(ctx, color, hem, B.hipW + 30);
+      fillRR(ctx, -22, top + 6, 11, 32, 4, color);
+      fillRR(ctx, 11, top + 6, 11, 32, 4, color);
+      fillCircle(ctx, -16, top + 12, 3, shade(color, -0.3));
+      fillCircle(ctx, 16, top + 12, 3, shade(color, -0.3));
+      break;
+    }
+    default: { // gilet: padded, no sleeves
+      openFront(ctx, color, top + 6, B.hipY + 12);
+      for (let i = 0; i < 3; i += 1) {
+        const y = top + 26 + i * 22;
+        strokeLine(ctx, -B.shoulderW - 4, y, -10, y, shade(color, -0.18), 3);
+        strokeLine(ctx, 10, y, B.shoulderW + 4, y, shade(color, -0.18), 3);
+      }
+    }
+  }
+}
+
+/** Two front panels with a gap between them, for anything worn open. */
+function openFront(ctx, color, top, bottom, lapel = 0) {
+  const sw = B.shoulderW + 7;
+  const hw = B.hipW + 7;
+
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = litFill(ctx, top, bottom - top, color, 0.12);
+    ctx.beginPath();
+    ctx.moveTo(side * sw, top + 14);
+    ctx.quadraticCurveTo(side * sw, top, side * sw * 0.5, top + 2);
+    ctx.lineTo(side * 9, top + 30);
+    ctx.lineTo(side * 9, bottom);
+    ctx.quadraticCurveTo(side * hw * 0.6, bottom + 8, side * hw, bottom - 4);
+    ctx.quadraticCurveTo(side * hw, B.waistY, side * sw, top + 14);
+    ctx.closePath();
+    ctx.fill();
+
+    if (lapel > 0) {
+      fillPoly(ctx, [
+        side * sw * 0.55, top + 2, side * 9, top + 30 + lapel * 24, side * 9, top + 26,
+      ], shade(color, 0.2));
+    }
+  }
+}
+
+// ----------------------------------------------------------- held  items
+
+/**
+ * Something in her hand.
+ *
+ * Attached to the arm transform rather than to the body, so it swings with her
+ * as she walks. A character holding something reads as a character doing
+ * something, which no amount of clothing achieves.
+ */
+function drawHeld(ctx, style, sway) {
+  if (style === 0) return;
+
+  ctx.save();
+  ctx.translate(B.armX, B.shoulderY);
+  ctx.rotate(armAngle(sway, 1));
+  ctx.translate(0, B.armLen + 2);
+
+  switch (style) {
+    case 1: // a book, held against the hip
+      ctx.rotate(-0.2);
+      fillRR(ctx, -8, -6, 30, 40, 3, litFill(ctx, -6, 40, '#8a4a52', 0.16));
+      fillRR(ctx, -8, -6, 8, 40, 3, shade('#8a4a52', -0.3));
+      fillRR(ctx, 0, -3, 20, 34, 2, PAPER);
+      break;
+    case 2: // a wand
+      ctx.rotate(0.42);
+      capsule(ctx, 0, -34, 24, 6, litFill(ctx, -34, 58, '#7d5236', 0.2));
+      fillCircle(ctx, 0, -34, 4.5, shade('#7d5236', 0.4));
+      break;
+    case 3: // a basket
+      fillPoly(ctx, [-20, 4, 20, 4, 15, 30, -15, 30], '#c2996b');
+      for (let i = -2; i <= 2; i += 1) strokeLine(ctx, i * 8, 6, i * 6, 28, shade('#c2996b', -0.25), 2);
+      ctx.strokeStyle = '#c2996b';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 4, 16, Math.PI, 0);
+      ctx.stroke();
+      break;
+    case 4: // a posy of flowers
+      for (const [dx, col] of [[-8, '#e0708a'], [0, '#f0c86a'], [8, '#c98ad0']]) {
+        strokeLine(ctx, dx * 0.4, 8, dx, -22, '#6f9463', 3);
+        for (let i = 0; i < 5; i += 1) {
+          const a = (i / 5) * Math.PI * 2;
+          fillCircle(ctx, dx + Math.cos(a) * 5, -22 + Math.sin(a) * 5, 4, col);
+        }
+        fillCircle(ctx, dx, -22, 3, '#f6f1e8');
+      }
+      break;
+    default: { // a small teddy, carried by one arm
+      const fur = '#c2996b';
+      fillCircle(ctx, -6, 22, 7, fur);
+      fillCircle(ctx, 10, 22, 7, fur);
+      fillEllipse(ctx, 2, 16, 12, 13, fur);
+      fillCircle(ctx, 2, 0, 11, fur);
+      fillCircle(ctx, -6, -8, 5, fur);
+      fillCircle(ctx, 10, -8, 5, fur);
+      fillEllipse(ctx, 2, 3, 5, 4, shade(fur, 0.35));
+      fillCircle(ctx, -2, -2, 2, DARK);
+      fillCircle(ctx, 6, -2, 2, DARK);
+    }
+  }
+  ctx.restore();
 }
 
 // ------------------------------------------------------------------ extra

@@ -8,19 +8,19 @@
 
 ## 2. Drawing
 
-- [ ] 2.1 Draw layers over the top in a fixed order: bottom, top, layer, accessories
-- [ ] 2.2 Cardigan, coat, cloak, apron and pinafore
-- [ ] 2.3 Held items, attached to the hand and rotating with the arm swing
-- [ ] 2.4 Socks and tights, between the leg and the shoe
-- [ ] 2.5 Hair texture: strand lines following the silhouette, shaded underside
-- [ ] 2.6 Give hems a drape rather than a straight horizontal cut
+- [x] 2.1 Draw layers over the top in a fixed order: bottom, top, layer, accessories
+- [x] 2.2 Cardigan, coat, cloak, apron and pinafore
+- [x] 2.3 Held items, attached to the hand and rotating with the arm swing
+- [x] 2.4 Socks and tights, between the leg and the shoe
+- [x] 2.5 Hair texture: strand lines following the silhouette, shaded underside
+- [x] 2.6 Give hems a drape rather than a straight horizontal cut
 
 ## 3. The three characters
 
-- [ ] 3.1 Hermione: volume in the brown hair, uniform as a set, knee socks, a book
-- [ ] 3.2 Luna: long pale wavy hair, an odd accessory, a softer palette
-- [ ] 3.3 Anne: red braids, pinafore over a blouse, straw hat, stronger freckles
-- [ ] 3.4 Check each against the spec's scenarios by eye, side by side
+- [x] 3.1 Hermione: volume in the brown hair, uniform as a set, knee socks, a book
+- [x] 3.2 Luna: long pale wavy hair, an odd accessory, a softer palette
+- [x] 3.3 Anne: red braids, pinafore over a blouse, straw hat, stronger freckles
+- [x] 3.4 Check each against the spec's scenarios by eye, side by side
 
 ## 4. Creator
 
