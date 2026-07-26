@@ -15,7 +15,7 @@
 
 import { PLACEHOLDERS } from './placeholders.js';
 import { paperLayer } from './shapes.js';
-import { drawBook } from './book.js';
+import { drawBook, drawBookFlat } from './book.js';
 
 const DRAWINGS_DIR = 'assets/drawings';
 
@@ -75,7 +75,11 @@ export function drawItem(ctx, placed, def) {
   ctx.save();
   ctx.translate(placed.x, placed.y);
   ctx.scale(placed.flip ? -placed.scale : placed.scale, placed.scale);
-  drawItemArt(ctx, def, placed.tint, placed.design);
+  if (placed.lying) {
+    drawBookFlat(ctx, placed.design, placed.w ?? def.w, placed.h ?? def.h);
+  } else {
+    drawItemArt(ctx, def, placed.tint, placed.design);
+  }
   ctx.restore();
 }
 

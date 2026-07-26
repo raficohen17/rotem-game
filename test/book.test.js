@@ -84,3 +84,93 @@ test('every cover and ink pairing is legible one way or the other', () => {
     }
   }
 });
+
+test('a book laid flat keeps its orientation through a save', async () => {
+  const { migrateWorld, createWorld, placeItem } = await import('../js/model/world.js');
+
+  const world = createWorld('Pile');
+  const flat = placeItem('book', 400, 460);
+  flat.design = { ...createBook(), title: 'Under the pile' };
+  flat.lying = true;
+  flat.w = 117;
+  flat.h = 27;
+  world.rooms.living.items.push(flat);
+
+  const restored = migrateWorld(JSON.parse(JSON.stringify(world))).rooms.living.items[0];
+  assert.equal(restored.lying, true, 'still lying down');
+  assert.equal(restored.w, 117);
+  assert.equal(restored.h, 27);
+});
+
+test('a standing book gains no orientation fields', async () => {
+  const { migrateWorld, createWorld, placeItem } = await import('../js/model/world.js');
+
+  const world = createWorld('Shelf');
+  const upright = placeItem('book', 400, 460);
+  upright.design = createBook();
+  world.rooms.living.items.push(upright);
+
+  const restored = migrateWorld(JSON.parse(JSON.stringify(world))).rooms.living.items[0];
+  assert.equal('lying' in restored, false);
+  assert.equal('w' in restored, false);
+});
+
+test('a flat book is measured by its own size, not the catalog entry', async () => {
+  const { itemBounds } = await import('../js/model/geometry.js');
+
+  const def = { w: 96, h: 136 };
+  const upright = { x: 400, y: 460, scale: 1 };
+  const flat = { x: 400, y: 460, scale: 1, w: 117, h: 27 };
+
+  assert.equal(itemBounds(upright, def).h, 136);
+  assert.equal(itemBounds(flat, def).h, 27, 'a pile is only as tall as the books in it');
+  assert.equal(itemBounds(flat, def).w, 117);
+});
+
+test('books dropped on each other form a flat pile, not a tower', async () => {
+  const { findSurface } = await import('../js/model/geometry.js');
+  const { placeItem } = await import('../js/model/world.js');
+
+  const defs = { table: { w: 300, h: 145 }, book: { w: 96, h: 136 } };
+  const lookup = (id) => defs[id];
+  const flatH = Math.max(22, defs.book.w * 0.28);
+  const lieFlat = (e) => {
+    e.lying = true;
+    e.w = defs.book.h * 0.86;
+    e.h = flatH;
+  };
+
+  const items = [placeItem('table', 600, 500)];
+  const drop = (aimY) => {
+    const b = placeItem('book', 600, aimY);
+    const host = findSurface(b, items, lookup, 600, aimY, defs.book);
+    if (host) {
+      b.y = host.top;
+      b.z = (host.item.z ?? 0) + 1;
+      if (host.item.item === 'book') {
+        if (!host.item.lying) lieFlat(host.item);
+        lieFlat(b);
+        b.y = host.item.y - (host.item.h ?? defs.book.h);
+      }
+    }
+    items.push(b);
+    return b;
+  };
+
+  let last = drop(500 - defs.table.h);
+  const pile = [last];
+  for (let i = 0; i < 3; i += 1) {
+    last = drop(last.y - (last.h ?? defs.book.h));
+    pile.push(last);
+  }
+
+  assert.ok(pile.every((b) => b.lying), 'every book in a pile is lying down');
+  assert.deepEqual(pile.map((b) => b.y), [355, 355 - flatH, 355 - flatH * 2, 355 - flatH * 3],
+    'each sits exactly one flat book above the last');
+  assert.deepEqual(pile.map((b) => b.z), [1, 2, 3, 4], 'and one layer above it');
+
+  // A pile of four is barely taller than one upright book — a tower of four
+  // upright books would be four times as tall.
+  const pileHeight = pile.length * flatH;
+  assert.ok(pileHeight < defs.book.h * 1.1, 'a pile is short, as a pile should be');
+});

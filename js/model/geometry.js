@@ -20,8 +20,10 @@ export const MAX_SCALE = 2.2;
  * @param {{w: number, h: number}} def catalog entry
  */
 export function itemBounds(placed, def) {
-  const w = def.w * placed.scale;
-  const h = def.h * placed.scale;
+  // A placed item may override its own size — a book laid flat on a pile is
+  // the same catalog entry turned on its side.
+  const w = (placed.w ?? def.w) * placed.scale;
+  const h = (placed.h ?? def.h) * placed.scale;
   return { left: placed.x - w / 2, right: placed.x + w / 2, top: placed.y - h, bottom: placed.y, w, h };
 }
 
