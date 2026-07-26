@@ -173,3 +173,60 @@ test('an unknown look leaves the character as she was', () => {
   const mine = createCharacterSpec();
   assert.deepEqual(applyLook(mine, 'nonexistent'), clampSpec(mine));
 });
+
+// --- books ----------------------------------------------------------------
+
+test('a typed title is cleaned but never silently emptied', async () => {
+  const { cleanTitle, MAX_TITLE } = await import('../js/model/book.js');
+
+  assert.equal(cleanTitle('  My   Book '), 'My Book ');
+  assert.equal(cleanTitle('Line\nbreak'), 'Line break');
+  assert.equal(cleanTitle(null), '');
+  assert.ok(cleanTitle('x'.repeat(200)).length <= MAX_TITLE, 'long titles are cut to fit');
+});
+
+test('a damaged book design still draws something', async () => {
+  const { clampBook, createBook } = await import('../js/model/book.js');
+
+  const base = createBook();
+  assert.deepEqual(clampBook(null), base);
+
+  // Out-of-range indices fall back; a deliberately empty title does not. The
+  // designer draws blank covers for its pattern chips, and substituting a
+  // default there stamped every chip with "My Book".
+  const damaged = clampBook({ cover: 99, pattern: -1, title: '' });
+  assert.equal(damaged.cover, base.cover);
+  assert.equal(damaged.pattern, base.pattern);
+  assert.equal(damaged.title, '', 'an empty title stays empty');
+
+  const kept = clampBook({ ...base, cover: 3, pattern: 5, title: 'Spells' });
+  assert.equal(kept.cover, 3);
+  assert.equal(kept.pattern, 5);
+  assert.equal(kept.title, 'Spells');
+});
+
+test("a book's design survives being saved and loaded", async () => {
+  const { migrateWorld, createWorld, placeItem } = await import('../js/model/world.js');
+
+  const world = createWorld('Library');
+  const book = placeItem('book', 300, 460);
+  book.design = { title: 'My Spells', cover: 4, pattern: 3, patternColor: 9, titleStyle: 1, titleColor: 8 };
+  world.rooms.living.items.push(book);
+
+  const loaded = migrateWorld(JSON.parse(JSON.stringify(world)));
+  const restored = loaded.rooms.living.items[0];
+
+  assert.equal(restored.design.title, 'My Spells', 'the title she typed');
+  assert.equal(restored.design.cover, 4);
+  assert.equal(restored.design.pattern, 3);
+});
+
+test('an ordinary item gains no design field', async () => {
+  const { migrateWorld, createWorld, placeItem } = await import('../js/model/world.js');
+
+  const world = createWorld('Plain');
+  world.rooms.living.items.push(placeItem('sofa', 300, 460));
+  const loaded = migrateWorld(JSON.parse(JSON.stringify(world)));
+
+  assert.equal('design' in loaded.rooms.living.items[0], false);
+});

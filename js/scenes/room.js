@@ -24,7 +24,9 @@ import { itemBounds, boundsContain, clampScale, findSurface } from '../model/geo
 import {
   placeItem, placeCharacter, frontZ, backZ, WALL_COLORS, FLOOR_COLORS, FLOOR_STYLES,
 } from '../model/world.js';
+import { createBook } from '../model/book.js';
 import { createCharacterCreator } from './charcreator.js';
+import { createBookDesigner } from './bookdesigner.js';
 import { createHouse } from './house.js';
 
 const PANEL_TOP = 470;
@@ -150,6 +152,16 @@ export function createRoomScene(game, roomId) {
     game.persist();
   }
 
+  /** Opens the cover designer for a placed book. */
+  function openBookDesigner(book) {
+    const back = () => game.setScene(createRoomScene(game, roomId));
+    game.setScene(createBookDesigner(game, book.design, (design) => {
+      book.design = design;
+      game.persist();
+      back();
+    }, back));
+  }
+
   function openCreator(existing) {
     const back = () => game.setScene(createRoomScene(game, roomId));
     game.setScene(createCharacterCreator(game, (spec) => {
@@ -235,9 +247,13 @@ export function createRoomScene(game, roomId) {
   function selectionControls() {
     if (!selected) return [];
 
+    const book = isItem(selected) && selected.item === 'book';
     const ids = isItem(selected)
-      ? [['shrink', 'shrink'], ['grow', 'grow'], ['flip', 'flip'],
-        ['sendBack', 'layerDown'], ['bringFront', 'layerUp'], ['delete', 'trash']]
+      ? [
+        ...(book ? [['design', 'looks']] : []),
+        ['shrink', 'shrink'], ['grow', 'grow'], ['flip', 'flip'],
+        ['sendBack', 'layerDown'], ['bringFront', 'layerUp'], ['delete', 'trash'],
+      ]
       : [['edit', 'person'], ['delete', 'trash']];
 
     const t = transform();
@@ -269,6 +285,7 @@ export function createRoomScene(game, roomId) {
       case 'drawer': open = !open; return true;
       case 'addPerson': openCreator(null); return true;
       case 'edit': openCreator(selected); return true;
+      case 'design': openBookDesigner(selected); return true;
       case 'delete': removeSelected(); return true;
       default: break;
     }
@@ -342,6 +359,7 @@ export function createRoomScene(game, roomId) {
         if (inRoom(x, y)) {
           const p = toRoom(x, y);
           const entry = placeItem(drag.def.id, p.x, p.y);
+          if (entry.item === 'book') entry.design = createBook();
           const spot = clampPlacement(entry, p.x, p.y);
           entry.x = spot.x;
           entry.y = spot.y;

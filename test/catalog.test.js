@@ -35,10 +35,15 @@ test('every category holds at least one item', () => {
   }
 });
 
-test('every item can be drawn — by a drawing, or by a placeholder', () => {
+/** Items whose art comes from the player rather than from the art set. */
+const PLAYER_DRAWN = new Set(['book']);
+
+test('every item can be drawn — by a drawing, a placeholder, or the player', () => {
   // This is what keeps a typo in an id from producing an invisible item: with
   // no PNG and no placeholder under that name, nothing would render at all.
+  // A book is the exception — its cover is designed in the game.
   for (const item of catalog.items) {
+    if (PLAYER_DRAWN.has(item.id)) continue;
     const hasDrawing = existsSync(join(DRAWINGS, `${item.id}.png`));
     const hasPlaceholder = typeof PLACEHOLDERS[item.id] === 'function';
     assert.ok(hasDrawing || hasPlaceholder, `${item.id} has art`);
@@ -75,6 +80,13 @@ test('surface is either the floor or the wall', () => {
   for (const item of catalog.items) {
     if (item.surface === undefined) continue;
     assert.ok(['floor', 'wall'].includes(item.surface), `${item.id} surface is valid`);
+  }
+});
+
+test('a player-drawn item is really in the catalog', () => {
+  const ids = new Set(catalog.items.map((item) => item.id));
+  for (const id of PLAYER_DRAWN) {
+    assert.ok(ids.has(id), `${id} is a catalog item`);
   }
 });
 

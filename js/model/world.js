@@ -7,6 +7,8 @@
  * the houses she built are gone.
  */
 
+import { clampBook } from './book.js';
+
 export const CURRENT_VERSION = 1;
 
 export const ROOM_IDS = ['bedroom', 'living', 'kitchen', 'bath'];
@@ -185,6 +187,11 @@ function repairItem(entry) {
     scale: Number.isFinite(entry.scale) && entry.scale > 0 ? entry.scale : 1,
     flip: entry.flip === true,
     tint: Number.isInteger(entry.tint) && entry.tint >= 0 ? entry.tint : 0,
+    // Books carry the cover Rotem designed. Anything else has no design and
+    // the field is simply absent.
+    ...(entry.design && typeof entry.design === 'object'
+      ? { design: clampBook(entry.design) }
+      : {}),
   };
 }
 
