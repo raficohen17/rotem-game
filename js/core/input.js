@@ -39,7 +39,12 @@ export class Input {
   _down(e) {
     if (this.activeId !== null) return; // already tracking a finger
     this.activeId = e.pointerId;
-    this.canvas.setPointerCapture(e.pointerId);
+    try {
+      this.canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // Some browsers reject capture for pointers they no longer track. Losing
+      // capture only means a drag ends early if the finger leaves the canvas.
+    }
 
     const p = this.view.toDesign(e.clientX, e.clientY);
     this.start = p;
