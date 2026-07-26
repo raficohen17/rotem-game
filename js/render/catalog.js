@@ -1,25 +1,38 @@
 /**
  * The item catalog, and how an item gets drawn.
  *
- * Each item tries to load `assets/drawings/<id>.png` and falls back to the
- * code-drawn placeholder if there is none. The load is fired off without being
- * awaited, so the game starts instantly on placeholders and a drawing pops in
- * as soon as it arrives.
+ * An item is drawn from `assets/drawings/<id>.png` when one of Rotem's
+ * drawings exists for it, and from the code-drawn placeholder otherwise. The
+ * image load is fired off without being awaited, so the game starts instantly
+ * on placeholders and a drawing pops in as soon as it arrives.
  *
- * The point of doing it this way: dropping a PNG named after an item is the
- * entire process of replacing its art. No catalog edit, no code change, no
- * build step.
+ * Which drawings exist is read from a manifest rather than discovered by
+ * trying to load all of them, because a miss costs a 404 round trip on every
+ * cold start — forty-odd of them before Rotem has drawn anything. The
+ * manifest is written by tools/make_sprite.py, so adding a drawing is still
+ * one command and no code change.
  */
 
 import { PLACEHOLDERS } from './placeholders.js';
 
 const DRAWINGS_DIR = 'assets/drawings';
 
-/** Loads a drawing for an item if one exists, quietly doing nothing if not. */
+async function loadDrawingIndex() {
+  try {
+    const response = await fetch(`${DRAWINGS_DIR}/index.json`);
+    if (!response.ok) return new Set();
+    const data = await response.json();
+    return new Set(Array.isArray(data.drawings) ? data.drawings : []);
+  } catch {
+    return new Set(); // no manifest, or offline before it was cached
+  }
+}
+
+/** Swaps a placeholder for a drawing once the image has decoded. */
 function attachDrawing(item) {
   const image = new Image();
   image.addEventListener('load', () => { item.image = image; });
-  image.addEventListener('error', () => { /* no drawing yet — placeholder stays */ });
+  image.addEventListener('error', () => { /* keep the placeholder */ });
   image.src = `${DRAWINGS_DIR}/${item.id}.png`;
 }
 
@@ -27,6 +40,7 @@ export async function loadCatalog() {
   const response = await fetch('assets/catalog.json');
   if (!response.ok) throw new Error(`catalog.json: ${response.status}`);
   const data = await response.json();
+  const drawn = await loadDrawingIndex();
 
   const byId = new Map();
   for (const raw of data.items) {
@@ -37,7 +51,7 @@ export async function loadCatalog() {
       image: null,
     };
     byId.set(item.id, item);
-    attachDrawing(item);
+    if (drawn.has(item.id)) attachDrawing(item);
   }
 
   return {

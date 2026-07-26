@@ -19,6 +19,7 @@ letter O, the highlight in an eye — survives.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from collections import deque
 from pathlib import Path
@@ -120,6 +121,27 @@ def fit_height(image: Image.Image, height: int) -> Image.Image:
     return image.resize((width, height), Image.LANCZOS)
 
 
+def register(outdir: Path, name: str) -> None:
+    """Record the id in the drawings manifest the game reads at startup.
+
+    Without this the game would have to probe for every PNG and eat a 404 per
+    missing one on every cold start. Keeping it in the tool means adding a
+    drawing is still one command with no file to remember to edit.
+    """
+    index_path = outdir / "index.json"
+    if index_path.exists():
+        data = json.loads(index_path.read_text())
+    else:
+        data = {"comment": "Item ids that have a drawing in this folder. "
+                           "Maintained by tools/make_sprite.py.",
+                "drawings": []}
+
+    if name not in data["drawings"]:
+        data["drawings"].append(name)
+        data["drawings"].sort()
+        index_path.write_text(json.dumps(data, indent=2) + "\n")
+
+
 def convert(path: Path, outdir: Path, name: str, height: int,
             brightness: int, tolerance: int) -> Path:
     image = Image.open(path)
@@ -130,6 +152,7 @@ def convert(path: Path, outdir: Path, name: str, height: int,
     outdir.mkdir(parents=True, exist_ok=True)
     destination = outdir / f"{name}.png"
     sprite.save(destination, "PNG", optimize=True)
+    register(outdir, name)
     return destination
 
 

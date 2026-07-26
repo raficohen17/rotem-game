@@ -14,6 +14,19 @@ export const ROOM_IDS = ['bedroom', 'living', 'kitchen', 'bath'];
 export const DEFAULT_WALL = '#f3d9e6';
 export const DEFAULT_FLOOR = '#c98f5f';
 
+/** Rooms as they appear in the cutaway: two upstairs, two below. */
+export const HOUSE_LAYOUT = ['bedroom', 'bath', 'living', 'kitchen'];
+
+export const WALL_COLORS = [
+  '#f3d9e6', '#dfe9f7', '#e7f3dc', '#fdf0d0', '#f7dcd0',
+  '#e4dcf5', '#d3ecec', '#f5e6f7', '#ece7df', '#cfd8e8',
+];
+
+export const FLOOR_COLORS = [
+  '#c98f5f', '#8a5a3a', '#d9c9a8', '#a8b8a0', '#b8a8c8',
+  '#e0d0b0', '#6f8fa8', '#c8a0a0', '#9a9a9a', '#4f6f5f',
+];
+
 /** Where a character stands when first placed, in design coordinates. */
 export const SPAWN = { x: 640, y: 660 };
 
@@ -53,11 +66,26 @@ export function createWorld(name = 'My House') {
  * sorting is just "larger y draws later".
  */
 export function placeItem(catalogId, x, y) {
-  return { uid: makeId(), item: catalogId, x, y, scale: 1, flip: false, tint: 0 };
+  return { uid: makeId(), item: catalogId, x, y, z: 0, scale: 1, flip: false, tint: 0 };
 }
 
 export function placeCharacter(spec, room, x = SPAWN.x, y = SPAWN.y) {
-  return { uid: makeId(), spec, room, x, y };
+  return { uid: makeId(), spec, room, x, y, z: 0 };
+}
+
+/**
+ * Next free layer above everything currently placed, for "bring to front".
+ *
+ * Depth normally comes from the baseline — lower on the floor means nearer —
+ * but that leaves no way to pull one item out of a pile without also moving
+ * it. `z` is that escape hatch, and nothing else touches it.
+ */
+export function frontZ(entries) {
+  return entries.reduce((top, entry) => Math.max(top, entry.z ?? 0), 0) + 1;
+}
+
+export function backZ(entries) {
+  return entries.reduce((low, entry) => Math.min(low, entry.z ?? 0), 0) - 1;
 }
 
 /*
@@ -115,7 +143,7 @@ export function repairWorld(world) {
     safe.rooms[id] = {
       wall: typeof room.wall === 'string' ? room.wall : DEFAULT_WALL,
       floor: typeof room.floor === 'string' ? room.floor : DEFAULT_FLOOR,
-      items: Array.isArray(room.items) ? room.items.filter(isValidItem) : [],
+      items: Array.isArray(room.items) ? room.items.filter(isValidItem).map(repairItem) : [],
     };
   }
 
@@ -128,10 +156,25 @@ export function repairWorld(world) {
         room: ROOM_IDS.includes(c.room) ? c.room : ROOM_IDS[0],
         x: Number.isFinite(c.x) ? c.x : SPAWN.x,
         y: Number.isFinite(c.y) ? c.y : SPAWN.y,
+        z: Number.isFinite(c.z) ? c.z : 0,
       }));
   }
 
   return safe;
+}
+
+/** Guarantees every optional field exists, so nothing downstream checks. */
+function repairItem(entry) {
+  return {
+    uid: typeof entry.uid === 'string' ? entry.uid : makeId(),
+    item: entry.item,
+    x: entry.x,
+    y: entry.y,
+    z: Number.isFinite(entry.z) ? entry.z : 0,
+    scale: Number.isFinite(entry.scale) && entry.scale > 0 ? entry.scale : 1,
+    flip: entry.flip === true,
+    tint: Number.isInteger(entry.tint) && entry.tint >= 0 ? entry.tint : 0,
+  };
 }
 
 function isValidItem(entry) {

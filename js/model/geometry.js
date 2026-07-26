@@ -44,6 +44,11 @@ export function drawOrder(items, lookup) {
       const aWall = lookup(a.placed.item)?.surface === 'wall';
       const bWall = lookup(b.placed.item)?.surface === 'wall';
       if (aWall !== bWall) return aWall ? -1 : 1;
+      // z is only ever non-zero for items deliberately pulled to the front or
+      // pushed to the back; everything else falls through to baseline order.
+      const az = a.placed.z ?? 0;
+      const bz = b.placed.z ?? 0;
+      if (az !== bz) return az - bz;
       if (a.placed.y !== b.placed.y) return a.placed.y - b.placed.y;
       return a.index - b.index; // stable for items on the same baseline
     })
