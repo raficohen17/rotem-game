@@ -168,47 +168,74 @@ function drawTitle(ctx, design, x, y, w, h) {
   ctx.font = `700 ${size}px Georgia, serif`;
 
   const arch = style === 'arched' && lines.length === 1;
-  const lineHeight = size * 1.2;
+  const lineHeight = size * 1.26;
   const blockH = lines.length * lineHeight;
   const widest = Math.max(...lines.map((line) => ctx.measureText(line).width));
   const top = y + h * (arch ? 0.16 : 0.19);
   const cx = x + w / 2;
 
-  // The plate the text sits on, so it reads against any pattern.
   const plate = plateColour(ink);
   const padX = size * 0.55;
   const padY = size * 0.36;
 
+  // Banner and boxed are deliberate designs and keep their backing. Plain and
+  // arched get a halo round the letters instead: it buys the same legibility
+  // for the cost of an outline rather than covering the cover, which on a
+  // four-line title meant hiding almost all of the art she chose.
   if (style === 'banner') {
     fillRR(ctx, x + 4, top - padY, w - 8, blockH + padY * 2, 4, ink);
     fillRR(ctx, x + 4, top - padY, w - 8, 4, 2, shade(ink, 0.4));
   } else if (style === 'boxed') {
-    fillRR(ctx, cx - widest / 2 - padX, top - padY, widest + padX * 2, blockH + padY * 2, 5, plate);
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    fillRR(ctx, cx - widest / 2 - padX, top - padY, widest + padX * 2,
+      blockH + padY * 2, 5, plate);
+    ctx.restore();
     ctx.strokeStyle = ink;
     ctx.lineWidth = 2.5;
     roundRect(ctx, cx - widest / 2 - padX + 4, top - padY + 4,
       widest + padX * 2 - 8, blockH + padY * 2 - 8, 3);
     ctx.stroke();
-  } else {
-    // Plain and arched both get a soft plate, shaped to the text.
-    ctx.save();
-    ctx.globalAlpha = 0.72;
-    const plateH = blockH + padY * 2;
-    fillRR(ctx, cx - widest / 2 - padX, top - padY, widest + padX * 2, plateH,
-      arch ? plateH / 2 : 6, plate);
-    ctx.restore();
   }
 
   const textInk = style === 'banner' ? contrastTo(ink) : ink;
-  ctx.fillStyle = textInk;
+  const halo = style === 'plain' || arch ? plate : null;
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
   if (arch) {
-    drawArched(ctx, lines[0], cx, top + size * 0.95, size, textInk);
+    drawArched(ctx, lines[0], cx, top + size * 0.95, size, textInk, halo);
     return;
   }
-  lines.forEach((line, i) => ctx.fillText(line, cx, top + i * lineHeight));
+  lines.forEach((line, i) => {
+    haloedText(ctx, line, cx, top + i * lineHeight, size, textInk, halo);
+  });
+}
+
+/**
+ * Text with a soft glow behind it.
+ *
+ * A stroked outline was tried first and merged: at a readable weight the
+ * outlines of adjacent lines ran together into a solid slab, which is exactly
+ * the plate this was meant to replace. A blurred shadow cannot merge that way
+ * — it falls off — so the cover stays visible between the lines.
+ */
+function haloedText(ctx, text, x, y, size, ink, halo, draw = null) {
+  const paint = draw ?? (() => ctx.fillText(text, x, y));
+
+  if (halo) {
+    ctx.save();
+    ctx.shadowColor = halo;
+    ctx.shadowBlur = size * 0.42;
+    ctx.fillStyle = halo;
+    // Three passes: one blurred shadow is too faint to carry over a pattern.
+    for (let i = 0; i < 3; i += 1) paint();
+    ctx.restore();
+  }
+
+  ctx.fillStyle = ink;
+  paint();
 }
 
 /** A backing tone that the ink will always read against. */
@@ -269,16 +296,17 @@ function wrap(ctx, text, width, max) {
  * constant step piles a W on top of an i, which is what scrambled the first
  * version.
  */
-function drawArched(ctx, text, cx, baseY, size, ink) {
+function drawArched(ctx, text, cx, baseY, size, ink, halo) {
   const radius = size * 4.4;
   const letters = [...text];
   const widths = letters.map((letter) => ctx.measureText(letter).width);
   const total = widths.reduce((sum, width) => sum + width, 0);
 
   ctx.save();
-  ctx.fillStyle = ink;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
+  ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
   ctx.translate(cx, baseY + radius);
 
   let travelled = -total / 2;
@@ -286,7 +314,8 @@ function drawArched(ctx, text, cx, baseY, size, ink) {
     const angle = (travelled + widths[i] / 2) / radius;
     ctx.save();
     ctx.rotate(angle);
-    ctx.fillText(letter, 0, -radius);
+    haloedText(ctx, letter, 0, -radius, size, ink, halo,
+      () => ctx.fillText(letter, 0, -radius));
     ctx.restore();
     travelled += widths[i];
   });
