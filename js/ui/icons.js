@@ -43,32 +43,97 @@ export const ICONS = {
     fillRR(ctx, -5, -19, 10, 6, 3, c);
   },
 
+  /*
+   * Controls for a selected object.
+   *
+   * The first set was a plus and a minus in a square box, and two triangles
+   * with bars that read as eject and download. None of them said what they
+   * did. These show the effect instead: a shape getting smaller or larger, a
+   * shape mirrored across an axis, and one card moving in front of or behind
+   * another.
+   */
+
   flip(ctx, c) {
-    fillPoly(ctx, [-4, -14, -4, 14, -18, 0], c);
-    fillPoly(ctx, [4, -14, 4, 14, 18, 0], c);
+    // Solid shape on the left, its outline mirrored on the right, axis between.
+    fillPoly(ctx, [-6, -13, -6, 13, -19, 0], c);
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 2.6;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(6, -13);
+    ctx.lineTo(6, 13);
+    ctx.lineTo(19, 0);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -17);
+    ctx.lineTo(0, 17);
+    ctx.stroke();
+    ctx.setLineDash([]);
   },
 
   grow(ctx, c) {
-    stroke(ctx, c, 5);
-    ctx.strokeRect(-14, -14, 28, 28);
-    strokeLine(ctx, -6, 0, 6, 0, c, 5);
-    strokeLine(ctx, 0, -6, 0, 6, c, 5);
+    // A small shape with arrows pushing outward from it.
+    fillRR(ctx, -7, -7, 14, 14, 3, c);
+    stroke(ctx, c, 3.2);
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      ctx.beginPath();
+      ctx.moveTo(sx * 11, sy * 11);
+      ctx.lineTo(sx * 18, sy * 18);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(sx * 18, sy * 18);
+      ctx.lineTo(sx * 18, sy * 11);
+      ctx.moveTo(sx * 18, sy * 18);
+      ctx.lineTo(sx * 11, sy * 18);
+      ctx.stroke();
+    }
   },
 
   shrink(ctx, c) {
-    stroke(ctx, c, 5);
-    ctx.strokeRect(-14, -14, 28, 28);
-    strokeLine(ctx, -6, 0, 6, 0, c, 5);
+    // A large outlined shape with arrows pulling inward.
+    stroke(ctx, c, 2.6);
+    ctx.strokeRect(-17, -17, 34, 34);
+    fillRR(ctx, -6, -6, 12, 12, 3, c);
+    stroke(ctx, c, 3.2);
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      ctx.beginPath();
+      ctx.moveTo(sx * 14, sy * 14);
+      ctx.lineTo(sx * 9, sy * 9);
+      ctx.stroke();
+    }
   },
 
   layerUp(ctx, c) {
-    fillPoly(ctx, [0, -16, 14, -2, -14, -2], c);
-    fillRR(ctx, -14, 6, 28, 6, 3, c);
+    // Two cards; the near one is solid and lifted, so "bring to the front".
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 2.6;
+    ctx.strokeRect(-2, -14, 18, 18);
+    fillRR(ctx, -16, -2, 20, 20, 3, c);
+    ctx.beginPath();
+    ctx.moveTo(12, 12);
+    ctx.lineTo(19, 5);
+    ctx.lineTo(19, 12);
+    ctx.closePath();
+    ctx.fillStyle = c;
+    ctx.fill();
   },
 
   layerDown(ctx, c) {
-    fillPoly(ctx, [0, 16, 14, 2, -14, 2], c);
-    fillRR(ctx, -14, -12, 28, 6, 3, c);
+    // The same two cards with the far one solid: "send to the back".
+    fillRR(ctx, -2, -16, 20, 20, 3, c);
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 2.6;
+    ctx.strokeRect(-16, -2, 18, 18);
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-19, 12);
+    ctx.lineTo(-12, 5);
+    ctx.lineTo(-12, 12);
+    ctx.closePath();
+    ctx.fill();
   },
 
   paint(ctx, c) {

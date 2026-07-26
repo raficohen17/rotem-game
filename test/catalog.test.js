@@ -84,3 +84,14 @@ test('no placeholder is left behind with no catalog entry', () => {
     assert.ok(ids.has(id), `placeholder ${id} is still in the catalog`);
   }
 });
+
+test('the displayed version and the cache version agree', () => {
+  // If these drift, the app can say v6 while the worker still serves v5's
+  // cache — which is precisely the situation that makes a stale build
+  // invisible.
+  const shown = readFileSync(join(ROOT, 'js/version.js'), 'utf8').match(/VERSION = '([^']+)'/);
+  const cached = readFileSync(join(ROOT, 'sw.js'), 'utf8').match(/CACHE_VERSION = '([^']+)'/);
+
+  assert.ok(shown && cached, 'both versions are declared');
+  assert.equal(shown[1], cached[1], 'version.js and sw.js are in step');
+});

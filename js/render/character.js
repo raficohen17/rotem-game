@@ -87,6 +87,25 @@ function capsule(ctx, cx, top, bottom, width, color) {
 }
 
 /**
+ * Where the head sits for a given character, in character coordinates.
+ *
+ * Exported because anything that frames a face — the creator's option cells —
+ * has to know. Those cells used to assume a fixed head position, so when the
+ * head was re-anchored by the chin they silently began framing the torso,
+ * which is how a grid of fourteen hairstyles came to show fourteen bodies.
+ */
+export function headBounds(rawSpec) {
+  const spec = clampSpec(rawSpec);
+  const metrics = metricsFor(BUILDS[spec.build]);
+  const shape = FACE_SHAPES[spec.face];
+
+  const centre = metrics.chinY - shape.chin * HEAD_SCALE;
+  const top = centre - HEAD_TOP * HEAD_SCALE;
+  const bottom = metrics.chinY;
+  return { top, bottom, centre: (top + bottom) / 2, height: bottom - top };
+}
+
+/**
  * @param {CanvasRenderingContext2D} ctx
  * @param {object} rawSpec
  * @param {number} time seconds, driving the idle animation
@@ -527,78 +546,137 @@ function drawMouth(ctx, style, lip, place) {
 }
 
 // ------------------------------------------------------------------- hair
-// Hair carries most of a character's identity, so the silhouettes are pushed
-// well apart rather than being small variations on a cap.
+//
+// Fourteen cuts, each modelled on something instantly recognisable rather than
+// on "long" or "short" — a flapper bob, a ballerina bun, a beehive, feathered
+// flicks, twin plaits. At thumbnail size the silhouette does all the work, so
+// the outlines are pushed as far apart as they will go.
+//
+// Back hair is drawn before the body so it falls behind the shoulders; the
+// crown and fringe go on after the face. Both work in head space.
+
+/** A soft sheen across the crown — the thing that makes hair read as hair. */
+function hairSheen(ctx, color, width = 44, y = -34) {
+  ctx.save();
+  ctx.globalAlpha = 0.38;
+  ctx.strokeStyle = shade(color, 0.42);
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-width, y + 10);
+  ctx.quadraticCurveTo(-width * 0.55, y - 13, width * 0.2, y - 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** A lock of hair with a curled tip, used by most of the long styles. */
+function tress(ctx, x, top, length, width, color, curl = 1) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x - width / 2, top);
+  ctx.quadraticCurveTo(x - width * 0.75, top + length * 0.6, x - width * 0.2 * curl, top + length);
+  ctx.quadraticCurveTo(x + width * 0.5 * curl, top + length * 1.08, x + width * 0.7, top + length * 0.72);
+  ctx.quadraticCurveTo(x + width * 0.62, top + length * 0.3, x + width / 2, top);
+  ctx.closePath();
+  ctx.fill();
+}
 
 /** Drawn before the body, so it falls behind the shoulders. */
 function drawBackHair(ctx, style, color) {
-  const y = 0;
+  const dark = shade(color, -0.15);
+
   switch (style) {
-    case 1: // long, past the shoulders
-      fillRR(ctx, -60, y - 40, 120, 150, 44, color);
+    case 0: // long layered waves, centre parted
+      tress(ctx, -50, -26, 150, 34, dark, 1.2);
+      tress(ctx, 50, -26, 150, 34, dark, -1.2);
+      fillRR(ctx, -56, -40, 112, 118, 42, color);
       break;
-    case 2: // high ponytail
-      fillCircle(ctx, 52, y - 34, 20, shade(color, -0.06));
-      fillEllipse(ctx, 66, y + 10, 22, 46, color);
+    case 1: // flapper bob, chin length with a scalloped edge
+      fillRR(ctx, -60, -36, 120, 84, 36, color);
+      for (let i = -2; i <= 2; i += 1) fillCircle(ctx, i * 24, 44, 16, color);
       break;
-    case 3: // twin tails
-      fillCircle(ctx, -58, y - 20, 22, color);
-      fillCircle(ctx, 58, y - 20, 22, color);
-      fillEllipse(ctx, -64, y + 22, 19, 40, color);
-      fillEllipse(ctx, 64, y + 22, 19, 40, color);
+    case 2: // sleek high ponytail
+      fillCircle(ctx, 6, -56, 26, color);
+      tress(ctx, 34, -52, 150, 30, color, 1.4);
       break;
-    case 5: // a big round cloud of curls
-      fillCircle(ctx, 0, y - 10, 74, color);
+    case 3: // twin plaits, braided in segments
+      for (const side of [-1, 1]) {
+        fillCircle(ctx, side * 56, -14, 21, color);
+        for (let i = 0; i < 4; i += 1) {
+          fillEllipse(ctx, side * (62 + i * 2), 16 + i * 24, 15 - i, 15, i % 2 ? dark : color);
+        }
+        fillRR(ctx, side * 66 - 8, 108, 16, 9, 4, shade(color, -0.35));
+      }
       break;
-    case 6: // bob, tucked under the jaw
-      fillRR(ctx, -62, y - 34, 124, 96, 40, color);
+    case 4: // ballerina bun
+      fillCircle(ctx, 0, -74, 27, color);
+      fillCircle(ctx, 0, -74, 17, dark);
       break;
-    case 7: // braids with ties
-      fillEllipse(ctx, -58, y + 34, 15, 48, color);
-      fillEllipse(ctx, 58, y + 34, 15, 48, color);
-      fillCircle(ctx, -58, y + 78, 11, shade(color, -0.2));
-      fillCircle(ctx, 58, y + 78, 11, shade(color, -0.2));
+    case 5: // big natural curls
+      for (const [x, y, r] of [[-46, -18, 34], [46, -18, 34], [0, -44, 40],
+        [-38, 22, 28], [38, 22, 28], [0, 30, 30]]) {
+        fillCircle(ctx, x, y, r, color);
+      }
       break;
-    case 9: // long and wavy
-      fillEllipse(ctx, -54, y + 34, 26, 74, color);
-      fillEllipse(ctx, 54, y + 34, 26, 74, color);
-      fillRR(ctx, -56, y - 30, 112, 90, 40, color);
+    case 6: // sharp blunt bob
+      fillRR(ctx, -62, -38, 124, 96, 12, color);
       break;
-    case 10: // space buns
-      fillCircle(ctx, -50, y - 44, 24, color);
-      fillCircle(ctx, 50, y - 44, 24, color);
+    case 7: // space buns
+      for (const side of [-1, 1]) {
+        fillCircle(ctx, side * 52, -50, 25, color);
+        fillCircle(ctx, side * 52, -50, 15, dark);
+      }
       break;
-    case 11: // a high puff
-      fillCircle(ctx, 0, y - 62, 40, color);
+    case 8: // pixie crop
+      fillRR(ctx, -58, -40, 116, 54, 26, color);
       break;
-    case 12: // long with a straight fringe
-      fillRR(ctx, -58, y - 34, 116, 132, 40, color);
+    case 9: // very long and straight
+      fillRR(ctx, -58, -36, 116, 176, 26, color);
       break;
-    case 13: // one ponytail off to the side
-      fillCircle(ctx, -56, y - 18, 19, color);
-      fillEllipse(ctx, -70, y + 26, 21, 48, color);
+    case 10: // half up, the rest loose
+      tress(ctx, -48, -20, 120, 32, dark, 1);
+      tress(ctx, 48, -20, 120, 32, dark, -1);
+      fillRR(ctx, -54, -38, 108, 96, 38, color);
+      break;
+    case 11: // side ponytail, high on one side
+      fillCircle(ctx, -46, -44, 22, color);
+      tress(ctx, -68, -40, 132, 30, color, -1.3);
+      break;
+    case 12: // beehive
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(-56, 4);
+      ctx.bezierCurveTo(-78, -60, -46, -118, 0, -118);
+      ctx.bezierCurveTo(46, -118, 78, -60, 56, 4);
+      ctx.closePath();
+      ctx.fill();
+      fillRR(ctx, -58, -30, 116, 76, 34, color);
+      break;
+    case 13: // feathered flicks
+      tress(ctx, -56, -22, 104, 32, dark, -1.6);
+      tress(ctx, 56, -22, 104, 32, dark, 1.6);
+      fillRR(ctx, -56, -38, 112, 96, 38, color);
       break;
     default:
       break;
   }
 }
 
-/** The cap over the skull and the fringe, in head-local coordinates. */
+/** The crown and fringe, drawn after the face so it sits over the forehead. */
 function drawFrontHair(ctx, style, color, shape) {
-  // The cap is the face's own outline, grown slightly and filled from the
-  // crown down to the hairline. Clipping to the skull is what lets one set of
-  // hairstyles sit correctly on eight different head shapes.
-  const hairline = style === 8 ? -26 : -14; // style 8 is cropped close
+  // Cropped styles show more forehead; heavy fringes come further down.
+  const heavy = style === 1 || style === 6 || style === 12;
+  const hairline = style === 8 ? -30 : heavy ? -4 : -16;
 
   ctx.save();
   facePathScaled(ctx, shape, 1.07);
   ctx.clip();
-  // The bottom edge is a curve, not a straight cut — a level hairline right
-  // across the forehead is what made this read as a helmet.
+  // A curved bottom edge, not a level cut — that is what made this read as a
+  // helmet rather than as hair.
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.moveTo(-95, -HEAD_TOP * 1.3);
-  ctx.lineTo(95, -HEAD_TOP * 1.3);
+  ctx.moveTo(-95, -HEAD_TOP * 1.4);
+  ctx.lineTo(95, -HEAD_TOP * 1.4);
   ctx.lineTo(95, hairline + 4);
   ctx.quadraticCurveTo(0, hairline - 22, -95, hairline + 4);
   ctx.closePath();
@@ -606,48 +684,65 @@ function drawFrontHair(ctx, style, color, shape) {
   ctx.restore();
 
   switch (style) {
-    case 2: // a swept side fringe
-      fillEllipse(ctx, -20, -36, 42, 22, color);
-      fillEllipse(ctx, 26, -42, 26, 16, color);
+    case 0: // centre parting, soft curtains
+      fillEllipse(ctx, -32, -34, 32, 22, color);
+      fillEllipse(ctx, 32, -34, 32, 22, color);
       break;
-    case 4: // topknot
-      fillCircle(ctx, 0, -HEAD_R - 20, 26, color);
-      fillRR(ctx, -12, -HEAD_R - 8, 24, 12, 6, shade(color, -0.18));
+    case 1: // finger waves across the brow
+      fillEllipse(ctx, -14, -32, 46, 20, color);
+      ctx.strokeStyle = shade(color, -0.22);
+      ctx.lineWidth = 3;
+      for (let i = -1; i <= 1; i += 1) {
+        ctx.beginPath();
+        ctx.arc(i * 24, -40, 15, 0.1, Math.PI - 0.1);
+        ctx.stroke();
+      }
       break;
-    case 5: // curls tumbling over the forehead
-      fillCircle(ctx, -34, -34, 21, color);
-      fillCircle(ctx, 2, -46, 24, color);
-      fillCircle(ctx, 36, -30, 20, color);
+    case 2: // pulled back tight
+      fillEllipse(ctx, 0, -46, 52, 18, color);
       break;
-    case 6: // a blunt fringe straight across
-      fillRR(ctx, -HEAD_R - 2, -HEAD_R - 4, HEAD_R * 2 + 4, 44, 14, color);
+    case 4: // scraped back for the bun
+      fillEllipse(ctx, 0, -48, 50, 16, color);
       break;
-    case 7: // centre parting
-      fillEllipse(ctx, -28, -38, 30, 20, color);
-      fillEllipse(ctx, 28, -38, 30, 20, color);
+    case 5: // curls onto the forehead
+      fillCircle(ctx, -34, -34, 22, color);
+      fillCircle(ctx, 2, -46, 25, color);
+      fillCircle(ctx, 36, -30, 21, color);
       break;
-    case 8: // cropped short
+    case 6: // heavy blunt fringe
+      fillRR(ctx, -60, -HEAD_TOP - 6, 120, 56, 8, color);
       break;
-    case 9: // soft waves framing the face
-      fillEllipse(ctx, -30, -34, 32, 22, color);
-      fillEllipse(ctx, 30, -34, 32, 22, color);
+    case 7: // small fringe under the buns
+      fillEllipse(ctx, 0, -40, 46, 20, color);
       break;
-    case 10: // small fringe under the buns
-      fillEllipse(ctx, 0, -40, 44, 20, color);
+    case 8: // cropped, a wisp at the temple
+      fillEllipse(ctx, -30, -34, 24, 12, color);
       break;
-    case 11: // pushed back off the forehead
-      fillEllipse(ctx, 0, -46, 50, 20, color);
+    case 9: // centre parting, long and flat
+      fillEllipse(ctx, -30, -38, 30, 20, color);
+      fillEllipse(ctx, 30, -38, 30, 20, color);
       break;
-    case 12: // a heavy straight fringe
-      fillRR(ctx, -HEAD_R - 2, -HEAD_R - 6, HEAD_R * 2 + 4, 52, 10, color);
+    case 10: // half-up, gathered at the crown
+      fillEllipse(ctx, -26, -36, 30, 20, color);
+      fillEllipse(ctx, 26, -36, 30, 20, color);
+      fillCircle(ctx, 0, -HEAD_TOP - 4, 17, color);
       break;
-    case 13: // swept hard to one side
-      fillEllipse(ctx, -26, -40, 46, 22, color);
+    case 11: // swept hard to one side
+      fillEllipse(ctx, -24, -40, 48, 22, color);
       break;
-    default: // a soft fringe to one side
+    case 12: // teased up off the forehead
+      fillEllipse(ctx, 0, -50, 54, 20, color);
+      break;
+    case 13: // feathered, parted off centre
+      fillEllipse(ctx, -22, -38, 40, 20, color);
+      fillEllipse(ctx, 30, -34, 28, 16, color);
+      break;
+    default:
       fillEllipse(ctx, -18, -38, 38, 20, color);
       break;
   }
+
+  hairSheen(ctx, color);
 }
 
 // --------------------------------------------------------------- clothing

@@ -8,7 +8,7 @@
 import { button, hitTest, drawButtons, drawPanel, COLORS, TOUCH } from '../ui/widgets.js';
 import { drawIcon } from '../ui/icons.js';
 import { fillRR } from '../render/shapes.js';
-import { drawCharacter, CHAR_H } from '../render/character.js';
+import { drawCharacter, headBounds, CHAR_H } from '../render/character.js';
 import {
   EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS, LIP_COLORS, EYE_COLORS,
   SKIN_TONES, createCharacterSpec, clampSpec,
@@ -191,17 +191,21 @@ function drawMini(ctx, spec, box, crop, time) {
   ctx.clip();
 
   const cx = box.x + box.w / 2;
+  // Framing is measured off where the head actually is for this character,
+  // not off a constant — builds and face shapes move it.
+  const head = headBounds(spec);
+
   if (crop === 'feature') {
     // Brows, eyes, noses and mouths differ by a few pixels. Filling the cell
     // with the face is the only framing in which the options are comparable.
-    const scale = Math.min(box.w, box.h) / 125;
-    ctx.translate(cx, box.y + box.h * 0.52 + 198 * scale);
+    const scale = (box.h * 0.92) / head.height;
+    ctx.translate(cx, box.y + box.h * 0.5 - head.centre * scale);
     ctx.scale(scale, scale);
   } else if (crop === 'head') {
-    // Head and shoulders: what tells fourteen hairstyles apart is the
-    // silhouette below the ears, and a tighter crop cut exactly that off.
-    const scale = Math.min(box.w, box.h) / 205;
-    ctx.translate(cx, box.y + box.h * 0.4 + 198 * scale);
+    // Head, hair and a little shoulder. What tells fourteen hairstyles apart
+    // is the silhouette falling below the jaw, so the frame has to include it.
+    const scale = box.h / (head.height * 2.05);
+    ctx.translate(cx, box.y + box.h * 0.06 - head.top * scale);
     ctx.scale(scale, scale);
   } else {
     const scale = (box.h - 16) / CHAR_H;

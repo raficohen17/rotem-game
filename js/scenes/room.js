@@ -13,15 +13,16 @@
  */
 
 import { button, hitTest, drawPanel, drawButton, drawButtons, COLORS } from '../ui/widgets.js';
-import { fillRR, fillCircle, shade } from '../render/shapes.js';
+import { fillRR, fillCircle, roundRect, shade } from '../render/shapes.js';
 import { drawItemArt } from '../render/catalog.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import {
-  drawRoomShell, drawRoomContents, roomContents, ROOM_W, ROOM_H, FLOOR_Y, FLOOR_BAND,
+  drawRoomShell, drawRoomContents, roomContents, drawFloorSample,
+  ROOM_W, ROOM_H, FLOOR_Y, FLOOR_BAND,
 } from '../render/room.js';
-import { itemBounds, boundsContain, clampScale } from '../model/geometry.js';
+import { itemBounds, boundsContain, clampScale, findSurface } from '../model/geometry.js';
 import {
-  placeItem, placeCharacter, frontZ, backZ, WALL_COLORS, FLOOR_COLORS,
+  placeItem, placeCharacter, frontZ, backZ, WALL_COLORS, FLOOR_COLORS, FLOOR_STYLES,
 } from '../model/world.js';
 import { createCharacterCreator } from './charcreator.js';
 import { createHouse } from './house.js';
@@ -75,6 +76,24 @@ export function createRoomScene(game, roomId) {
 
   function isWallItem(entry) {
     return isItem(entry) && catalog.get(entry.item)?.surface === 'wall';
+  }
+
+  /**
+   * Stands an item on whatever surface it was dropped onto.
+   *
+   * Sets the baseline to the host's top and lifts z one above it, so the item
+   * draws in front of the thing it is standing on rather than behind it.
+   * Returns false when the drop was onto the floor.
+   */
+  function standOnSurface(entry, x, y) {
+    if (isWallItem(entry)) return false;
+    const host = findSurface(entry, room.items, (id) => catalog.get(id), x, y);
+    if (!host) return false;
+
+    entry.x = x;
+    entry.y = host.top;
+    entry.z = (host.item.z ?? 0) + 1;
+    return true;
   }
 
   /** Keeps anything placed within reach of a finger. */
@@ -164,10 +183,19 @@ export function createRoomScene(game, roomId) {
     if (tab === 'wall' || tab === 'floor') {
       const swatches = tab === 'wall' ? WALL_COLORS : FLOOR_COLORS;
       const current = tab === 'wall' ? room.wall : room.floor;
-      return swatches.map((color, i) => button(
-        `paint:${i}`, CELL.x + i * 112, CELL.y + 26, 96, 96,
+      const colors = swatches.map((color, i) => button(
+        `paint:${i}`, CELL.x + i * 70, CELL.y + 4, 64, 64,
         { swatch: color, color, active: current === color },
       ));
+      if (tab === 'wall') return colors;
+
+      // The floor also gets a surface, chosen separately from its colour —
+      // six patterns times ten colours is sixty floors rather than six.
+      const patterns = FLOOR_STYLES.map((style, i) => button(
+        `surface:${style}`, CELL.x + i * 102, CELL.y + 78, 94, 74,
+        { floorStyle: style, active: room.floorStyle === style },
+      ));
+      return [...colors, ...patterns];
     }
 
     if (tab === 'people') {
@@ -238,6 +266,11 @@ export function createRoomScene(game, roomId) {
       game.persist();
       return true;
     }
+    if (kind === 'surface') {
+      room.floorStyle = hit.floorStyle;
+      game.persist();
+      return true;
+    }
     if (kind === 'person') { selected = hit.character; return true; }
 
     if (!selected) return false;
@@ -282,6 +315,7 @@ export function createRoomScene(game, roomId) {
       const next = clampPlacement(drag.target, p.x - drag.dx, p.y - drag.dy);
       drag.target.x = next.x;
       drag.target.y = next.y;
+      standOnSurface(drag.target, next.x, next.y);
     },
 
     onPointerUp(x, y) {
@@ -295,6 +329,7 @@ export function createRoomScene(game, roomId) {
           const spot = clampPlacement(entry, p.x, p.y);
           entry.x = spot.x;
           entry.y = spot.y;
+          standOnSurface(entry, spot.x, spot.y);
           room.items.push(entry);
           selected = entry;
           game.persist();
@@ -324,7 +359,7 @@ export function createRoomScene(game, roomId) {
       drawRoomContents(ctx, room, cast(), catalog, game.time, selected);
       ctx.restore();
 
-      if (open) drawDrawer(ctx, tabs(), panelContents(), tab, game.time);
+      if (open) drawDrawer(ctx, tabs(), panelContents(), tab, game.time, room.floor);
 
       drawButtons(ctx, permanent());
       drawButtons(ctx, selectionControls());
@@ -342,7 +377,7 @@ export function createRoomScene(game, roomId) {
 
 // ---------------------------------------------------------------- drawing
 
-function drawDrawer(ctx, tabControls, contents, tab, time) {
+function drawDrawer(ctx, tabControls, contents, tab, time, floorColor) {
   drawPanel(ctx, 16, PANEL_TOP, 1248, 720 - PANEL_TOP, COLORS.panel, 24);
 
   for (const control of tabControls) {
@@ -381,9 +416,34 @@ function drawDrawer(ctx, tabControls, contents, tab, time) {
       ctx.scale(scale, scale);
       drawCharacter(ctx, control.character.spec, time);
       ctx.restore();
+    } else if (control.floorStyle) {
+      drawFloorSwatch(ctx, control, floorColor);
     } else {
       drawButton(ctx, control);
     }
+  }
+}
+
+/** A patch of the real floor, so a pattern is chosen by looking at it. */
+function drawFloorSwatch(ctx, control, color) {
+  ctx.save();
+  ctx.beginPath();
+  roundRect(ctx, control.x, control.y, control.w, control.h, 10);
+  ctx.clip();
+  // Draw the room's floor band scaled down into the cell.
+  ctx.translate(control.x, control.y - FLOOR_Y * (control.h / (ROOM_H - FLOOR_Y)));
+  const s = control.w / ROOM_W;
+  ctx.scale(s, control.h / (ROOM_H - FLOOR_Y));
+  ctx.fillStyle = color;
+  ctx.fillRect(0, FLOOR_Y, ROOM_W, ROOM_H - FLOOR_Y);
+  drawFloorSample(ctx, color, control.floorStyle);
+  ctx.restore();
+
+  if (control.active) {
+    ctx.strokeStyle = COLORS.buttonActive;
+    ctx.lineWidth = 4;
+    roundRect(ctx, control.x, control.y, control.w, control.h, 10);
+    ctx.stroke();
   }
 }
 
