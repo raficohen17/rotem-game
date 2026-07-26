@@ -87,7 +87,8 @@ export function createRoomScene(game, roomId) {
    */
   function standOnSurface(entry, x, y) {
     if (isWallItem(entry)) return false;
-    const host = findSurface(entry, room.items, (id) => catalog.get(id), x, y);
+    const host = findSurface(entry, room.items, (id) => catalog.get(id), x, y,
+      catalog.get(entry.item));
     if (!host) return false;
 
     entry.x = x;
@@ -105,6 +106,20 @@ export function createRoomScene(game, roomId) {
         ? Math.min(FLOOR_Y - 10, Math.max(40, y))
         : Math.min(FLOOR_BAND.bottom, Math.max(FLOOR_BAND.top, y)),
     };
+  }
+
+  /** The surface the current drag would land on, for the highlight. */
+  function hoveredSurface(sx, sy) {
+    if (!drag) return null;
+    const entry = drag.mode === 'place'
+      ? { item: drag.def.id, scale: 1 }
+      : drag.target;
+    if (!entry || isWallItem(entry)) return null;
+
+    const p = toRoom(sx, sy);
+    const point = drag.mode === 'place' ? p : { x: p.x - drag.dx, y: p.y - drag.dy };
+    return findSurface(entry, room.items, (id) => catalog.get(id), point.x, point.y,
+      catalog.get(entry.item));
   }
 
   /** Frontmost thing under a room-space point, so what looks on top is picked. */
@@ -309,6 +324,7 @@ export function createRoomScene(game, roomId) {
 
     onPointerMove(x, y) {
       if (!drag) return;
+      drag.hover = hoveredSurface(x, y);
       if (drag.mode === 'place') { drag.sx = x; drag.sy = y; return; }
 
       const p = toRoom(x, y);
@@ -358,6 +374,21 @@ export function createRoomScene(game, roomId) {
       drawRoomShell(ctx, room);
       drawRoomContents(ctx, room, cast(), catalog, game.time, selected);
       ctx.restore();
+
+      // A bright line along the surface a drag will land on.
+      if (drag?.hover) {
+        const t2 = transform();
+        const b = drag.hover.bounds;
+        ctx.save();
+        ctx.strokeStyle = '#f0c86a';
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(t2.x + b.left * t2.s, t2.y + b.top * t2.s);
+        ctx.lineTo(t2.x + b.right * t2.s, t2.y + b.top * t2.s);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       if (open) drawDrawer(ctx, tabs(), panelContents(), tab, game.time, room.floor);
 
