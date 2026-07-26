@@ -1,0 +1,27 @@
+/* The page is only a frame for the canvas — all UI is drawn in the game. */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #15111f;
+  overscroll-behavior: none;
+}
+
+body {
+  /* Kills pull-to-refresh, double-tap zoom and text selection, all of which
+     fight finger-dragging furniture around. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#stage {
+  display: block;
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
