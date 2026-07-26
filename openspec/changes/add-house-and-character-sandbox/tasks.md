@@ -47,5 +47,6 @@
 
 - [x] 6.1 Verify at Pixel viewport in the browser: landscape layout, touch target sizes, nothing clipped
 - [x] 6.2 Confirm no network requests reach any third-party origin while playing
-- [x] 6.3 Confirm install to home screen, offline start, and that a version bump reaches an installed copy
-- [x] 6.4 Merge to `main` so GitHub Pages serves it, and install it on Rotem's phone
+- [x] 6.4 Merge to `main` so GitHub Pages serves it
+- [ ] 6.3 Confirm install to home screen, offline start, and that a version bump reaches an installed copy — **needs the Pixel**; the worker and manifest are verified as correct and deployed, but nothing has actually been installed on a device yet
+- [ ] 6.5 Install it on Rotem's phone and watch her use it
