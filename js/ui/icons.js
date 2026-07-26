@@ -325,6 +325,56 @@ export const ICONS = {
     ctx.fill();
   },
 
+  layer(ctx, c) {
+    // An open cardigan: two front panels with a gap down the middle.
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-9, -15);
+    ctx.lineTo(-2, -13);
+    ctx.lineTo(-2, 16);
+    ctx.lineTo(-11, 16);
+    ctx.lineTo(-11, -2);
+    ctx.lineTo(-15, 0);
+    ctx.lineTo(-19, -9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(9, -15);
+    ctx.lineTo(2, -13);
+    ctx.lineTo(2, 16);
+    ctx.lineTo(11, 16);
+    ctx.lineTo(11, -2);
+    ctx.lineTo(15, 0);
+    ctx.lineTo(19, -9);
+    ctx.closePath();
+    ctx.fill();
+  },
+
+  socks(ctx, c) {
+    // A sock: a leg with a folded cuff and a foot turned out.
+    fillRR(ctx, -13, -17, 15, 6, 3, c);
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-13, -10);
+    ctx.lineTo(2, -10);
+    ctx.lineTo(2, 6);
+    ctx.quadraticCurveTo(2, 15, 12, 15);
+    ctx.lineTo(16, 15);
+    ctx.lineTo(16, 6);
+    ctx.quadraticCurveTo(-4, 6, -4, -2);
+    ctx.lineTo(-13, -2);
+    ctx.closePath();
+    ctx.fill();
+  },
+
+  held(ctx, c) {
+    // A hand holding a book.
+    fillRR(ctx, -16, -12, 26, 20, 2, c);
+    fillRR(ctx, -16, -12, 6, 20, 2, '#00000055');
+    fillCircle(ctx, 8, 12, 8, c);
+    fillRR(ctx, 1, 6, 12, 6, 3, c);
+  },
+
   shoes(ctx, c) {
     ctx.fillStyle = c;
     ctx.beginPath();

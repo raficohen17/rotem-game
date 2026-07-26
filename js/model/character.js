@@ -60,6 +60,21 @@ export const FACE_SHAPES = [
 ];
 
 /**
+ * Layers worn over a top: index 0 is nothing at all.
+ *
+ * A separate part rather than more top styles, because the whole problem was
+ * that a jumper and the cardigan over it were competing for one slot. A look
+ * that is "put together" is almost always two garments, not one.
+ */
+export const LAYERS = ['none', 'cardigan', 'coat', 'cloak', 'apron', 'pinafore', 'gilet'];
+
+/** Things a character can hold. Index 0 is empty handed. */
+export const HELD_ITEMS = ['none', 'book', 'wand', 'basket', 'flowers', 'teddy'];
+
+/** Legwear, chosen separately from shoes — knee socks are half a uniform. */
+export const SOCKS = ['none', 'ankle', 'knee', 'tights', 'striped', 'slouch'];
+
+/**
  * Body builds.
  *
  * These exist because "a Hermione or a Malibu Barbie depending on the choices"
@@ -99,10 +114,15 @@ export const PART_COUNTS = {
   mouthColor: LIP_COLORS.length,
   top: 12,
   topColor: CLOTH_COLORS.length,
+  layer: LAYERS.length,
+  layerColor: CLOTH_COLORS.length,
   bottom: 10,
   bottomColor: CLOTH_COLORS.length,
+  socks: SOCKS.length,
+  socksColor: CLOTH_COLORS.length,
   shoes: 8,
   shoesColor: CLOTH_COLORS.length,
+  held: HELD_ITEMS.length,
   extra: 12, // index 0 is "nothing"
   extraColor: CLOTH_COLORS.length,
 };
@@ -132,8 +152,11 @@ export const EDITABLE_PARTS = [
   { key: 'nose', colorKey: null, icon: 'nose' },
   { key: 'mouth', colorKey: 'mouthColor', icon: 'mouth' },
   { key: 'top', colorKey: 'topColor', icon: 'top' },
+  { key: 'layer', colorKey: 'layerColor', icon: 'layer' },
   { key: 'bottom', colorKey: 'bottomColor', icon: 'bottom' },
+  { key: 'socks', colorKey: 'socksColor', icon: 'socks' },
   { key: 'shoes', colorKey: 'shoesColor', icon: 'shoes' },
+  { key: 'held', colorKey: null, icon: 'held' },
   { key: 'extra', colorKey: 'extraColor', icon: 'extra' },
 ];
 
@@ -142,8 +165,9 @@ export function createCharacterSpec() {
     build: 2, face: 0, skin: 3, hair: 0, hairColor: 1,
     hairpin: 0, hairpinColor: 0, brows: 0,
     eyes: 0, eyeColor: 0, nose: 1, mouth: 0, mouthColor: 0,
-    top: 0, topColor: 0, bottom: 0, bottomColor: 5,
-    shoes: 0, shoesColor: 9, extra: 0, extraColor: 2,
+    top: 0, topColor: 0, layer: 0, layerColor: 3,
+    bottom: 0, bottomColor: 5, socks: 0, socksColor: 8,
+    shoes: 0, shoesColor: 9, held: 0, extra: 0, extraColor: 2,
   };
 }
 
@@ -172,4 +196,91 @@ export function clampSpec(spec) {
 /** Cycles a part forward, wrapping at the end. */
 export function nextPart(spec, key) {
   return { ...spec, [key]: (spec[key] + 1) % PART_COUNTS[key] };
+}
+
+
+/**
+ * Complete looks.
+ *
+ * The defect these exist to fix is coordination: eighteen parts chosen
+ * independently will always read as a kit rather than as somebody. A look
+ * writes several parts at once and then leaves every one of them editable, so
+ * it is a starting point rather than a costume.
+ *
+ * Named for what they evoke rather than for anyone in particular.
+ */
+export const LOOKS = [
+  {
+    id: 'school',
+    label: 'School',
+    spec: {
+      build: 1, face: 0, skin: 4, hair: 5, hairColor: 1, hairpin: 0,
+      brows: 2, eyes: 2, eyeColor: 1, nose: 5, mouth: 0, mouthColor: 3,
+      top: 11, topColor: 9, layer: 0, layerColor: 9,
+      bottom: 6, bottomColor: 9, socks: 2, socksColor: 8,
+      shoes: 4, shoesColor: 9, held: 1, extra: 0, extraColor: 9,
+    },
+  },
+  {
+    id: 'dreamer',
+    label: 'Dreamer',
+    spec: {
+      build: 3, face: 4, skin: 5, hair: 9, hairColor: 4, hairpin: 7,
+      brows: 3, eyes: 5, eyeColor: 5, nose: 1, mouth: 8, mouthColor: 7,
+      top: 2, topColor: 3, layer: 3, layerColor: 4,
+      bottom: 3, bottomColor: 2, socks: 4, socksColor: 6,
+      shoes: 0, shoesColor: 3, held: 2, extra: 9, extraColor: 7,
+    },
+  },
+  {
+    id: 'orchard',
+    label: 'Orchard',
+    spec: {
+      build: 0, face: 2, skin: 5, hair: 3, hairColor: 2, hairpin: 4,
+      brows: 0, eyes: 7, eyeColor: 3, nose: 5, mouth: 0, mouthColor: 1,
+      top: 7, topColor: 8, layer: 5, layerColor: 5,
+      bottom: 3, bottomColor: 5, socks: 1, socksColor: 8,
+      shoes: 1, shoesColor: 1, held: 3, extra: 2, extraColor: 7,
+    },
+  },
+  {
+    id: 'party',
+    label: 'Party',
+    spec: {
+      build: 2, face: 7, skin: 3, hair: 4, hairColor: 0, hairpin: 3,
+      brows: 1, eyes: 5, eyeColor: 0, nose: 1, mouth: 5, mouthColor: 0,
+      top: 0, topColor: 0, layer: 0, layerColor: 0,
+      bottom: 4, bottomColor: 1, socks: 0, socksColor: 8,
+      shoes: 0, shoesColor: 7, held: 4, extra: 4, extraColor: 7,
+    },
+  },
+  {
+    id: 'cosy',
+    label: 'Cosy',
+    spec: {
+      build: 4, face: 1, skin: 2, hair: 1, hairColor: 3, hairpin: 0,
+      brows: 5, eyes: 1, eyeColor: 2, nose: 1, mouth: 0, mouthColor: 3,
+      top: 5, topColor: 6, layer: 1, layerColor: 2,
+      bottom: 5, bottomColor: 9, socks: 5, socksColor: 2,
+      shoes: 6, shoesColor: 2, held: 5, extra: 6, extraColor: 6,
+    },
+  },
+  {
+    id: 'explorer',
+    label: 'Explorer',
+    spec: {
+      build: 5, face: 3, skin: 1, hair: 3, hairColor: 0, hairpin: 0,
+      brows: 6, eyes: 9, eyeColor: 7, nose: 2, mouth: 3, mouthColor: 4,
+      top: 10, topColor: 9, layer: 0, layerColor: 9,
+      bottom: 0, bottomColor: 9, socks: 1, socksColor: 9,
+      shoes: 7, shoesColor: 9, held: 0, extra: 0, extraColor: 9,
+    },
+  },
+];
+
+/** Applies a look over a character, leaving anything it does not set alone. */
+export function applyLook(spec, lookId) {
+  const look = LOOKS.find((entry) => entry.id === lookId);
+  if (!look) return clampSpec(spec);
+  return clampSpec({ ...spec, ...look.spec });
 }
