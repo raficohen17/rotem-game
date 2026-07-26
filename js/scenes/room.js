@@ -91,10 +91,7 @@ export function createRoomScene(game, roomId) {
     if (isWallItem(entry)) return false;
     const host = findSurface(entry, room.items, (id) => catalog.get(id), x, y,
       catalog.get(entry.item));
-    if (!host) {
-      if (entry.item === 'book' && entry.lying) standUp(entry);
-      return false;
-    }
+    if (!host) return false;
 
     entry.x = x;
     entry.y = host.top;
@@ -138,6 +135,25 @@ export function createRoomScene(game, roomId) {
     delete entry.lying;
     delete entry.w;
     delete entry.h;
+  }
+
+  /**
+   * Puts an item where it was dropped: on a surface if one is in reach,
+   * otherwise on the floor.
+   *
+   * The surface search has to happen against the raw drop point. Clamping to
+   * the floor band first pinned every drop to within sixty pixels of the
+   * floor, so nothing could ever reach the top of a second book — a pile of
+   * two was the tallest thing anyone could build, and it worked at all only
+   * because a table top happened to fall inside the clamped range.
+   */
+  function settle(entry, x, y) {
+    if (standOnSurface(entry, x, y)) return;
+
+    const spot = clampPlacement(entry, x, y);
+    entry.x = spot.x;
+    entry.y = spot.y;
+    if (entry.item === 'book' && entry.lying) standUp(entry);
   }
 
   /** Keeps anything placed within reach of a finger. */
@@ -300,7 +316,7 @@ export function createRoomScene(game, roomId) {
     const t = transform();
     const width = ids.length * PIP + (ids.length - 1) * 6;
     const height = isItem(selected)
-      ? (catalog.get(selected.item)?.h ?? 0) * selected.scale
+      ? (selected.h ?? catalog.get(selected.item)?.h ?? 0) * selected.scale
       : CHAR_H;
 
     // Above the object, or below it when that would leave the screen.
@@ -386,10 +402,7 @@ export function createRoomScene(game, roomId) {
       if (drag.mode === 'place') { drag.sx = x; drag.sy = y; return; }
 
       const p = toRoom(x, y);
-      const next = clampPlacement(drag.target, p.x - drag.dx, p.y - drag.dy);
-      drag.target.x = next.x;
-      drag.target.y = next.y;
-      standOnSurface(drag.target, next.x, next.y);
+      settle(drag.target, p.x - drag.dx, p.y - drag.dy);
     },
 
     onPointerUp(x, y) {
@@ -401,10 +414,7 @@ export function createRoomScene(game, roomId) {
           const p = toRoom(x, y);
           const entry = placeItem(drag.def.id, p.x, p.y);
           if (entry.item === 'book') entry.design = createBook();
-          const spot = clampPlacement(entry, p.x, p.y);
-          entry.x = spot.x;
-          entry.y = spot.y;
-          standOnSurface(entry, spot.x, spot.y);
+          settle(entry, p.x, p.y);
           room.items.push(entry);
           selected = entry;
           game.persist();
