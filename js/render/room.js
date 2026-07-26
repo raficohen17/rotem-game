@@ -10,7 +10,8 @@
 import { drawItem } from './catalog.js';
 import { drawCharacter } from './character.js';
 import { drawOrder } from '../model/geometry.js';
-import { shade } from './shapes.js';
+import { shade, fillRR, roundRect } from './shapes.js';
+import { litFill } from './materials.js';
 
 export const ROOM_W = 1200;
 export const ROOM_H = 520;
@@ -21,20 +22,86 @@ export const FLOOR_Y = 380;
 /** Baselines are clamped into this band so nothing lands out of reach. */
 export const FLOOR_BAND = { top: FLOOR_Y + 10, bottom: ROOM_H - 10 };
 
+/**
+ * The empty room: wall, skirting and floor.
+ *
+ * This is behind every screen in the game, so it carries more weight than any
+ * single piece of furniture. It used to be two flat rectangles. It now has a
+ * wall that falls off toward the floor, a proper skirting board with a lip,
+ * and floorboards that shorten toward the back — the cheapest depth cue there
+ * is, and the one that stops the floor reading as a stripe of colour.
+ */
 export function drawRoomShell(ctx, room) {
-  ctx.fillStyle = room.wall;
+  const skirtH = 22;
+  const skirtY = FLOOR_Y - skirtH;
+
+  // Wall, brightest at the top where the light comes from.
+  ctx.fillStyle = litFill(ctx, 0, FLOOR_Y, room.wall, 0.1);
   ctx.fillRect(0, 0, ROOM_W, FLOOR_Y);
 
-  // A soft skirting line so the wall and floor read as different surfaces even
-  // when Rotem picks two similar colours.
-  ctx.fillStyle = shade(room.wall, -0.18);
-  ctx.fillRect(0, FLOOR_Y - 10, ROOM_W, 10);
-
-  ctx.fillStyle = room.floor;
+  // Floor, with boards running away from the viewer.
+  ctx.fillStyle = litFill(ctx, FLOOR_Y, ROOM_H - FLOOR_Y, room.floor, 0.08);
   ctx.fillRect(0, FLOOR_Y, ROOM_W, ROOM_H - FLOOR_Y);
+  drawFloorboards(ctx, room.floor);
 
-  ctx.fillStyle = shade(room.floor, 0.12);
-  ctx.fillRect(0, FLOOR_Y, ROOM_W, 6);
+  // Skirting board: a face, a lip along the top, and a shadow it casts down
+  // onto the floor.
+  ctx.fillStyle = shade(room.wall, -0.16);
+  ctx.fillRect(0, skirtY, ROOM_W, skirtH);
+  ctx.fillStyle = shade(room.wall, 0.16);
+  ctx.fillRect(0, skirtY, ROOM_W, 4);
+  ctx.fillStyle = shade(room.wall, -0.3);
+  ctx.fillRect(0, FLOOR_Y - 3, ROOM_W, 3);
+
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, FLOOR_Y, ROOM_W, 14);
+  ctx.restore();
+}
+
+/**
+ * Boards receding toward the back wall.
+ *
+ * Rows get shorter with distance and the seams within each row are offset, so
+ * the floor reads as a surface you could walk across rather than as a band.
+ */
+function drawFloorboards(ctx, color) {
+  const depth = ROOM_H - FLOOR_Y;
+  const rows = 5;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, FLOOR_Y, ROOM_W, depth);
+  ctx.clip();
+
+  ctx.strokeStyle = shade(color, -0.22);
+  ctx.lineWidth = 2;
+
+  let y = FLOOR_Y;
+  for (let row = 0; row < rows; row += 1) {
+    // Each row is taller than the one behind it.
+    const h = (depth / rows) * (0.62 + row * 0.19);
+    y += h;
+
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(ROOM_W, y);
+    ctx.stroke();
+
+    // Board ends, staggered row to row.
+    ctx.globalAlpha = 0.45;
+    const boardW = 190 + row * 30;
+    const offset = (row % 2) * boardW * 0.5;
+    for (let x = offset; x < ROOM_W; x += boardW) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - h);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 /**
@@ -95,11 +162,24 @@ function drawSelectionHalo(ctx, entry, catalog) {
     h = def.h * placed.scale;
   }
 
+  // A soft rounded glow rather than a hard dashed box — the old one looked
+  // like a marquee tool sitting on top of drawn furniture.
+  const x = placed.x - w / 2 - 12;
+  const y = placed.y - h - 12;
+  const bw = w + 24;
+  const bh = h + 24;
+
   ctx.save();
-  ctx.strokeStyle = '#dcb85c';
-  ctx.lineWidth = 5;
-  ctx.setLineDash([14, 10]);
-  ctx.strokeRect(placed.x - w / 2 - 8, placed.y - h - 8, w + 16, h + 16);
+  ctx.globalAlpha = 0.22;
+  fillRR(ctx, x, y, bw, bh, 16, '#f0c86a');
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = '#f0c86a';
+  ctx.lineWidth = 3.5;
+  ctx.setLineDash([13, 9]);
+  roundRect(ctx, x, y, bw, bh, 16);
+  ctx.stroke();
   ctx.restore();
 }
 
