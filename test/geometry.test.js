@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   itemBounds, boundsContain, drawOrder, hitTest, clampScale, clampToRoom,
-  findSurface, MIN_SCALE, MAX_SCALE,
+  findSurface, SNAP_REACH, MIN_SCALE, MAX_SCALE,
 } from '../js/model/geometry.js';
 import { placeItem, ROOM_IDS } from '../js/model/world.js';
 import {
@@ -306,4 +306,23 @@ test('an item with no declared shelves offers only its top', () => {
   const host = findSurface(placeItem('book', 600, 335), [table], lookupPlain, 600, 335, defs.book);
   assert.equal(host.top, 335);
   assert.equal(host.maxHeight, Infinity);
+});
+
+test('surfaces exist above the floor band, so snapping must come before clamping', () => {
+  // The bug this pins down: the room scene clamped every drop into the floor
+  // band and only then looked for a surface. That put a ceiling on how high
+  // anything could be placed — the top of a book standing on a table is well
+  // outside the clamped range, so a pile could never reach a second level. It
+  // worked at all only because a table top happened to fall just inside it.
+  const FLOOR_BAND_TOP = 390;   // from render/room.js
+  const table = { h: 145 };
+  const book = { h: 136 };
+
+  const tableTop = 510 - table.h;                 // a table on the floor
+  const bookTop = tableTop - book.h;              // a book standing on it
+
+  assert.ok(Math.abs(tableTop - FLOOR_BAND_TOP) < SNAP_REACH,
+    'a table top is close enough to the floor band to be reachable by accident');
+  assert.ok(Math.abs(bookTop - FLOOR_BAND_TOP) > SNAP_REACH,
+    'but the top of a book on that table is not — clamping first loses it');
 });

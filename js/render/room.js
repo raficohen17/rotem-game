@@ -329,8 +329,10 @@ function drawSelectionHalo(ctx, entry, catalog) {
   if (entry.kind === 'item') {
     const def = catalog.get(placed.item);
     if (!def) return;
-    w = def.w * placed.scale;
-    h = def.h * placed.scale;
+    // The placed item may override its size — a book laid flat on a pile is
+    // a quarter the height of the same book standing up.
+    w = (placed.w ?? def.w) * placed.scale;
+    h = (placed.h ?? def.h) * placed.scale;
   }
 
   // A soft rounded glow rather than a hard dashed box — the old one looked
