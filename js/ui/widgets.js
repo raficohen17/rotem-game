@@ -13,16 +13,18 @@ import { drawIcon } from './icons.js';
 /** Minimum touch target in design pixels — sized for a child's finger. */
 export const TOUCH = 72;
 
+/* A warm charcoal surround, so the tinted paper of the rooms is what carries
+   the colour rather than competing with the interface. */
 export const COLORS = {
-  panel: '#2b2440',
-  panelEdge: '#3d3459',
-  button: '#443a63',
-  buttonActive: '#f2913d',
-  danger: '#e0506a',
-  good: '#5fbf7a',
-  ink: '#f4f0ff',
-  inkDim: '#a79ec9',
-  backdrop: '#1d1830',
+  panel: '#332c33',
+  panelEdge: '#463d47',
+  button: '#4a4048',
+  buttonActive: '#d98a4e',
+  danger: '#c05a63',
+  good: '#6f9463',
+  ink: '#f4eee4',
+  inkDim: '#a89e94',
+  backdrop: '#241f26',
 };
 
 /**

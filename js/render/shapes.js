@@ -6,6 +6,25 @@
  * makes "standing on the floor" the default and keeps depth sorting simple.
  */
 
+/**
+ * The design language is cut paper: every element is a flat shape lying on
+ * the one behind it, separated by a soft shadow rather than by an outline.
+ *
+ * It was chosen for where this project ends up rather than for how it looks
+ * today — the plan is for Rotem's own paper drawings to replace this art, and
+ * in a cut-paper world a scanned drawing reads as belonging rather than as a
+ * patch.
+ */
+export function paperLayer(ctx, draw, lift = 1) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(38, 28, 45, 0.26)';
+  ctx.shadowBlur = 7 * lift;
+  ctx.shadowOffsetY = 3 * lift;
+  ctx.shadowOffsetX = 1 * lift;
+  draw();
+  ctx.restore();
+}
+
 /** Rounded rectangle path. Hand-rolled rather than ctx.roundRect for reach. */
 export function roundRect(ctx, x, y, w, h, r) {
   const radius = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);

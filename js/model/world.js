@@ -11,20 +11,22 @@ export const CURRENT_VERSION = 1;
 
 export const ROOM_IDS = ['bedroom', 'living', 'kitchen', 'bath'];
 
-export const DEFAULT_WALL = '#f3d9e6';
-export const DEFAULT_FLOOR = '#c98f5f';
+export const DEFAULT_WALL = '#ecdcd6';
+export const DEFAULT_FLOOR = '#c2996b';
 
 /** Rooms as they appear in the cutaway: two upstairs, two below. */
 export const HOUSE_LAYOUT = ['bedroom', 'bath', 'living', 'kitchen'];
 
+/* Tinted paper stock, not poster paint. */
+
 export const WALL_COLORS = [
-  '#f3d9e6', '#dfe9f7', '#e7f3dc', '#fdf0d0', '#f7dcd0',
-  '#e4dcf5', '#d3ecec', '#f5e6f7', '#ece7df', '#cfd8e8',
+  '#ecdcd6', '#dde3ea', '#e0e7d6', '#f2e6cd', '#ecd9cb',
+  '#dfd8e4', '#d3e0de', '#e8dce4', '#ebe5d9', '#ccd3da',
 ];
 
 export const FLOOR_COLORS = [
-  '#c98f5f', '#8a5a3a', '#d9c9a8', '#a8b8a0', '#b8a8c8',
-  '#e0d0b0', '#6f8fa8', '#c8a0a0', '#9a9a9a', '#4f6f5f',
+  '#c2996b', '#8a6448', '#d6c8ab', '#a3b09b', '#b3a6bd',
+  '#ded0b4', '#6f8794', '#bf9a97', '#9c968d', '#556b5c',
 ];
 
 /** Where a character stands when first placed, in design coordinates. */

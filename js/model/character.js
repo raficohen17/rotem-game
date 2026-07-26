@@ -7,18 +7,29 @@
  * changes how everyone looks without touching a single save file.
  */
 
+/*
+ * Muted, warm and slightly dusty rather than saturated — the palette of tinted
+ * paper stock. Changing these values restyles every character already saved,
+ * which is the whole reason parts are stored as indices.
+ */
+
 export const SKIN_TONES = [
-  '#8d5524', '#c68642', '#e0ac69', '#f1c27d', '#ffdbac', '#5c3317',
+  '#6b4630', '#8f5f3f', '#b57f56', '#d3a077', '#e8c39e', '#f2d9bd',
 ];
 
 export const HAIR_COLORS = [
-  '#2b1b12', '#5a3825', '#8b5a2b', '#c8873f', '#e8c17a',
-  '#d94f6a', '#7b4fd9', '#3fa9d9', '#4fbf6a', '#f0f0f0',
+  '#332a2a', '#54382a', '#7d5236', '#a9773f', '#d4b183',
+  '#b05663', '#7a6296', '#4a7f96', '#5c8a66', '#ded7cc',
 ];
 
 export const CLOTH_COLORS = [
-  '#e94f6a', '#f2913d', '#f7d04a', '#6fcf5f', '#3fb8c9',
-  '#5a7fe0', '#9b6bd8', '#f07fb8', '#ffffff', '#3a3550',
+  '#c9604f', '#d98a4e', '#dcb85c', '#7d9e62', '#4f9695',
+  '#5c7aa8', '#8a6d9e', '#cd8b98', '#efe7d9', '#423d4d',
+];
+
+export const LIP_COLORS = [
+  '#a85a5f', '#c07070', '#8f4048', '#d4878c',
+  '#7d3a44', '#b8656f', '#9c5750', '#e0a3a2',
 ];
 
 /**
@@ -28,18 +39,32 @@ export const CLOTH_COLORS = [
  */
 export const PART_COUNTS = {
   skin: SKIN_TONES.length,
-  hair: 8,
+  hair: 14,
   hairColor: HAIR_COLORS.length,
-  eyes: 5,
-  mouth: 5,
-  top: 6,
+  eyes: 10,
+  nose: 6, // index 0 is "nothing"
+  mouth: 10,
+  mouthColor: LIP_COLORS.length,
+  top: 12,
   topColor: CLOTH_COLORS.length,
-  bottom: 5,
+  bottom: 10,
   bottomColor: CLOTH_COLORS.length,
-  shoes: 4,
+  shoes: 8,
   shoesColor: CLOTH_COLORS.length,
-  extra: 6, // index 0 is "nothing"
+  extra: 12, // index 0 is "nothing"
+  extraColor: CLOTH_COLORS.length,
 };
+
+/**
+ * How many different characters can be made.
+ *
+ * Worth stating as a number rather than a feeling — it is the answer to "can
+ * she make a new one that isn't like the others", and a test holds it above
+ * the agreed floor so a future tidy-up cannot quietly shrink the wardrobe.
+ */
+export function countCombinations() {
+  return Object.values(PART_COUNTS).reduce((total, count) => total * count, 1);
+}
 
 export const PART_KEYS = Object.keys(PART_COUNTS);
 
@@ -48,18 +73,19 @@ export const EDITABLE_PARTS = [
   { key: 'skin', colorKey: null, icon: 'face' },
   { key: 'hair', colorKey: 'hairColor', icon: 'hair' },
   { key: 'eyes', colorKey: null, icon: 'eyes' },
-  { key: 'mouth', colorKey: null, icon: 'mouth' },
+  { key: 'nose', colorKey: null, icon: 'nose' },
+  { key: 'mouth', colorKey: 'mouthColor', icon: 'mouth' },
   { key: 'top', colorKey: 'topColor', icon: 'top' },
   { key: 'bottom', colorKey: 'bottomColor', icon: 'bottom' },
   { key: 'shoes', colorKey: 'shoesColor', icon: 'shoes' },
-  { key: 'extra', colorKey: null, icon: 'extra' },
+  { key: 'extra', colorKey: 'extraColor', icon: 'extra' },
 ];
 
 export function createCharacterSpec() {
   return {
-    skin: 3, hair: 0, hairColor: 1, eyes: 0, mouth: 0,
+    skin: 3, hair: 0, hairColor: 1, eyes: 0, nose: 1, mouth: 0, mouthColor: 0,
     top: 0, topColor: 0, bottom: 0, bottomColor: 5,
-    shoes: 0, shoesColor: 9, extra: 0,
+    shoes: 0, shoesColor: 9, extra: 0, extraColor: 2,
   };
 }
 

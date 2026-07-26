@@ -96,7 +96,7 @@ function drawSelectionHalo(ctx, entry, catalog) {
   }
 
   ctx.save();
-  ctx.strokeStyle = '#f7d04a';
+  ctx.strokeStyle = '#dcb85c';
   ctx.lineWidth = 5;
   ctx.setLineDash([14, 10]);
   ctx.strokeRect(placed.x - w / 2 - 8, placed.y - h - 8, w + 16, h + 16);

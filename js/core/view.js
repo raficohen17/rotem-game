@@ -43,7 +43,7 @@ export class View {
   begin() {
     const { ctx } = this;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#15111f';
+    ctx.fillStyle = '#1a161c';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(this.scale, 0, 0, this.scale, this.offsetX, this.offsetY);
     ctx.imageSmoothingQuality = 'high';

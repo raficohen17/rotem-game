@@ -9,20 +9,34 @@ import { button, hitTest, drawButtons, drawPanel, COLORS, TOUCH } from '../ui/wi
 import { fillRR } from '../render/shapes.js';
 import { drawCharacter, CHAR_H } from '../render/character.js';
 import {
-  EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS,
+  EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS, LIP_COLORS,
   createCharacterSpec, clampSpec,
 } from '../model/character.js';
 
 /** Parts shown as a head close-up; the rest are shown full length. */
-const HEAD_PARTS = new Set(['skin', 'hair', 'eyes', 'mouth', 'extra']);
+const HEAD_PARTS = new Set(['skin', 'hair', 'eyes', 'nose', 'mouth', 'extra']);
+
+/** Which palette belongs to which colour part. */
+const PALETTES = {
+  hairColor: HAIR_COLORS,
+  mouthColor: LIP_COLORS,
+  topColor: CLOTH_COLORS,
+  bottomColor: CLOTH_COLORS,
+  shoesColor: CLOTH_COLORS,
+  extraColor: CLOTH_COLORS,
+};
 
 const TAB_X = 26;
-const TAB_SIZE = 64;
-const TAB_STEP = 72;
+const TAB_SIZE = 66;
+const TAB_STEP = 70;
+const TAB_TOP = 74;
+
+// Five across and three down holds the largest part list (fourteen hairstyles)
+// on one screen, so no part needs paging.
 const GRID_X = 648;
-const GRID_Y = 132;
-const CELL = { w: 140, h: 152, stepX: 148, stepY: 160 };
-const SWATCH_Y = 626;
+const GRID_Y = 122;
+const CELL = { w: 112, h: 128, stepX: 120, stepY: 136, cols: 5 };
+const SWATCH_Y = 566;
 
 export function createCharacterCreator(game, onDone, onCancel, initialSpec = null) {
   let spec = initialSpec ? clampSpec(initialSpec) : createCharacterSpec();
@@ -34,8 +48,8 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
     const count = PART_COUNTS[part().key];
     return Array.from({ length: count }, (unused, i) => button(
       `opt:${i}`,
-      GRID_X + (i % 4) * CELL.stepX,
-      GRID_Y + Math.floor(i / 4) * CELL.stepY,
+      GRID_X + (i % CELL.cols) * CELL.stepX,
+      GRID_Y + Math.floor(i / CELL.cols) * CELL.stepY,
       CELL.w, CELL.h,
       { option: i, active: spec[part().key] === i },
     ));
@@ -44,16 +58,16 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
   function swatchControls() {
     const colorKey = part().colorKey;
     if (!colorKey) return [];
-    const palette = colorKey === 'hairColor' ? HAIR_COLORS : CLOTH_COLORS;
+    const palette = PALETTES[colorKey] ?? CLOTH_COLORS;
     return palette.map((color, i) => button(
-      `col:${i}`, GRID_X + i * 60, SWATCH_Y, 54, 54,
+      `col:${i}`, GRID_X + i * 58, SWATCH_Y, 52, 52,
       { swatch: color, active: spec[colorKey] === i },
     ));
   }
 
   function tabControls() {
     return EDITABLE_PARTS.map((entry, i) => button(
-      `tab:${i}`, TAB_X, 96 + i * TAB_STEP, TAB_SIZE, TAB_SIZE,
+      `tab:${i}`, TAB_X, TAB_TOP + i * TAB_STEP, TAB_SIZE, TAB_SIZE,
       { active: i === partIndex, part: entry },
     ));
   }
@@ -85,7 +99,7 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
       ctx.fillRect(0, 0, 1280, 720);
 
       // Preview
-      drawPanel(ctx, 116, 96, 470, 600, '#241f3a', 22);
+      drawPanel(ctx, 116, 96, 470, 600, '#2c262e', 22);
       ctx.save();
       ctx.translate(351, 640);
       ctx.scale(1.6, 1.6);
@@ -115,7 +129,7 @@ function drawTab(ctx, control, spec, time) {
 
 function drawOption(ctx, control, spec, part, time) {
   fillRR(ctx, control.x, control.y, control.w, control.h, 14,
-    control.active ? COLORS.buttonActive : '#352c52');
+    control.active ? COLORS.buttonActive : '#413945');
 
   const preview = { ...spec, [part.key]: control.option };
   drawMini(ctx, preview, control, HEAD_PARTS.has(part.key), time);
@@ -135,8 +149,11 @@ function drawMini(ctx, spec, box, headOnly, time) {
 
   const cx = box.x + box.w / 2;
   if (headOnly) {
-    const scale = Math.min(box.w, box.h) / 150;
-    ctx.translate(cx, box.y + box.h / 2 + 206 * scale);
+    // Framed head-and-shoulders rather than head-only, and sitting high in the
+    // cell: what tells fourteen hairstyles apart is the silhouette below the
+    // ears, and a tighter crop cut exactly that off.
+    const scale = Math.min(box.w, box.h) / 205;
+    ctx.translate(cx, box.y + box.h * 0.4 + 198 * scale);
     ctx.scale(scale, scale);
   } else {
     const scale = (box.h - 16) / CHAR_H;

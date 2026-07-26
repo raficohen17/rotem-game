@@ -134,14 +134,14 @@ export function createMenu(game) {
 
 function drawSlot(ctx, box, world) {
   if (!world) {
-    fillRR(ctx, box.x, box.y, box.w, box.h, 20, '#241f3a');
+    fillRR(ctx, box.x, box.y, box.w, box.h, 20, '#2c262e');
     ctx.save();
-    ctx.strokeStyle = '#4a3f70';
+    ctx.strokeStyle = '#544a54';
     ctx.lineWidth = 4;
     ctx.setLineDash([12, 10]);
     ctx.strokeRect(box.x + 6, box.y + 6, box.w - 12, box.h - 12);
     ctx.restore();
-    drawIcon(ctx, 'plus', box.x + box.w / 2, box.y + box.h / 2, '#6d5fa0', 1.6);
+    drawIcon(ctx, 'plus', box.x + box.w / 2, box.y + box.h / 2, '#7d7078', 1.6);
     return;
   }
 
@@ -149,7 +149,7 @@ function drawSlot(ctx, box, world) {
 
   const image = thumbnailFor(world);
   const inner = { x: box.x + 10, y: box.y + 10, w: box.w - 20, h: box.h - 58 };
-  fillRR(ctx, inner.x, inner.y, inner.w, inner.h, 12, '#191430');
+  fillRR(ctx, inner.x, inner.y, inner.w, inner.h, 12, '#1e1a20');
 
   if (image?.complete && image.naturalWidth > 0) {
     // Fitted rather than stretched — a squashed house is hard to recognise,
@@ -164,7 +164,7 @@ function drawSlot(ctx, box, world) {
     ctx.drawImage(image, inner.x + (inner.w - w) / 2, inner.y + (inner.h - h) / 2, w, h);
     ctx.restore();
   } else {
-    drawIcon(ctx, 'home', inner.x + inner.w / 2, inner.y + inner.h / 2, '#4a3f70', 1.4);
+    drawIcon(ctx, 'home', inner.x + inner.w / 2, inner.y + inner.h / 2, '#544a54', 1.4);
   }
 
   ctx.fillStyle = COLORS.ink;
