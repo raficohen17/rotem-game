@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+*.log
+
+# Raw drawing scans before background removal — keep the processed PNGs only
+assets/drawings/_raw/
