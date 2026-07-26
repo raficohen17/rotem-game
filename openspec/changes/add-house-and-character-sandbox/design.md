@@ -150,6 +150,38 @@ public either way, a private repo would buy little while costing a second
 service (Cloudflare Pages) in the chain. The owner reviewed the trade-off,
 including that the repo will contain his child's drawings, and chose public.
 
+### A 2x2 cutaway house, with zoom for editing
+
+The house is shown as a side-on cutaway: four rooms, two per floor, all visible
+at once. This matches how Toca Boca presents a house and how a child draws one.
+
+Editing directly in that view was rejected. A quarter of a 1280x720 screen is
+roughly 600x330, and dragging a sofa around that with a child's finger is
+fiddly. Instead the whole-house view is the home screen of a world, and tapping
+a room zooms it to full screen to design. Both properties are kept: the whole
+house is legible at a glance, and touch targets stay large while editing.
+
+### Drawings are converted deterministically, never regenerated
+
+Turning Rotem's paper drawings into sprites is **not** a job for a generative
+model. Asking ChatGPT to "make this a game asset" produces a redrawn picture in
+its own style — which discards her actual lines and defeats the entire point of
+her art being in the game.
+
+The conversion needed is mechanical: photograph the drawing, make the paper
+transparent, trim, resize. A script does this repeatably and in batch, with the
+same result every run, and preserves exactly what she drew. It lives in
+`tools/` with its own dependency, deliberately outside the game's
+zero-dependency runtime — an asset tool is not a shipped dependency.
+
+macOS 15's built-in subject lifting is the fallback for photos the threshold
+handles badly (shadowed paper, drawings on coloured card). It is on-device, and
+it isolates a subject rather than reimagining it.
+
+Generative AI does have a legitimate use here, and it is a different one:
+producing a consistent set of placeholder items so the game looks whole before
+Rotem has drawn forty pieces of furniture.
+
 ### `model/` and `render/` are separate
 
 `js/model/` imports no DOM and no canvas, so `node:test` runs against it
@@ -196,7 +228,10 @@ including github.com; `GH_ENTERPRISE_TOKEN` would scope it correctly.
 
 ## Open Questions
 
-- Does Rotem want more rooms than four, or is depth within a room better?
-- Should characters be placeable in a room in v1, or is that a follow-up?
-- What is the workflow for turning a paper drawing into a transparent PNG —
-  phone photo plus background removal, or a scan?
+All three questions raised during design have been answered:
+
+- **Four rooms, two per floor** — a 2x2 cutaway doll house rather than one room
+  at a time. Resolved into the zoom decision above.
+- **Characters go into rooms in v1**, not a follow-up.
+- **Drawings are converted deterministically, not generatively** — see the art
+  conversion decision above.

@@ -4,3 +4,6 @@ node_modules/
 
 # Raw drawing scans before background removal — keep the processed PNGs only
 assets/drawings/_raw/
+
+# Asset tooling only. The game itself ships no dependencies.
+tools/.venv/

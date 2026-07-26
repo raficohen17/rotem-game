@@ -1,16 +1,39 @@
 ## ADDED Requirements
 
-### Requirement: Four rooms per world
+### Requirement: The house is a cutaway of four rooms on two floors
 
-Each world SHALL contain exactly four rooms — bedroom, living room, kitchen and
-bathroom — each holding its own furniture and its own wall and floor colour.
-Switching rooms MUST NOT disturb what is placed in any other room.
+Each world SHALL contain exactly four rooms, arranged two per floor in a 2x2
+cutaway seen from the side, with all four visible at once. Each room holds its
+own furniture and its own wall and floor colour, and editing one MUST NOT
+disturb any other.
 
-#### Scenario: Switching between rooms
+#### Scenario: Seeing the whole house
 
-- **WHEN** Rotem taps a different room in the room switcher
-- **THEN** that room's furniture, wall colour and floor colour are shown
-- **AND** the room she left keeps everything she placed in it
+- **WHEN** Rotem opens a world
+- **THEN** all four rooms are shown at once, two upstairs and two downstairs
+- **AND** the furniture she placed in each is visible in place
+
+#### Scenario: Editing one room leaves the others alone
+
+- **WHEN** Rotem rearranges the bedroom
+- **THEN** the other three rooms keep everything she placed in them
+
+### Requirement: Tapping a room zooms in to design it
+
+Tapping a room in the house view SHALL zoom that room to fill the screen for
+designing, and a control MUST return to the whole-house view. Zooming exists so
+that touch targets stay large enough for a child's finger; a quarter-screen
+room is too small to arrange furniture in directly.
+
+#### Scenario: Zooming into a room
+
+- **WHEN** Rotem taps the kitchen in the house view
+- **THEN** the kitchen fills the screen with its furniture drawer available
+
+#### Scenario: Returning to the house
+
+- **WHEN** Rotem taps the back control while zoomed into a room
+- **THEN** the whole house is shown again with her changes in place
 
 ### Requirement: Furniture is placed by dragging from a drawer
 
