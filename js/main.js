@@ -9,6 +9,8 @@ import { createStore, replaceWorld } from './model/storage.js';
 import { createMenu } from './scenes/menu.js';
 import { createHouse } from './scenes/house.js';
 import { createArtSheet } from './scenes/artsheet.js';
+import { stepWalk } from './model/travel.js';
+import { ROOM_W } from './render/room.js';
 
 const canvas = document.getElementById('stage');
 const view = new View(canvas);
@@ -60,6 +62,17 @@ const game = {
     store.save(game.worlds);
   },
 
+  /**
+   * Saves at most a few times a second.
+   *
+   * A walk moves a character every frame, and writing the whole world to
+   * storage sixty times a second would be wasteful for a position that is
+   * only interesting once she stops.
+   */
+  persistSoon() {
+    game.pendingSave = true;
+  },
+
   openWorld(world) {
     game.world = world;
     game.setScene(createHouse(game));
@@ -83,6 +96,26 @@ function frame(now) {
   const dt = lastFrame ? Math.min((now - lastFrame) / 1000, 0.1) : 0;
   lastFrame = now;
   game.time += dt;
+
+  game.saveTimer = (game.saveTimer ?? 0) + dt;
+  if (game.pendingSave && game.saveTimer > 0.4) {
+    game.pendingSave = false;
+    game.saveTimer = 0;
+    game.persist();
+  }
+
+  // Characters keep walking whichever scene is showing, so a journey started
+  // in the house view carries on after zooming into a room.
+  if (game.world) {
+    let moved = false;
+    for (const character of game.world.characters) {
+      if (character.walk) {
+        stepWalk(character, dt, ROOM_W);
+        moved = true;
+      }
+    }
+    if (moved) game.persistSoon();
+  }
 
   if (scene?.update) scene.update(dt);
   view.begin();

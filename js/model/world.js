@@ -48,14 +48,14 @@ export function makeId() {
   return rand;
 }
 
-function emptyRoom() {
-  return { wall: DEFAULT_WALL, floor: DEFAULT_FLOOR, floorStyle: 'boards', items: [] };
+function emptyRoom(id) {
+  return { id, wall: DEFAULT_WALL, floor: DEFAULT_FLOOR, floorStyle: 'boards', items: [] };
 }
 
 /** @returns {object} a brand new world, ready to save. */
 export function createWorld(name = 'My House') {
   const rooms = {};
-  for (const id of ROOM_IDS) rooms[id] = emptyRoom();
+  for (const id of ROOM_IDS) rooms[id] = emptyRoom(id);
 
   return {
     version: CURRENT_VERSION,
@@ -149,6 +149,7 @@ export function repairWorld(world) {
   for (const id of ROOM_IDS) {
     const room = rooms[id] && typeof rooms[id] === 'object' ? rooms[id] : {};
     safe.rooms[id] = {
+      id,
       wall: typeof room.wall === 'string' ? room.wall : DEFAULT_WALL,
       floor: typeof room.floor === 'string' ? room.floor : DEFAULT_FLOOR,
       // Rooms saved before floor patterns existed get the original boards.

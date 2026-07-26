@@ -112,7 +112,7 @@ export function headBounds(rawSpec) {
  * @param {object} rawSpec
  * @param {number} time seconds, driving the idle animation
  */
-export function drawCharacter(ctx, rawSpec, time = 0) {
+export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   const spec = clampSpec(rawSpec);
   B = metricsFor(BUILDS[spec.build]);
   const skin = SKIN_TONES[spec.skin];
@@ -120,8 +120,12 @@ export function drawCharacter(ctx, rawSpec, time = 0) {
 
   // Breathing, a slow head tilt and a little arm sway. Small enough that
   // dragging still feels precise, alive enough that a still room isn't dead.
+  const walking = motion?.walking ?? false;
+  const stride = walking ? Math.sin(time * 9) : 0;
+
   const breath = Math.sin(time * 1.9);
-  const sway = Math.sin(time * 1.3);
+  // While walking the arms swing properly rather than drifting.
+  const sway = walking ? stride * 3.4 : Math.sin(time * 1.3);
 
   // Characters blink out of step with each other — a room where everyone
   // blinks in unison looks wrong in a way that is hard to place.
@@ -142,14 +146,16 @@ export function drawCharacter(ctx, rawSpec, time = 0) {
   };
 
   ctx.save();
-  ctx.translate(0, breath * 1.5);
+  // A little bob on each step, and she faces the way she is going.
+  ctx.translate(0, walking ? -Math.abs(stride) * 3 : breath * 1.5);
+  if (motion?.facing === -1) ctx.scale(-1, 1);
 
   // Each group is its own sheet of paper, so the character reads as a stack of
   // cut shapes rather than as one flat sticker.
   paperLayer(ctx, () => onHead(() => drawBackHair(ctx, spec.hair, hairColor)), 0.8);
   paperLayer(ctx, () => {
-    drawLegs(ctx, skin);
-    drawShoes(ctx, spec.shoes, CLOTH_COLORS[spec.shoesColor]);
+    drawLegs(ctx, skin, stride);
+    drawShoes(ctx, spec.shoes, CLOTH_COLORS[spec.shoesColor], stride);
   }, 0.7);
 
   // Arms sit behind the body so the wide head and torso stay unbroken.
@@ -176,9 +182,30 @@ export function drawCharacter(ctx, rawSpec, time = 0) {
 
 // ------------------------------------------------------------------- body
 
-function drawLegs(ctx, skin) {
-  capsule(ctx, -B.legX, B.hipY - 6, -10, B.legW, skin);
-  capsule(ctx, B.legX, B.hipY - 6, -10, B.legW, skin);
+/**
+ * Legs, swinging when walking.
+ *
+ * Each leg pivots at the hip by opposite amounts, which is enough to read as
+ * walking at this scale — a full knee joint would be invisible.
+ */
+function drawLegs(ctx, skin, stride = 0) {
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(side * B.legX, B.hipY - 6);
+    ctx.rotate(stride * 0.34 * side);
+    capsule(ctx, 0, 0, Math.abs(B.hipY) - 4, B.legW, skin);
+    ctx.restore();
+  }
+}
+
+/** Where a foot has swung to, so the shoe goes with the leg. */
+function footOffset(side, stride) {
+  const swing = stride * 0.34 * side;
+  const length = Math.abs(B.hipY) - 4;
+  return {
+    x: side * B.legX + Math.sin(swing) * length,
+    lift: length - Math.cos(swing) * length,
+  };
 }
 
 function drawNeck(ctx, skin) {
@@ -999,7 +1026,7 @@ function drawDress(ctx, color) {
  * builds the shoes stood beside the character rather than under her. Both now
  * read B.legX.
  */
-function drawShoes(ctx, style, color) {
+function drawShoes(ctx, style, color, stride = 0) {
   const shoe = (x) => {
     const toe = x + B.legW * 0.28; // shoes point slightly outward
     switch (style) {
@@ -1041,8 +1068,13 @@ function drawShoes(ctx, style, color) {
         fillEllipse(ctx, toe, -7, B.legW * 0.68, 9, litFill(ctx, -16, 18, color, 0.14));
     }
   };
-  shoe(-B.legX);
-  shoe(B.legX);
+  for (const side of [-1, 1]) {
+    const foot = footOffset(side, stride);
+    ctx.save();
+    ctx.translate(foot.x - side * B.legX, -foot.lift);
+    shoe(side * B.legX);
+    ctx.restore();
+  }
 }
 
 // ---------------------------------------------------------------- hairpin
