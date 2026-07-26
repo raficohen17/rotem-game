@@ -332,7 +332,7 @@ function drawDrawerContents(ctx, controls) {
       ctx.textBaseline = 'middle';
       ctx.fillText(control.category.label, control.x + control.w / 2, control.y + control.h / 2);
     } else if (control.def) {
-      fillRR(ctx, control.x, control.y, control.w, control.h, 12, '#352c52');
+      fillRR(ctx, control.x, control.y, control.w, control.h, 12, '#413945');
       drawFitted(ctx, control.def, control.x + control.w / 2, control.y + control.h - 12,
         control.w - 20, control.h - 24);
     }

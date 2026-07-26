@@ -14,6 +14,7 @@
  */
 
 import { PLACEHOLDERS } from './placeholders.js';
+import { paperLayer } from './shapes.js';
 
 const DRAWINGS_DIR = 'assets/drawings';
 
@@ -77,13 +78,21 @@ export function drawItem(ctx, placed, def) {
   ctx.restore();
 }
 
-/** Draws an item at its natural size, origin at bottom centre. */
+/**
+ * Draws an item at its natural size, origin at bottom centre.
+ *
+ * The paper shadow is applied here rather than inside each of the forty-odd
+ * placeholders, which also means one of Rotem's scanned drawings picks up the
+ * same treatment and sits in the room the same way the placeholders do.
+ */
 export function drawItemArt(ctx, def, tint = 0) {
-  if (def.image) {
-    ctx.drawImage(def.image, -def.w / 2, -def.h, def.w, def.h);
-    return;
-  }
-  const paint = PLACEHOLDERS[def.id];
-  if (!paint) return;
-  paint(ctx, def.w, def.h, def.colors[tint % def.colors.length]);
+  paperLayer(ctx, () => {
+    if (def.image) {
+      ctx.drawImage(def.image, -def.w / 2, -def.h, def.w, def.h);
+      return;
+    }
+    const paint = PLACEHOLDERS[def.id];
+    if (!paint) return;
+    paint(ctx, def.w, def.h, def.colors[tint % def.colors.length]);
+  });
 }

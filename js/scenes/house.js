@@ -71,7 +71,7 @@ export function createHouse(game) {
         drawRoomContents(ctx, room, game.charactersIn(id), game.catalog, game.time);
         ctx.restore();
 
-        ctx.strokeStyle = '#15111f';
+        ctx.strokeStyle = '#1a161c';
         ctx.lineWidth = 8;
         ctx.strokeRect(box.x, box.y, box.w, box.h);
       });

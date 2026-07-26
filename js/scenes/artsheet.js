@@ -46,10 +46,10 @@ export function createArtSheet(game) {
     },
 
     draw(ctx) {
-      ctx.fillStyle = '#1d1830';
+      ctx.fillStyle = '#241f26';
       ctx.fillRect(0, 0, 1280, 720);
 
-      ctx.fillStyle = '#e8e2f5';
+      ctx.fillStyle = '#f4eee4';
       ctx.font = '600 26px system-ui, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
@@ -60,7 +60,7 @@ export function createArtSheet(game) {
         40, 52,
       );
       ctx.font = '400 18px system-ui, sans-serif';
-      ctx.fillStyle = '#8a82a8';
+      ctx.fillStyle = '#a89e94';
       ctx.fillText('tap left / right to page', 40, 78);
 
       if (scrollTarget >= pageCount) {
@@ -75,7 +75,7 @@ export function createArtSheet(game) {
         const cx = 100 + col * CELL_W;
         const cy = TOP + row * CELL_H + CELL_H - 30;
 
-        ctx.fillStyle = '#262040';
+        ctx.fillStyle = '#332c33';
         ctx.fillRect(cx - CELL_W / 2 + 6, cy - CELL_H + 24, CELL_W - 12, CELL_H - 12);
 
         ctx.save();
@@ -86,7 +86,7 @@ export function createArtSheet(game) {
         drawItemArt(ctx, def, 0);
         ctx.restore();
 
-        ctx.fillStyle = '#9a92b8';
+        ctx.fillStyle = '#a89e94';
         ctx.font = '400 12px system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(def.id, cx, cy + 18);
@@ -101,7 +101,7 @@ function drawCast(ctx, cast, time) {
     const x = 180 + index * 165;
     const y = 520;
 
-    ctx.fillStyle = '#262040';
+    ctx.fillStyle = '#332c33';
     ctx.fillRect(x - 75, y - CHAR_H - 30, 150, CHAR_H + 50);
 
     ctx.save();

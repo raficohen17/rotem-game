@@ -3,8 +3,29 @@ import assert from 'node:assert/strict';
 
 import {
   PART_COUNTS, PART_KEYS, EDITABLE_PARTS, SKIN_TONES, HAIR_COLORS, CLOTH_COLORS,
-  createCharacterSpec, clampSpec, nextPart,
+  LIP_COLORS, createCharacterSpec, clampSpec, nextPart, countCombinations,
 } from '../js/model/character.js';
+
+/** The agreed floor for how many different characters can be made. */
+const REQUIRED_CHARACTERS = 50_000;
+
+test(`at least ${REQUIRED_CHARACTERS.toLocaleString('en')} different characters can be made`, () => {
+  // Guards the wardrobe: trimming part lists in a future tidy-up fails here
+  // rather than quietly making everyone look the same.
+  assert.ok(
+    countCombinations() >= REQUIRED_CHARACTERS,
+    `only ${countCombinations().toLocaleString('en')} combinations available`,
+  );
+});
+
+test('no single part is so thin that it barely varies', () => {
+  for (const part of EDITABLE_PARTS) {
+    assert.ok(PART_COUNTS[part.key] >= 6, `${part.key} offers at least six choices`);
+    if (part.colorKey) {
+      assert.ok(PART_COUNTS[part.colorKey] >= 8, `${part.colorKey} offers at least eight colours`);
+    }
+  }
+});
 
 test('a new character has a valid value for every part', () => {
   const spec = createCharacterSpec();
@@ -73,7 +94,22 @@ test('palette lengths match the part counts that index them', () => {
 });
 
 test('every colour is a usable hex value', () => {
-  for (const color of [...SKIN_TONES, ...HAIR_COLORS, ...CLOTH_COLORS]) {
+  for (const color of [...SKIN_TONES, ...HAIR_COLORS, ...CLOTH_COLORS, ...LIP_COLORS]) {
     assert.match(color, /^#[0-9a-f]{6}$/i, `${color} is a hex colour`);
   }
+});
+
+test('a character saved before the nose existed still loads', () => {
+  // Exactly what happens to the characters already on Rotem's phone: their
+  // saves predate the part entirely.
+  const old = {
+    skin: 2, hair: 3, hairColor: 4, eyes: 1, mouth: 2,
+    top: 1, topColor: 3, bottom: 2, bottomColor: 4, shoes: 1, shoesColor: 2, extra: 3,
+  };
+  const safe = clampSpec(old);
+
+  assert.equal(safe.hair, 3, 'the choices she made are kept');
+  assert.equal(safe.top, 1);
+  assert.ok(safe.nose >= 0 && safe.nose < PART_COUNTS.nose, 'and a nose is filled in');
+  assert.ok(safe.extraColor >= 0 && safe.extraColor < PART_COUNTS.extraColor);
 });

@@ -12,9 +12,9 @@
 
 import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade } from './shapes.js';
 
-const WHITE = '#f7f4ef';
-const GLASS = '#bfe4f5';
-const DARK = '#3a3550';
+const WHITE = '#f6f1e8';
+const GLASS = '#c2d9e2';
+const DARK = '#423d4d';
 
 /** Two legs under a piece of furniture. */
 function legs(ctx, w, h, color, inset = 0.12, thickness = 0.07) {
@@ -32,12 +32,12 @@ export const PLACEHOLDERS = {
     fillRR(ctx, -w / 2, -h * 0.42, w, h * 0.42, 10, shade(c, -0.3));
     fillRR(ctx, -w / 2 + w * 0.06, -h * 0.66, w * 0.9, h * 0.26, 10, WHITE);
     fillRR(ctx, -w / 2 + w * 0.34, -h * 0.7, w * 0.62, h * 0.32, 10, c);
-    fillRR(ctx, -w / 2 + w * 0.1, -h * 0.76, w * 0.2, h * 0.16, 8, '#ffffff');
+    fillRR(ctx, -w / 2 + w * 0.1, -h * 0.76, w * 0.2, h * 0.16, 8, '#f6f1e8');
   },
 
   bed_double(ctx, w, h, c) {
     PLACEHOLDERS.bed_single(ctx, w, h, c);
-    fillRR(ctx, -w / 2 + w * 0.32, -h * 0.76, w * 0.18, h * 0.16, 8, '#ffffff');
+    fillRR(ctx, -w / 2 + w * 0.32, -h * 0.76, w * 0.18, h * 0.16, 8, '#f6f1e8');
   },
 
   bunk_bed(ctx, w, h, c) {
@@ -143,7 +143,7 @@ export const PLACEHOLDERS = {
 
   bookshelf(ctx, w, h, c) {
     fillRR(ctx, -w / 2, -h, w, h, 8, c);
-    const books = ['#e05a7a', '#4f9bd8', '#6fbf5f', '#f2b13d', '#9b6bd8'];
+    const books = ['#c9707f', '#5c8fae', '#7d9e62', '#d9a24e', '#8a6d9e'];
     for (let row = 0; row < 3; row += 1) {
       const y = -h * 0.9 + row * h * 0.3;
       fillRR(ctx, -w / 2 + w * 0.06, y, w * 0.88, h * 0.24, 4, shade(c, 0.2));
@@ -168,8 +168,8 @@ export const PLACEHOLDERS = {
   toybox(ctx, w, h, c) {
     fillRR(ctx, -w / 2, -h * 0.78, w, h * 0.78, 8, c);
     fillRR(ctx, -w / 2 - w * 0.03, -h, w * 1.06, h * 0.28, 8, shade(c, -0.2));
-    fillCircle(ctx, -w * 0.2, -h * 0.4, w * 0.08, '#f7d04a');
-    fillCircle(ctx, w * 0.12, -h * 0.42, w * 0.1, '#4f9bd8');
+    fillCircle(ctx, -w * 0.2, -h * 0.4, w * 0.08, '#dcb85c');
+    fillCircle(ctx, w * 0.12, -h * 0.42, w * 0.1, '#5c8fae');
   },
 
   // -------------------------------------------------------------- kitchen
@@ -179,7 +179,7 @@ export const PLACEHOLDERS = {
     strokeLine(ctx, -w / 2 + 6, -h * 0.62, w / 2 - 6, -h * 0.62, shade(c, -0.25), 3);
     fillRR(ctx, w * 0.2, -h * 0.9, w * 0.08, h * 0.2, 4, shade(c, -0.4));
     fillRR(ctx, w * 0.2, -h * 0.55, w * 0.08, h * 0.28, 4, shade(c, -0.4));
-    fillRR(ctx, -w * 0.3, -h * 0.86, w * 0.16, h * 0.1, 3, '#e05a7a');
+    fillRR(ctx, -w * 0.3, -h * 0.86, w * 0.16, h * 0.1, 3, '#c9707f');
   },
 
   stove(ctx, w, h, c) {
@@ -201,8 +201,8 @@ export const PLACEHOLDERS = {
     fillRR(ctx, -w / 2, -h * 0.82, w, h * 0.82, 6, shade(c, -0.15));
     fillRR(ctx, -w / 2, -h, w, h * 0.22, 6, c);
     fillRR(ctx, -w * 0.3, -h * 0.98, w * 0.6, h * 0.16, 6, GLASS);
-    strokeLine(ctx, w * 0.28, -h * 0.98, w * 0.28, -h * 1.2, '#9aa6b2', 6);
-    strokeLine(ctx, w * 0.28, -h * 1.2, w * 0.06, -h * 1.2, '#9aa6b2', 6);
+    strokeLine(ctx, w * 0.28, -h * 0.98, w * 0.28, -h * 1.2, '#9c968d', 6);
+    strokeLine(ctx, w * 0.28, -h * 1.2, w * 0.06, -h * 1.2, '#9c968d', 6);
   },
 
   // ----------------------------------------------------------------- bath
@@ -218,8 +218,8 @@ export const PLACEHOLDERS = {
   bathtub(ctx, w, h, c) {
     fillRR(ctx, -w / 2, -h * 0.78, w, h * 0.78, 26, c);
     fillRR(ctx, -w / 2 + w * 0.05, -h * 0.72, w * 0.9, h * 0.5, 20, GLASS);
-    fillEllipse(ctx, -w * 0.2, -h * 0.6, w * 0.07, h * 0.05, '#ffffff');
-    fillEllipse(ctx, w * 0.05, -h * 0.66, w * 0.05, h * 0.04, '#ffffff');
+    fillEllipse(ctx, -w * 0.2, -h * 0.6, w * 0.07, h * 0.05, '#f6f1e8');
+    fillEllipse(ctx, w * 0.05, -h * 0.66, w * 0.05, h * 0.04, '#f6f1e8');
     legs(ctx, w, h * 0.2, shade(c, -0.35), 0.1, 0.07);
   },
 
@@ -227,7 +227,7 @@ export const PLACEHOLDERS = {
     fillRR(ctx, -w / 2, -h, w, h * 0.34, 12, c);
     fillEllipse(ctx, 0, -h * 0.86, w * 0.32, h * 0.08, GLASS);
     fillPoly(ctx, [-w * 0.16, -h * 0.7, w * 0.16, -h * 0.7, w * 0.1, 0, -w * 0.1, 0], c);
-    strokeLine(ctx, 0, -h * 0.98, 0, -h * 1.16, '#9aa6b2', 6);
+    strokeLine(ctx, 0, -h * 0.98, 0, -h * 1.16, '#9c968d', 6);
   },
 
   shower(ctx, w, h, c) {
@@ -236,30 +236,30 @@ export const PLACEHOLDERS = {
     fillRR(ctx, -w / 2, -h * 0.11, w, h * 0.11, 6, shade(c, -0.35));
     strokeLine(ctx, w * 0.04, -h + 14, w * 0.04, -h * 0.14, shade(c, 0.55), 4);
     fillCircle(ctx, -w * 0.16, -h * 0.44, w * 0.05, shade(c, 0.6));
-    fillEllipse(ctx, -w * 0.14, -h * 0.9, w * 0.16, h * 0.03, '#9aa6b2');
-    strokeLine(ctx, -w * 0.14, -h * 0.94, -w * 0.14, -h, '#9aa6b2', 5);
+    fillEllipse(ctx, -w * 0.14, -h * 0.9, w * 0.16, h * 0.03, '#9c968d');
+    strokeLine(ctx, -w * 0.14, -h * 0.94, -w * 0.14, -h, '#9c968d', 5);
     for (let i = 0; i < 4; i += 1) {
       const x = -w * 0.26 + i * w * 0.08;
-      strokeLine(ctx, x, -h * 0.84, x, -h * 0.7, '#ffffff', 3);
+      strokeLine(ctx, x, -h * 0.84, x, -h * 0.7, '#f6f1e8', 3);
     }
   },
 
   // ---------------------------------------------------------------- decor
 
   lamp_floor(ctx, w, h, c) {
-    strokeLine(ctx, 0, -h * 0.7, 0, -h * 0.04, '#9aa6b2', 6);
-    fillEllipse(ctx, 0, -h * 0.03, w * 0.3, h * 0.03, '#9aa6b2');
+    strokeLine(ctx, 0, -h * 0.7, 0, -h * 0.04, '#9c968d', 6);
+    fillEllipse(ctx, 0, -h * 0.03, w * 0.3, h * 0.03, '#9c968d');
     fillPoly(ctx, [-w * 0.42, -h * 0.72, w * 0.42, -h * 0.72, w * 0.26, -h, -w * 0.26, -h], c);
   },
 
   lamp_table(ctx, w, h, c) {
-    strokeLine(ctx, 0, -h * 0.6, 0, -h * 0.06, '#9aa6b2', 5);
-    fillEllipse(ctx, 0, -h * 0.05, w * 0.3, h * 0.05, '#9aa6b2');
+    strokeLine(ctx, 0, -h * 0.6, 0, -h * 0.06, '#9c968d', 5);
+    fillEllipse(ctx, 0, -h * 0.05, w * 0.3, h * 0.05, '#9c968d');
     fillPoly(ctx, [-w * 0.44, -h * 0.62, w * 0.44, -h * 0.62, w * 0.26, -h, -w * 0.26, -h], c);
   },
 
   plant_tall(ctx, w, h, c) {
-    fillPoly(ctx, [-w * 0.24, -h * 0.3, w * 0.24, -h * 0.3, w * 0.18, 0, -w * 0.18, 0], '#c8703f');
+    fillPoly(ctx, [-w * 0.24, -h * 0.3, w * 0.24, -h * 0.3, w * 0.18, 0, -w * 0.18, 0], '#b5734c');
     strokeLine(ctx, 0, -h * 0.32, 0, -h * 0.8, shade(c, -0.3), 7);
     fillEllipse(ctx, -w * 0.22, -h * 0.62, w * 0.24, h * 0.09, c);
     fillEllipse(ctx, w * 0.22, -h * 0.7, w * 0.24, h * 0.09, c);
@@ -269,7 +269,7 @@ export const PLACEHOLDERS = {
   },
 
   plant_small(ctx, w, h, c) {
-    fillPoly(ctx, [-w * 0.3, -h * 0.42, w * 0.3, -h * 0.42, w * 0.22, 0, -w * 0.22, 0], '#c8703f');
+    fillPoly(ctx, [-w * 0.3, -h * 0.42, w * 0.3, -h * 0.42, w * 0.22, 0, -w * 0.22, 0], '#b5734c');
     fillCircle(ctx, -w * 0.16, -h * 0.62, w * 0.2, c);
     fillCircle(ctx, w * 0.16, -h * 0.6, w * 0.18, shade(c, 0.15));
     fillCircle(ctx, 0, -h * 0.8, w * 0.22, c);
@@ -277,7 +277,7 @@ export const PLACEHOLDERS = {
 
   tv(ctx, w, h, c) {
     fillRR(ctx, -w / 2, -h, w, h * 0.76, 8, c);
-    fillRR(ctx, -w / 2 + 8, -h + 8, w - 16, h * 0.76 - 16, 5, '#7fd4e8');
+    fillRR(ctx, -w / 2 + 8, -h + 8, w - 16, h * 0.76 - 16, 5, '#a8c6cf');
     fillRR(ctx, -w * 0.06, -h * 0.24, w * 0.12, h * 0.14, 3, shade(c, -0.2));
     fillRR(ctx, -w * 0.2, -h * 0.12, w * 0.4, h * 0.06, 4, shade(c, -0.2));
   },
@@ -302,8 +302,8 @@ export const PLACEHOLDERS = {
     fillRR(ctx, -w / 2, -h * 0.44, w, h * 0.44, 6, shade(c, -0.3));
     fillRR(ctx, -w / 2, -h * 0.66, w, h * 0.28, 8, c);
     fillEllipse(ctx, 0, -h * 0.66, w * 0.5, h * 0.08, shade(c, 0.25));
-    strokeLine(ctx, 0, -h * 0.7, 0, -h * 0.92, '#ffffff', 5);
-    fillEllipse(ctx, 0, -h * 0.96, w * 0.04, h * 0.06, '#f7d04a');
+    strokeLine(ctx, 0, -h * 0.7, 0, -h * 0.92, '#f6f1e8', 5);
+    fillEllipse(ctx, 0, -h * 0.96, w * 0.04, h * 0.06, '#dcb85c');
   },
 
   balloons(ctx, w, h, c) {
@@ -340,47 +340,47 @@ export const PLACEHOLDERS = {
 
   fish_tank(ctx, w, h, c) {
     fillRR(ctx, -w / 2, -h, w, h, 6, GLASS);
-    fillRR(ctx, -w / 2, -h * 0.2, w, h * 0.2, 4, '#e0cfa0');
+    fillRR(ctx, -w / 2, -h * 0.2, w, h * 0.2, 4, '#ded0b4');
     fillRR(ctx, -w / 2, -h, w, h * 0.1, 4, shade(c, -0.35));
-    fillEllipse(ctx, -w * 0.14, -h * 0.56, w * 0.1, h * 0.07, '#f2913d');
-    fillEllipse(ctx, w * 0.2, -h * 0.42, w * 0.08, h * 0.06, '#e05a7a');
-    strokeLine(ctx, w * 0.3, -h * 0.2, w * 0.3, -h * 0.6, '#4fa84f', 5);
+    fillEllipse(ctx, -w * 0.14, -h * 0.56, w * 0.1, h * 0.07, '#d98a4e');
+    fillEllipse(ctx, w * 0.2, -h * 0.42, w * 0.08, h * 0.06, '#c9707f');
+    strokeLine(ctx, w * 0.3, -h * 0.2, w * 0.3, -h * 0.6, '#6f9463', 5);
   },
 
   // ----------------------------------------------------------------- wall
 
   window(ctx, w, h, c) {
     fillRR(ctx, -w / 2, -h, w, h, 8, c);
-    fillRR(ctx, -w / 2 + 10, -h + 10, w - 20, h - 20, 5, '#9fdcf5');
+    fillRR(ctx, -w / 2 + 10, -h + 10, w - 20, h - 20, 5, '#bcd4de');
     strokeLine(ctx, 0, -h + 10, 0, -10, c, 8);
     strokeLine(ctx, -w / 2 + 10, -h / 2, w / 2 - 10, -h / 2, c, 8);
   },
 
   picture(ctx, w, h, c) {
     fillRR(ctx, -w / 2, -h, w, h, 6, c);
-    fillRR(ctx, -w / 2 + 9, -h + 9, w - 18, h - 18, 3, '#fdf6e8');
-    fillPoly(ctx, [-w * 0.3, -h * 0.2, -w * 0.05, -h * 0.6, w * 0.2, -h * 0.2], '#6fbf5f');
-    fillCircle(ctx, w * 0.22, -h * 0.68, w * 0.09, '#f7d04a');
+    fillRR(ctx, -w / 2 + 9, -h + 9, w - 18, h - 18, 3, '#f4ecdd');
+    fillPoly(ctx, [-w * 0.3, -h * 0.2, -w * 0.05, -h * 0.6, w * 0.2, -h * 0.2], '#7d9e62');
+    fillCircle(ctx, w * 0.22, -h * 0.68, w * 0.09, '#dcb85c');
   },
 
   clock(ctx, w, h, c) {
     fillCircle(ctx, 0, -h / 2, w / 2, c);
-    fillCircle(ctx, 0, -h / 2, w * 0.42, '#fdf6e8');
+    fillCircle(ctx, 0, -h / 2, w * 0.42, '#f4ecdd');
     strokeLine(ctx, 0, -h / 2, 0, -h * 0.78, DARK, 4);
     strokeLine(ctx, 0, -h / 2, w * 0.22, -h * 0.5, DARK, 4);
   },
 
   shelf_wall(ctx, w, h, c) {
     fillRR(ctx, -w / 2, -h * 0.35, w, h * 0.35, 4, c);
-    fillRR(ctx, -w * 0.36, -h, w * 0.1, h * 0.68, 3, '#e05a7a');
-    fillRR(ctx, -w * 0.2, -h * 0.92, w * 0.1, h * 0.6, 3, '#4f9bd8');
-    fillCircle(ctx, w * 0.22, -h * 0.62, w * 0.12, '#6fbf5f');
+    fillRR(ctx, -w * 0.36, -h, w * 0.1, h * 0.68, 3, '#c9707f');
+    fillRR(ctx, -w * 0.2, -h * 0.92, w * 0.1, h * 0.6, 3, '#5c8fae');
+    fillCircle(ctx, w * 0.22, -h * 0.62, w * 0.12, '#7d9e62');
   },
 
   door(ctx, w, h, c) {
     fillRR(ctx, -w / 2, -h, w, h, 8, shade(c, -0.25));
     fillRR(ctx, -w / 2 + 8, -h + 8, w - 16, h - 12, 6, c);
     fillRR(ctx, -w * 0.26, -h * 0.86, w * 0.52, h * 0.3, 4, shade(c, 0.16));
-    fillCircle(ctx, w * 0.3, -h * 0.46, w * 0.06, '#f7d04a');
+    fillCircle(ctx, w * 0.3, -h * 0.46, w * 0.06, '#dcb85c');
   },
 };
