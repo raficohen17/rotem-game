@@ -5,7 +5,7 @@
  * the game should *require* reading to be understood.
  */
 
-import { fillRR, fillCircle, fillPoly, strokeLine } from '../render/shapes.js';
+import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine } from '../render/shapes.js';
 
 function stroke(ctx, color, width = 5) {
   ctx.strokeStyle = color;
@@ -130,6 +130,153 @@ export const ICONS = {
     ctx.lineTo(0, 7);
     ctx.lineTo(13, -6);
     ctx.stroke();
+  },
+
+  /*
+   * Symbols for the parts of a character.
+   *
+   * These replaced a thumbnail of the character on every tab. A picture of the
+   * whole girl cannot say whether a tab edits her brows or her eyes — eleven
+   * tabs all showed the same face at slightly different crops. A drawing of the
+   * feature itself can.
+   */
+
+  build(ctx, c) {
+    fillCircle(ctx, 0, -13, 6.5, c);
+    fillPoly(ctx, [-8, -5, 8, -5, 5, 5, -5, 5], c);
+    fillRR(ctx, -6, 4, 4.5, 14, 2, c);
+    fillRR(ctx, 1.5, 4, 4.5, 14, 2, c);
+  },
+
+  face(ctx, c) {
+    stroke(ctx, c, 4);
+    ctx.beginPath();
+    ctx.moveTo(0, -18);
+    ctx.bezierCurveTo(14, -18, 15, -4, 15, 2);
+    ctx.bezierCurveTo(15, 12, 8, 18, 0, 18);
+    ctx.bezierCurveTo(-8, 18, -15, 12, -15, 2);
+    ctx.bezierCurveTo(-15, -4, -14, -18, 0, -18);
+    ctx.stroke();
+  },
+
+  skin(ctx, c) {
+    // A paint droplet: the tab is tinted with the tone in use.
+    fillPoly(ctx, [0, -18, 12, 2, -12, 2], c);
+    fillCircle(ctx, 0, 4, 12, c);
+  },
+
+  hair(ctx, c) {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-17, 16);
+    ctx.bezierCurveTo(-20, -6, -12, -18, 0, -18);
+    ctx.bezierCurveTo(12, -18, 20, -6, 17, 16);
+    ctx.lineTo(9, 16);
+    ctx.bezierCurveTo(11, -2, 6, -8, 0, -8);
+    ctx.bezierCurveTo(-6, -8, -11, -2, -9, 16);
+    ctx.closePath();
+    ctx.fill();
+  },
+
+  hairpin(ctx, c) {
+    // A clip, drawn at an angle so it reads as worn rather than as a bar.
+    ctx.save();
+    ctx.rotate(-0.5);
+    fillRR(ctx, -17, -5, 34, 10, 5, c);
+    fillRR(ctx, -13, -2, 22, 4, 2, '#00000055');
+    ctx.restore();
+    fillCircle(ctx, 11, -12, 4.5, c);
+  },
+
+  brows(ctx, c) {
+    stroke(ctx, c, 6);
+    ctx.beginPath();
+    ctx.moveTo(-19, 2);
+    ctx.quadraticCurveTo(-10, -9, -1, -3);
+    ctx.moveTo(1, -3);
+    ctx.quadraticCurveTo(10, -9, 19, 2);
+    ctx.stroke();
+  },
+
+  eyes(ctx, c) {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 19, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    fillCircle(ctx, 0, 0, 8.5, '#00000055');
+    fillCircle(ctx, 2.5, -3, 3, c);
+    stroke(ctx, c, 4);
+    ctx.beginPath();
+    ctx.moveTo(-20, -6);
+    ctx.quadraticCurveTo(0, -18, 20, -6);
+    ctx.stroke();
+  },
+
+  nose(ctx, c) {
+    stroke(ctx, c, 4.5);
+    ctx.beginPath();
+    ctx.moveTo(2, -17);
+    ctx.quadraticCurveTo(-8, 4, 3, 8);
+    ctx.stroke();
+    fillCircle(ctx, -6, 12, 3, c);
+    fillCircle(ctx, 8, 12, 3, c);
+  },
+
+  mouth(ctx, c) {
+    fillEllipse(ctx, -6, -4, 8, 5, c);
+    fillEllipse(ctx, 6, -4, 8, 5, c);
+    fillEllipse(ctx, 0, 5, 16, 8, c);
+    strokeLine(ctx, -15, 0, 15, 0, '#00000055', 2.5);
+  },
+
+  top(ctx, c) {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-9, -15);
+    ctx.lineTo(9, -15);
+    ctx.lineTo(19, -9);
+    ctx.lineTo(15, 0);
+    ctx.lineTo(11, -2);
+    ctx.lineTo(11, 16);
+    ctx.lineTo(-11, 16);
+    ctx.lineTo(-11, -2);
+    ctx.lineTo(-15, 0);
+    ctx.lineTo(-19, -9);
+    ctx.closePath();
+    ctx.fill();
+  },
+
+  bottom(ctx, c) {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-12, -16);
+    ctx.lineTo(12, -16);
+    ctx.lineTo(10, 17);
+    ctx.lineTo(2, 17);
+    ctx.lineTo(0, -2);
+    ctx.lineTo(-2, 17);
+    ctx.lineTo(-10, 17);
+    ctx.closePath();
+    ctx.fill();
+  },
+
+  shoes(ctx, c) {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-14, -10);
+    ctx.lineTo(-4, -10);
+    ctx.quadraticCurveTo(-2, 2, 14, 6);
+    ctx.lineTo(16, 13);
+    ctx.lineTo(-14, 13);
+    ctx.closePath();
+    ctx.fill();
+  },
+
+  extra(ctx, c) {
+    fillPoly(ctx, [-18, -8, -4, -14, -4, -1], c);
+    fillPoly(ctx, [4, -14, 18, -8, 4, -1], c);
+    fillCircle(ctx, 0, -7.5, 5, c);
+    fillPoly(ctx, [-7, -2, 7, -2, 4, 15, -4, 15], c);
   },
 };
 

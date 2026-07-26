@@ -25,38 +25,61 @@
 import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, paperLayer } from './shapes.js';
 import {
   SKIN_TONES, HAIR_COLORS, CLOTH_COLORS, LIP_COLORS, EYE_COLORS, FACE_SHAPES,
-  clampSpec,
+  BUILDS, clampSpec,
 } from '../model/character.js';
 
 /** How far the skull rises above the head origin. */
 const HEAD_TOP = 58;
 
-export const CHAR_H = 276;
+/**
+ * A generous envelope for hit testing. Builds differ in height, and a grab box
+ * a little larger than the tallest of them is better than one that misses a
+ * head.
+ */
+export const CHAR_H = 310;
 export const CHAR_W = 150;
 
 /**
- * The head is drawn at its natural size and then scaled down onto the body.
- * Doing it this way means the face parts keep one set of numbers regardless of
- * how the head sits, and shrinking the head never distorts a feature.
+ * The head is drawn at natural size and scaled onto the body. At 0.55 the head
+ * is roughly a fifth of the figure, which is what reads as a fashion doll —
+ * the previous 0.82 was a third, which reads as a toddler.
  */
-const HEAD_SCALE = 0.82;
+const HEAD_SCALE = 0.55;
 
-/**
- * The chin lands here whatever the face shape. Anchoring by the chin rather
- * than by the head's centre is what lets a long face and a round one both sit
- * correctly on the same neck.
- */
-const CHIN_Y = -166;
-
-/** Nominal head centre, still used by hair and accessories. */
-const HEAD_Y = -206;
+/** Nominal skull radius, used by hair and accessories. */
 const HEAD_R = 58;
-const SHOULDER_Y = -146;
-const TORSO_TOP = -152;
-const HIP_Y = -76;
-const ARM_X = 44;
+
 const DARK = '#3f3a45';
 const PAPER = '#f6f1e8';
+
+/**
+ * Where every joint sits, derived from the chosen build.
+ *
+ * Held in a module-level variable rather than threaded through thirty drawing
+ * functions. Canvas rendering is single-threaded and every draw sets this
+ * first, so there is no interleaving to worry about — and the alternative was
+ * an extra parameter on every garment.
+ */
+function metricsFor(b) {
+  const hipY = -b.leg;
+  const torsoTop = hipY - 82;
+  return {
+    shoulderW: b.shoulder,
+    waistW: b.waist,
+    hipW: b.hip,
+    armW: b.arm,
+    legW: Math.round(b.hip * 0.56),
+    hipY,
+    waistY: hipY - 26,
+    torsoTop,
+    shoulderY: torsoTop + 8,
+    chinY: torsoTop - 20,
+    armX: b.shoulder + 7,
+    armLen: 100,
+  };
+}
+
+let B = metricsFor(BUILDS[2]);
 
 /** A limb: a rounded bar whose ends are semicircles. */
 function capsule(ctx, cx, top, bottom, width, color) {
@@ -70,6 +93,7 @@ function capsule(ctx, cx, top, bottom, width, color) {
  */
 export function drawCharacter(ctx, rawSpec, time = 0) {
   const spec = clampSpec(rawSpec);
+  B = metricsFor(BUILDS[spec.build]);
   const skin = SKIN_TONES[spec.skin];
   const hairColor = HAIR_COLORS[spec.hairColor];
 
@@ -83,12 +107,25 @@ export function drawCharacter(ctx, rawSpec, time = 0) {
   const phase = spec.skin * 1.7 + spec.hair * 2.3 + spec.eyes * 0.9;
   const blinking = (time + phase) % 4.2 < 0.13;
 
+  const shape = FACE_SHAPES[spec.face];
+  const headY = B.chinY - shape.chin * HEAD_SCALE;
+
+  /** Runs a draw call in head space: anchored at the chin and scaled to fit. */
+  const onHead = (draw) => {
+    ctx.save();
+    ctx.translate(0, headY);
+    ctx.rotate(sway * 0.02);
+    ctx.scale(HEAD_SCALE, HEAD_SCALE);
+    draw();
+    ctx.restore();
+  };
+
   ctx.save();
   ctx.translate(0, breath * 1.5);
 
   // Each group is its own sheet of paper, so the character reads as a stack of
   // cut shapes rather than as one flat sticker.
-  paperLayer(ctx, () => drawBackHair(ctx, spec.hair, hairColor), 0.8);
+  paperLayer(ctx, () => onHead(() => drawBackHair(ctx, spec.hair, hairColor)), 0.8);
   paperLayer(ctx, () => {
     drawLegs(ctx, skin);
     drawShoes(ctx, spec.shoes, CLOTH_COLORS[spec.shoesColor]);
@@ -111,7 +148,7 @@ export function drawCharacter(ctx, rawSpec, time = 0) {
   });
 
   paperLayer(ctx, () => drawHands(ctx, skin, sway), 0.6);
-  drawHead(ctx, skin, spec, hairColor, blinking, sway);
+  onHead(() => drawHead(ctx, skin, spec, shape, hairColor, blinking));
 
   ctx.restore();
 }
@@ -119,26 +156,36 @@ export function drawCharacter(ctx, rawSpec, time = 0) {
 // ------------------------------------------------------------------- body
 
 function drawLegs(ctx, skin) {
-  capsule(ctx, -17, HIP_Y - 6, -14, 26, skin);
-  capsule(ctx, 17, HIP_Y - 6, -14, 26, skin);
+  const x = B.hipW * 0.42;
+  capsule(ctx, -x, B.hipY - 6, -12, B.legW, skin);
+  capsule(ctx, x, B.hipY - 6, -12, B.legW, skin);
 }
 
 function drawNeck(ctx, skin) {
-  capsule(ctx, 0, CHIN_Y - 12, TORSO_TOP + 20, 30, shade(skin, -0.1));
+  capsule(ctx, 0, B.chinY - 8, B.torsoTop + 18, 19, shade(skin, -0.1));
 }
 
+/**
+ * The torso, with an actual waist.
+ *
+ * Three widths — shoulder, waist, hip — curved between, rather than the slab
+ * this used to be. The waist is what makes a build read as a build.
+ */
 function drawTorso(ctx, skin) {
-  // Slightly pear shaped rather than a slab: wider at the hip, soft shoulders.
+  const { shoulderW: sw, waistW: ww, hipW: hw, torsoTop: top, waistY: waist, hipY: hip } = B;
+
   ctx.fillStyle = skin;
   ctx.beginPath();
-  ctx.moveTo(-34, TORSO_TOP + 22);
-  ctx.quadraticCurveTo(-34, TORSO_TOP, -12, TORSO_TOP);
-  ctx.lineTo(12, TORSO_TOP);
-  ctx.quadraticCurveTo(34, TORSO_TOP, 34, TORSO_TOP + 22);
-  ctx.lineTo(38, HIP_Y - 16);
-  ctx.quadraticCurveTo(38, HIP_Y, 22, HIP_Y);
-  ctx.lineTo(-22, HIP_Y);
-  ctx.quadraticCurveTo(-38, HIP_Y, -38, HIP_Y - 16);
+  ctx.moveTo(-sw, top + 16);
+  ctx.quadraticCurveTo(-sw, top, -sw * 0.45, top);
+  ctx.lineTo(sw * 0.45, top);
+  ctx.quadraticCurveTo(sw, top, sw, top + 16);
+  ctx.quadraticCurveTo(ww, waist - 14, ww, waist);
+  ctx.quadraticCurveTo(hw, hip - 18, hw, hip);
+  ctx.quadraticCurveTo(hw * 0.72, hip + 8, 0, hip + 8);
+  ctx.quadraticCurveTo(-hw * 0.72, hip + 8, -hw, hip);
+  ctx.quadraticCurveTo(-hw, hip - 18, -ww, waist);
+  ctx.quadraticCurveTo(-ww, waist - 14, -sw, top + 16);
   ctx.closePath();
   ctx.fill();
 }
@@ -150,20 +197,20 @@ function armAngle(sway, side) {
 function drawArms(ctx, skin, sway) {
   for (const side of [-1, 1]) {
     ctx.save();
-    ctx.translate(ARM_X * side, SHOULDER_Y + 6);
+    ctx.translate(B.armX * side, B.shoulderY);
     ctx.rotate(armAngle(sway, side));
-    capsule(ctx, 0, -8, 70, 21, skin);
+    capsule(ctx, 0, -8, B.armLen, B.armW, skin);
     ctx.restore();
   }
 }
 
-/** Mitten hands, drawn after the sleeves so a long sleeve stops at the wrist. */
+/** Hands, drawn after the sleeves so a long sleeve stops at the wrist. */
 function drawHands(ctx, skin, sway) {
   for (const side of [-1, 1]) {
     ctx.save();
-    ctx.translate(ARM_X * side, SHOULDER_Y + 6);
+    ctx.translate(B.armX * side, B.shoulderY);
     ctx.rotate(armAngle(sway, side));
-    fillCircle(ctx, 0, 64, 13, skin);
+    fillEllipse(ctx, 0, B.armLen - 4, B.armW * 0.62, B.armW * 0.8, skin);
     ctx.restore();
   }
 }
@@ -225,15 +272,8 @@ function drawEars(ctx, s, skin) {
   }
 }
 
-function drawHead(ctx, skin, spec, hairColor, blinking, sway) {
-  const shape = FACE_SHAPES[spec.face];
+function drawHead(ctx, skin, spec, shape, hairColor, blinking) {
   const place = layout(shape);
-
-  ctx.save();
-  // The head leads the sway very slightly, which reads as looking around.
-  ctx.translate(0, CHIN_Y - shape.chin * HEAD_SCALE);
-  ctx.rotate(sway * 0.02);
-  ctx.scale(HEAD_SCALE, HEAD_SCALE);
 
   paperLayer(ctx, () => {
     drawEars(ctx, shape, skin);
@@ -248,8 +288,8 @@ function drawHead(ctx, skin, spec, hairColor, blinking, sway) {
   drawMouth(ctx, spec.mouth, LIP_COLORS[spec.mouthColor], place);
 
   paperLayer(ctx, () => drawFrontHair(ctx, spec.hair, hairColor, shape), 0.7);
+  paperLayer(ctx, () => drawHairpin(ctx, spec.hairpin, CLOTH_COLORS[spec.hairpinColor], shape), 0.6);
   paperLayer(ctx, () => drawExtra(ctx, spec.extra, CLOTH_COLORS[spec.extraColor]), 0.7);
-  ctx.restore();
 }
 
 // ------------------------------------------------------------------- face
@@ -492,7 +532,7 @@ function drawMouth(ctx, style, lip, place) {
 
 /** Drawn before the body, so it falls behind the shoulders. */
 function drawBackHair(ctx, style, color) {
-  const y = HEAD_Y;
+  const y = 0;
   switch (style) {
     case 1: // long, past the shoulders
       fillRR(ctx, -60, y - 40, 120, 150, 44, color);
@@ -614,29 +654,36 @@ function drawFrontHair(ctx, style, color, shape) {
 
 function sleeve(ctx, side, length, color, sway) {
   ctx.save();
-  ctx.translate(ARM_X * side, SHOULDER_Y + 6);
+  ctx.translate(B.armX * side, B.shoulderY);
   ctx.rotate(armAngle(sway, side));
-  capsule(ctx, 0, -10, length, 25, color);
+  capsule(ctx, 0, -10, length, B.armW + 5, color);
   ctx.restore();
 }
 
-function bodyGarment(ctx, color, top = TORSO_TOP - 4, bottom = HIP_Y + 6) {
+/** A garment that follows the torso, nipped in at the waist like the body. */
+function bodyGarment(ctx, color, top = B.torsoTop - 4, bottom = B.hipY + 6) {
+  const sw = B.shoulderW + 3;
+  const ww = B.waistW + 3;
+  const hw = B.hipW + 3;
+  const waist = Math.max(top + 20, Math.min(B.waistY, bottom - 10));
+
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.moveTo(-38, top + 24);
-  ctx.quadraticCurveTo(-38, top, -14, top);
-  ctx.lineTo(14, top);
-  ctx.quadraticCurveTo(38, top, 38, top + 24);
-  ctx.lineTo(42, bottom - 14);
-  ctx.quadraticCurveTo(42, bottom, 24, bottom);
-  ctx.lineTo(-24, bottom);
-  ctx.quadraticCurveTo(-42, bottom, -42, bottom - 14);
+  ctx.moveTo(-sw, top + 16);
+  ctx.quadraticCurveTo(-sw, top, -sw * 0.45, top);
+  ctx.lineTo(sw * 0.45, top);
+  ctx.quadraticCurveTo(sw, top, sw, top + 16);
+  ctx.quadraticCurveTo(ww, waist - 12, ww, waist);
+  ctx.quadraticCurveTo(hw, bottom - 16, hw, bottom);
+  ctx.lineTo(-hw, bottom);
+  ctx.quadraticCurveTo(-hw, bottom - 16, -ww, waist);
+  ctx.quadraticCurveTo(-ww, waist - 12, -sw, top + 16);
   ctx.closePath();
   ctx.fill();
 }
 
 /** Keeps a pattern inside the garment it belongs to. */
-function withinGarment(ctx, draw, top = TORSO_TOP - 4, bottom = HIP_Y + 10) {
+function withinGarment(ctx, draw, top = B.torsoTop - 4, bottom = B.hipY + 10) {
   ctx.save();
   ctx.beginPath();
   ctx.rect(-44, top, 88, bottom - top);
@@ -653,15 +700,15 @@ function drawTop(ctx, style, color, sway) {
       bodyGarment(ctx, color);
       break;
     case 2: // sleeveless
-      bodyGarment(ctx, color, TORSO_TOP + 8);
+      bodyGarment(ctx, color, B.torsoTop + 8);
       break;
     case 3: // hoodie
       sleeve(ctx, -1, 58, color, sway);
       sleeve(ctx, 1, 58, color, sway);
-      bodyGarment(ctx, color, TORSO_TOP - 8);
-      fillEllipse(ctx, 0, TORSO_TOP - 2, 36, 17, shade(color, -0.2));
-      strokeLine(ctx, -10, TORSO_TOP + 20, -10, TORSO_TOP + 40, shade(color, 0.45), 3.5);
-      strokeLine(ctx, 10, TORSO_TOP + 20, 10, TORSO_TOP + 40, shade(color, 0.45), 3.5);
+      bodyGarment(ctx, color, B.torsoTop - 8);
+      fillEllipse(ctx, 0, B.torsoTop - 2, 36, 17, shade(color, -0.2));
+      strokeLine(ctx, -10, B.torsoTop + 20, -10, B.torsoTop + 40, shade(color, 0.45), 3.5);
+      strokeLine(ctx, 10, B.torsoTop + 20, 10, B.torsoTop + 40, shade(color, 0.45), 3.5);
       break;
     case 4: // stripes
       sleeve(ctx, -1, 32, color, sway);
@@ -669,32 +716,32 @@ function drawTop(ctx, style, color, sway) {
       bodyGarment(ctx, color);
       withinGarment(ctx, () => {
         for (let i = 0; i < 5; i += 1) {
-          fillRR(ctx, -44, TORSO_TOP + 8 + i * 16, 88, 7, 3, shade(color, 0.5));
+          fillRR(ctx, -44, B.torsoTop + 8 + i * 16, 88, 7, 3, shade(color, 0.5));
         }
       });
       break;
     case 5: // chunky knit
       sleeve(ctx, -1, 62, color, sway);
       sleeve(ctx, 1, 62, color, sway);
-      bodyGarment(ctx, color, TORSO_TOP - 6, HIP_Y + 12);
+      bodyGarment(ctx, color, B.torsoTop - 6, B.hipY + 12);
       for (let i = -1; i <= 1; i += 1) {
-        strokeLine(ctx, i * 18, TORSO_TOP + 10, i * 18, HIP_Y, shade(color, -0.16), 3.5);
+        strokeLine(ctx, i * 18, B.torsoTop + 10, i * 18, B.hipY, shade(color, -0.16), 3.5);
       }
       break;
     case 6: // dungarees, straps over a bare shoulder
-      bodyGarment(ctx, color, TORSO_TOP + 30);
-      fillRR(ctx, -26, TORSO_TOP - 2, 13, 44, 5, color);
-      fillRR(ctx, 13, TORSO_TOP - 2, 13, 44, 5, color);
-      fillRR(ctx, -20, TORSO_TOP + 34, 40, 22, 6, shade(color, 0.18));
+      bodyGarment(ctx, color, B.torsoTop + 30);
+      fillRR(ctx, -26, B.torsoTop - 2, 13, 44, 5, color);
+      fillRR(ctx, 13, B.torsoTop - 2, 13, 44, 5, color);
+      fillRR(ctx, -20, B.torsoTop + 34, 40, 22, 6, shade(color, 0.18));
       break;
     case 7: // blouse with a collar
       sleeve(ctx, -1, 34, color, sway);
       sleeve(ctx, 1, 34, color, sway);
       bodyGarment(ctx, color);
-      fillPoly(ctx, [-20, TORSO_TOP - 2, 0, TORSO_TOP + 26, -4, TORSO_TOP - 2], shade(color, 0.35));
-      fillPoly(ctx, [20, TORSO_TOP - 2, 0, TORSO_TOP + 26, 4, TORSO_TOP - 2], shade(color, 0.35));
+      fillPoly(ctx, [-20, B.torsoTop - 2, 0, B.torsoTop + 26, -4, B.torsoTop - 2], shade(color, 0.35));
+      fillPoly(ctx, [20, B.torsoTop - 2, 0, B.torsoTop + 26, 4, B.torsoTop - 2], shade(color, 0.35));
       for (let i = 0; i < 3; i += 1) {
-        fillCircle(ctx, 0, TORSO_TOP + 34 + i * 15, 3, shade(color, -0.3));
+        fillCircle(ctx, 0, B.torsoTop + 34 + i * 15, 3, shade(color, -0.3));
       }
       break;
     case 8: // open cardigan over a plain shirt
@@ -702,32 +749,32 @@ function drawTop(ctx, style, color, sway) {
       sleeve(ctx, 1, 60, color, sway);
       bodyGarment(ctx, color);
       withinGarment(ctx, () => {
-        fillRR(ctx, -13, TORSO_TOP - 4, 26, 100, 4, shade(color, 0.42));
+        fillRR(ctx, -13, B.torsoTop - 4, 26, 100, 4, shade(color, 0.42));
       });
       break;
     case 9: // crop top
-      bodyGarment(ctx, color, TORSO_TOP + 4, HIP_Y - 26);
+      bodyGarment(ctx, color, B.torsoTop + 4, B.hipY - 26);
       sleeve(ctx, -1, 24, color, sway);
       sleeve(ctx, 1, 24, color, sway);
       break;
     case 10: // puffer jacket
       sleeve(ctx, -1, 62, color, sway);
       sleeve(ctx, 1, 62, color, sway);
-      bodyGarment(ctx, color, TORSO_TOP - 10, HIP_Y + 12);
+      bodyGarment(ctx, color, B.torsoTop - 10, B.hipY + 12);
       withinGarment(ctx, () => {
         for (let i = 0; i < 4; i += 1) {
-          strokeLine(ctx, -44, TORSO_TOP + 8 + i * 19, 44, TORSO_TOP + 8 + i * 19,
+          strokeLine(ctx, -44, B.torsoTop + 8 + i * 19, 44, B.torsoTop + 8 + i * 19,
             shade(color, -0.18), 3);
         }
-      }, TORSO_TOP - 10, HIP_Y + 12);
+      }, B.torsoTop - 10, B.hipY + 12);
       break;
     case 11: // sports jersey
-      bodyGarment(ctx, color, TORSO_TOP + 2);
+      bodyGarment(ctx, color, B.torsoTop + 2);
       sleeve(ctx, -1, 26, shade(color, 0.3), sway);
       sleeve(ctx, 1, 26, shade(color, 0.3), sway);
       withinGarment(ctx, () => {
-        fillRR(ctx, -44, TORSO_TOP + 34, 88, 16, 3, shade(color, 0.4));
-        fillCircle(ctx, 0, TORSO_TOP + 20, 9, shade(color, 0.4));
+        fillRR(ctx, -44, B.torsoTop + 34, 88, 16, 3, shade(color, 0.4));
+        fillCircle(ctx, 0, B.torsoTop + 20, 9, shade(color, 0.4));
       });
       break;
     default: // short sleeves
@@ -738,66 +785,68 @@ function drawTop(ctx, style, color, sway) {
 }
 
 function skirt(ctx, color, hem, flare) {
+  const w = B.hipW + 5;
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.moveTo(-36, HIP_Y - 14);
-  ctx.lineTo(36, HIP_Y - 14);
+  ctx.moveTo(-w, B.hipY - 14);
+  ctx.lineTo(w, B.hipY - 14);
   ctx.quadraticCurveTo(flare, hem - 16, flare, hem);
   ctx.quadraticCurveTo(0, hem + 14, -flare, hem);
-  ctx.quadraticCurveTo(-flare, hem - 16, -36, HIP_Y - 14);
+  ctx.quadraticCurveTo(-flare, hem - 16, -w, B.hipY - 14);
   ctx.closePath();
   ctx.fill();
 }
 
 function trousers(ctx, color, hem, width) {
-  capsule(ctx, -17, HIP_Y - 18, hem, width, color);
-  capsule(ctx, 17, HIP_Y - 18, hem, width, color);
-  fillRR(ctx, -36, HIP_Y - 20, 72, 28, 12, color);
+  const x = B.hipW * 0.42;
+  capsule(ctx, -x, B.hipY - 18, hem, width, color);
+  capsule(ctx, x, B.hipY - 18, hem, width, color);
+  fillRR(ctx, -B.hipW - 2, B.hipY - 20, (B.hipW + 2) * 2, 28, 12, color);
 }
 
 function drawBottom(ctx, style, color) {
   switch (style) {
     case 1: // shorts
-      trousers(ctx, color, HIP_Y + 26, 30);
+      trousers(ctx, color, B.hipY + 26, B.legW + 8);
       break;
     case 2: // short skirt
-      skirt(ctx, color, HIP_Y + 34, 54);
+      skirt(ctx, color, B.hipY + 34, 54);
       break;
     case 3: // long skirt
-      skirt(ctx, color, HIP_Y + 62, 62);
+      skirt(ctx, color, B.hipY + 62, 62);
       break;
     case 5: // leggings
-      trousers(ctx, color, -14, 24);
+      trousers(ctx, color, -12, B.legW + 2);
       break;
     case 6: // pleated skirt
-      skirt(ctx, color, HIP_Y + 44, 58);
+      skirt(ctx, color, B.hipY + 44, 58);
       for (let i = -2; i <= 2; i += 1) {
-        strokeLine(ctx, i * 13, HIP_Y - 10, i * 21, HIP_Y + 38, shade(color, -0.18), 3);
+        strokeLine(ctx, i * 13, B.hipY - 10, i * 21, B.hipY + 38, shade(color, -0.18), 3);
       }
       break;
     case 7: // dungaree trousers
-      trousers(ctx, color, -16, 32);
-      fillRR(ctx, -34, HIP_Y - 26, 68, 20, 8, color);
+      trousers(ctx, color, -14, B.legW + 8);
+      fillRR(ctx, -34, B.hipY - 26, 68, 20, 8, color);
       break;
     case 8: // wide legged
-      capsule(ctx, -20, HIP_Y - 18, -14, 38, color);
-      capsule(ctx, 20, HIP_Y - 18, -14, 38, color);
-      fillRR(ctx, -38, HIP_Y - 20, 76, 28, 12, color);
+      capsule(ctx, -20, B.hipY - 18, -14, 38, color);
+      capsule(ctx, 20, B.hipY - 18, -14, 38, color);
+      fillRR(ctx, -38, B.hipY - 20, 76, 28, 12, color);
       break;
     case 9: // tutu, in three layers
-      skirt(ctx, shade(color, -0.12), HIP_Y + 40, 70);
-      skirt(ctx, color, HIP_Y + 28, 60);
-      skirt(ctx, shade(color, 0.22), HIP_Y + 16, 48);
+      skirt(ctx, shade(color, -0.12), B.hipY + 40, 70);
+      skirt(ctx, color, B.hipY + 28, 60);
+      skirt(ctx, shade(color, 0.22), B.hipY + 16, 48);
       break;
     default: // trousers
-      trousers(ctx, color, -18, 30);
+      trousers(ctx, color, -16, B.legW + 6);
   }
 }
 
 function drawDress(ctx, color) {
-  bodyGarment(ctx, color, TORSO_TOP - 2, HIP_Y - 6);
-  skirt(ctx, color, HIP_Y + 46, 64);
-  fillRR(ctx, -40, HIP_Y - 22, 80, 9, 4, shade(color, -0.3));
+  bodyGarment(ctx, color, B.torsoTop - 2, B.hipY - 6);
+  skirt(ctx, color, B.hipY + 46, 64);
+  fillRR(ctx, -40, B.hipY - 22, 80, 9, 4, shade(color, -0.3));
 }
 
 function drawShoes(ctx, style, color) {
@@ -842,6 +891,90 @@ function drawShoes(ctx, style, color) {
   };
   shoe(-19, -1);
   shoe(19, 1);
+}
+
+// ---------------------------------------------------------------- hairpin
+//
+// Small things worn in the hair, kept as their own part rather than mixed in
+// with glasses and scarves — a clip is chosen while picking a hairstyle, not
+// while picking an accessory. Drawn in head space over the hair.
+
+/** A four-pointed sparkle, used by a couple of the pins. */
+function sparkle(ctx, x, y, r, color) {
+  fillPoly(ctx, [x, y - r, x + r * 0.32, y - r * 0.32, x + r, y,
+    x + r * 0.32, y + r * 0.32, x, y + r, x - r * 0.32, y + r * 0.32,
+    x - r, y, x - r * 0.32, y - r * 0.32], color);
+}
+
+function drawHairpin(ctx, style, color, shape) {
+  const side = shape.temple * 0.72;
+  const top = -HEAD_TOP + 8;
+
+  switch (style) {
+    case 1: // a single clip
+      ctx.save();
+      ctx.translate(-side, top + 6);
+      ctx.rotate(-0.42);
+      fillRR(ctx, -17, -5, 34, 10, 5, color);
+      fillRR(ctx, -12, -1.5, 22, 3, 1.5, shade(color, -0.35));
+      ctx.restore();
+      break;
+    case 2: // two crossed clips
+      for (const [dx, angle] of [[-4, -0.5], [4, 0.5]]) {
+        ctx.save();
+        ctx.translate(-side + dx, top + 8);
+        ctx.rotate(angle);
+        fillRR(ctx, -15, -4.5, 30, 9, 4.5, color);
+        ctx.restore();
+      }
+      break;
+    case 3: // a hairband across the crown
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 11;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, -6, HEAD_R + 2, Math.PI * 1.12, Math.PI * 1.88);
+      ctx.stroke();
+      break;
+    case 4: // a small ribbon bow to one side
+      fillPoly(ctx, [-side - 24, top - 4, -side - 6, top - 12, -side - 6, top + 6], color);
+      fillPoly(ctx, [-side + 6, top - 12, -side + 24, top - 4, -side + 6, top + 6], color);
+      fillCircle(ctx, -side, top - 3, 7, shade(color, -0.2));
+      break;
+    case 5: // butterfly clips
+      for (const dx of [-side, side * 0.75]) {
+        fillEllipse(ctx, dx - 7, top + 2, 8, 6, color);
+        fillEllipse(ctx, dx + 7, top + 2, 8, 6, color);
+        fillRR(ctx, dx - 2, top - 3, 4, 12, 2, shade(color, -0.35));
+      }
+      break;
+    case 6: // a scrunchie
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 13;
+      ctx.beginPath();
+      ctx.arc(side + 6, top + 26, 17, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    case 7: // sparkle pins scattered along the parting
+      sparkle(ctx, -side - 4, top + 2, 9, color);
+      sparkle(ctx, -side + 16, top - 10, 7, color);
+      sparkle(ctx, -side + 30, top + 4, 6, color);
+      break;
+    case 8: // a flower pin
+      for (let i = 0; i < 6; i += 1) {
+        const a = (i / 6) * Math.PI * 2;
+        fillEllipse(ctx, -side + Math.cos(a) * 11, top + Math.sin(a) * 11, 7, 7, color);
+      }
+      fillCircle(ctx, -side, top, 6, shade(color, 0.4));
+      break;
+    case 9: // a row of pearl pins
+      for (let i = 0; i < 5; i += 1) {
+        fillCircle(ctx, -side + i * 15 - 6, top + 2 - Math.abs(i - 2) * 3, 5.5, color);
+      }
+      break;
+    default:
+      break;
+  }
 }
 
 // ------------------------------------------------------------------ extra

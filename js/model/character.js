@@ -18,23 +18,25 @@ export const SKIN_TONES = [
 ];
 
 export const HAIR_COLORS = [
-  '#332a2a', '#54382a', '#7d5236', '#a9773f', '#d4b183',
-  '#b05663', '#7a6296', '#4a7f96', '#5c8a66', '#ded7cc',
+  '#2e2622', '#5b3a28', '#8a5a34', '#c08843', '#e8cb8e',
+  '#f2b8c6', '#c98ad0', '#8f7ad8', '#6fb5d8', '#e6e0e8',
 ];
 
+/* Rose, blush, lilac, gold and aqua — the colours a dressing-up box is
+   actually full of, rather than the earth tones this started with. */
 export const CLOTH_COLORS = [
-  '#c9604f', '#d98a4e', '#dcb85c', '#7d9e62', '#4f9695',
-  '#5c7aa8', '#8a6d9e', '#cd8b98', '#efe7d9', '#423d4d',
+  '#e0708a', '#f2a2ba', '#f7cddb', '#c98ad0', '#8f7ad8',
+  '#6fa8dc', '#5fc4bd', '#f0c86a', '#faf3ea', '#4a4258',
 ];
 
 export const LIP_COLORS = [
-  '#a85a5f', '#c07070', '#8f4048', '#d4878c',
-  '#7d3a44', '#b8656f', '#9c5750', '#e0a3a2',
+  '#c96878', '#d98292', '#b04f62', '#e8a0ae',
+  '#96384c', '#e07a92', '#c05a70', '#f0bcc4',
 ];
 
 export const EYE_COLORS = [
-  '#4a3728', '#6b4b2e', '#8a6a3f', '#4f6b52',
-  '#3f5f70', '#5a7f96', '#6a5878', '#2f2b2e',
+  '#4a3728', '#7a5230', '#a07a3a', '#4f8a62',
+  '#3f7fa0', '#6ab0d0', '#8a6ac0', '#2f2b2e',
 ];
 
 /**
@@ -58,15 +60,37 @@ export const FACE_SHAPES = [
 ];
 
 /**
+ * Body builds.
+ *
+ * These exist because "a Hermione or a Malibu Barbie depending on the choices"
+ * is not a clothing question — those two differ in the skeleton before they
+ * differ in anything else. Half-widths at the shoulder, waist and hip, plus
+ * leg length, which is the single measurement that does most of the work: a
+ * long-legged figure reads as a fashion doll and a short-legged one does not,
+ * whatever it is wearing.
+ */
+export const BUILDS = [
+  { id: 'petite', shoulder: 25, waist: 18, hip: 27, leg: 116, arm: 13 },
+  { id: 'slight', shoulder: 26, waist: 18, hip: 26, leg: 128, arm: 13 },
+  { id: 'average', shoulder: 28, waist: 20, hip: 28, leg: 132, arm: 14 },
+  { id: 'tall', shoulder: 28, waist: 19, hip: 28, leg: 148, arm: 13 },
+  { id: 'curvy', shoulder: 30, waist: 22, hip: 35, leg: 126, arm: 15 },
+  { id: 'athletic', shoulder: 33, waist: 23, hip: 29, leg: 136, arm: 16 },
+];
+
+/**
  * Number of styles per part. The character creator builds its option grids
  * from these counts, so adding a hairstyle means bumping one number and
  * drawing it — no UI work.
  */
 export const PART_COUNTS = {
+  build: BUILDS.length,
   face: FACE_SHAPES.length,
   skin: SKIN_TONES.length,
   hair: 14,
   hairColor: HAIR_COLORS.length,
+  hairpin: 10, // index 0 is "nothing"
+  hairpinColor: CLOTH_COLORS.length,
   brows: 8,
   eyes: 10,
   eyeColor: EYE_COLORS.length,
@@ -98,9 +122,11 @@ export const PART_KEYS = Object.keys(PART_COUNTS);
 
 /** Parts offered as their own tab in the creator, in the order shown. */
 export const EDITABLE_PARTS = [
+  { key: 'build', colorKey: null, icon: 'build' },
   { key: 'face', colorKey: null, icon: 'face' },
   { key: 'skin', colorKey: null, icon: 'skin' },
   { key: 'hair', colorKey: 'hairColor', icon: 'hair' },
+  { key: 'hairpin', colorKey: 'hairpinColor', icon: 'hairpin' },
   { key: 'brows', colorKey: null, icon: 'brows' },
   { key: 'eyes', colorKey: 'eyeColor', icon: 'eyes' },
   { key: 'nose', colorKey: null, icon: 'nose' },
@@ -113,7 +139,8 @@ export const EDITABLE_PARTS = [
 
 export function createCharacterSpec() {
   return {
-    face: 0, skin: 3, hair: 0, hairColor: 1, brows: 0,
+    build: 2, face: 0, skin: 3, hair: 0, hairColor: 1,
+    hairpin: 0, hairpinColor: 0, brows: 0,
     eyes: 0, eyeColor: 0, nose: 1, mouth: 0, mouthColor: 0,
     top: 0, topColor: 0, bottom: 0, bottomColor: 5,
     shoes: 0, shoesColor: 9, extra: 0, extraColor: 2,

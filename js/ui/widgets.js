@@ -59,11 +59,16 @@ export function drawButton(ctx, btn) {
   const base = btn.active ? COLORS.buttonActive
     : btn.tone === 'danger' ? COLORS.danger
       : btn.tone === 'good' ? COLORS.good
-        : COLORS.button;
+        : btn.tone === 'accent' ? COLORS.buttonActive
+          : COLORS.button;
   const fill = btn.disabled ? shade(base, -0.45) : base;
+  // Round controls float over the room; square ones sit in a panel.
+  const radius = btn.round ? Math.min(btn.w, btn.h) / 2 : 16;
 
-  fillRR(ctx, btn.x, btn.y + 4, btn.w, btn.h, 16, shade(fill, -0.35));
-  fillRR(ctx, btn.x, btn.y, btn.w, btn.h, 16, fill);
+  if (!btn.flat) {
+    fillRR(ctx, btn.x, btn.y + 4, btn.w, btn.h, radius, shade(fill, -0.35));
+    fillRR(ctx, btn.x, btn.y, btn.w, btn.h, radius, fill);
+  }
 
   const cx = btn.x + btn.w / 2;
   const cy = btn.y + btn.h / 2;

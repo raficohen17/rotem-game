@@ -1,48 +1,63 @@
 /**
  * Designing one room, zoomed to fill the screen.
  *
- * Drag an item out of the drawer to place it, drag a placed item to move it,
- * tap it to select and get its controls. Nothing here can fail: no arrangement
- * is rejected, and there is nothing to score.
+ * The room gets the screen; the interface gets out of the way. There are two
+ * permanent controls — a back button and one that opens the drawer — and
+ * everything else is either inside the drawer or floats next to whatever is
+ * selected. An earlier version had eleven buttons pinned across the top, which
+ * spent a third of a phone screen on chrome in a game about looking at a room.
+ *
+ * Painting and adding people live in the drawer as tabs beside the furniture
+ * categories, because they are the same kind of action: pick a thing, put it in
+ * the room.
  */
 
-import {
-  button, iconButton, hitTest, drawButtons, drawPanel, COLORS, TOUCH,
-} from '../ui/widgets.js';
-import { fillRR, shade } from '../render/shapes.js';
+import { button, hitTest, drawPanel, drawButton, drawButtons, COLORS } from '../ui/widgets.js';
+import { fillRR, fillCircle, shade } from '../render/shapes.js';
 import { drawItemArt } from '../render/catalog.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import {
   drawRoomShell, drawRoomContents, roomContents, ROOM_W, ROOM_H, FLOOR_Y, FLOOR_BAND,
 } from '../render/room.js';
-import { itemBounds, boundsContain, clampScale, MIN_SCALE, MAX_SCALE } from '../model/geometry.js';
-import { placeItem, placeCharacter, frontZ, backZ, WALL_COLORS, FLOOR_COLORS } from '../model/world.js';
+import { itemBounds, boundsContain, clampScale } from '../model/geometry.js';
+import {
+  placeItem, placeCharacter, frontZ, backZ, WALL_COLORS, FLOOR_COLORS,
+} from '../model/world.js';
 import { createCharacterCreator } from './charcreator.js';
 import { createHouse } from './house.js';
 
-const PANEL_TOP = 500;
-const TAB_W = 128;
-const CELL_W = 120;
+const PANEL_TOP = 470;
+const TAB = { y: 482, w: 98, h: 58, step: 102, x: 46 };
+const CELL = { y: 550, w: 100, h: 156, step: 106, x: 46 };
+
+/** Floating controls are smaller than pinned ones: they sit near the thumb. */
+const PIP = 58;
+
+/** Tabs that are not furniture categories. */
+const EXTRA_TABS = [
+  { id: 'people', icon: 'person' },
+  { id: 'wall', icon: 'wall' },
+  { id: 'floor', icon: 'floor' },
+];
 
 export function createRoomScene(game, roomId) {
   const room = game.world.rooms[roomId];
-  const catalog = game.catalog;
+  const { catalog } = game;
 
-  /** null when closed; otherwise the drawer shows items or a colour palette. */
-  let panel = null;
-  let category = catalog.categories[0].id;
+  let open = false;
+  let tab = catalog.categories[0].id;
   let selected = null;
   let drag = null;
 
   /**
    * Where the room sits on screen. Both drawing and touch mapping read this,
-   * so the two can never disagree — and the room lifts out from behind the
-   * drawer when it opens instead of being covered by it.
+   * so they can never disagree — and the room lifts out from behind the drawer
+   * when it opens rather than being covered by it.
    */
   function transform() {
-    return panel
-      ? { x: 190, y: 92, s: 0.75 }
-      : { x: 40, y: 104, s: 1 };
+    return open
+      ? { x: 121, y: 14, s: 0.865 }
+      : { x: 20, y: 22, s: 1.033 };
   }
 
   function toRoom(sx, sy) {
@@ -55,22 +70,21 @@ export function createRoomScene(game, roomId) {
     return p.x >= 0 && p.x <= ROOM_W && p.y >= 0 && p.y <= ROOM_H;
   }
 
-  function cast() {
-    return game.charactersIn(roomId);
-  }
+  const cast = () => game.charactersIn(roomId);
+  const isItem = (entry) => entry && entry.item !== undefined;
 
   function isWallItem(entry) {
-    return entry.item !== undefined && catalog.get(entry.item)?.surface === 'wall';
+    return isItem(entry) && catalog.get(entry.item)?.surface === 'wall';
   }
 
   /** Keeps anything placed within reach of a finger. */
   function clampPlacement(entry, x, y) {
     const wall = isWallItem(entry);
-    const top = wall ? 40 : FLOOR_BAND.top;
-    const bottom = wall ? FLOOR_Y - 10 : FLOOR_BAND.bottom;
     return {
       x: Math.min(ROOM_W - 30, Math.max(30, x)),
-      y: Math.min(bottom, Math.max(top, y)),
+      y: wall
+        ? Math.min(FLOOR_Y - 10, Math.max(40, y))
+        : Math.min(FLOOR_BAND.bottom, Math.max(FLOOR_BAND.top, y)),
     };
   }
 
@@ -93,7 +107,7 @@ export function createRoomScene(game, roomId) {
 
   function removeSelected() {
     if (!selected) return;
-    if (selected.item !== undefined) {
+    if (isItem(selected)) {
       room.items = room.items.filter((entry) => entry !== selected);
     } else {
       game.world.characters = game.world.characters.filter((entry) => entry !== selected);
@@ -102,104 +116,131 @@ export function createRoomScene(game, roomId) {
     game.persist();
   }
 
-  function addCharacter() {
+  function openCreator(existing) {
+    const back = () => game.setScene(createRoomScene(game, roomId));
     game.setScene(createCharacterCreator(game, (spec) => {
-      // Stepped along so a new character does not land exactly on top of the
-      // last one and look like nothing happened.
-      const already = cast().length;
-      const character = placeCharacter(
-        spec,
-        roomId,
-        ROOM_W / 2 + ((already % 5) - 2) * 130,
-        FLOOR_BAND.bottom - 40,
-      );
-      game.world.characters.push(character);
+      if (existing) {
+        existing.spec = spec;
+      } else {
+        const already = cast().length;
+        game.world.characters.push(placeCharacter(
+          spec, roomId,
+          ROOM_W / 2 + ((already % 5) - 2) * 140,
+          FLOOR_BAND.bottom - 40,
+        ));
+      }
       game.persist();
-      const back = createRoomScene(game, roomId);
-      game.setScene(back);
-    }, () => game.setScene(createRoomScene(game, roomId))));
+      back();
+    }, back, existing?.spec));
   }
 
   // ------------------------------------------------------------- controls
 
-  function topBar() {
-    const controls = [
-      iconButton('back', 20, 12, { icon: 'back' }),
-      iconButton('person', 104, 12, { icon: 'person' }),
-      iconButton('wall', 188, 12, { icon: 'wall', active: panel === 'wall' }),
-      iconButton('floor', 272, 12, { icon: 'floor', active: panel === 'floor' }),
-      iconButton('drawer', 356, 12, { icon: 'drawer', active: panel === 'items' }),
+  /** The only two controls that are always on screen. */
+  function permanent() {
+    return [
+      button('back', 18, 18, PIP, PIP, { icon: 'back', round: true }),
+      button('drawer', 1204, 640, PIP, PIP, {
+        icon: open ? 'chevronDown' : 'plus', round: true, tone: 'accent',
+      }),
     ];
-
-    if (selected) {
-      const isItem = selected.item !== undefined;
-      const x = (i) => 768 + i * 80;
-      if (isItem) {
-        controls.push(
-          iconButton('shrink', x(0), 12, { icon: 'shrink' }),
-          iconButton('grow', x(1), 12, { icon: 'grow' }),
-          iconButton('flip', x(2), 12, { icon: 'flip' }),
-          iconButton('sendBack', x(3), 12, { icon: 'layerDown' }),
-          iconButton('bringFront', x(4), 12, { icon: 'layerUp' }),
-        );
-      } else {
-        controls.push(iconButton('edit', x(3), 12, { icon: 'person' }));
-      }
-      controls.push(iconButton('delete', x(5), 12, { icon: 'trash', tone: 'danger' }));
-    }
-    return controls;
   }
 
-  function panelControls() {
-    if (!panel) return [];
-
-    if (panel === 'items') {
-      const tabs = catalog.categories.map((cat, i) => button(
-        `cat:${cat.id}`, 64 + i * TAB_W, PANEL_TOP + 12, TAB_W - 8, 64,
-        { active: cat.id === category, category: cat },
-      ));
-      const items = catalog.inCategory(category).map((def, i) => button(
-        `item:${def.id}`, 64 + i * TAB_W, PANEL_TOP + 88, CELL_W, 120, { def },
-      ));
-      return [...tabs, ...items];
-    }
-
-    const swatches = panel === 'wall' ? WALL_COLORS : FLOOR_COLORS;
-    return swatches.map((color, i) => button(
-      `paint:${i}`, 64 + i * 118, PANEL_TOP + 60, 100, 100,
-      { swatch: color, color, active: (panel === 'wall' ? room.wall : room.floor) === color },
+  function tabs() {
+    if (!open) return [];
+    const all = [
+      ...EXTRA_TABS.map((e) => ({ id: e.id, icon: e.icon })),
+      ...catalog.categories.map((c) => ({ id: c.id, label: c.label })),
+    ];
+    return all.map((entry, i) => button(
+      `tab:${entry.id}`, TAB.x + i * TAB.step, TAB.y, TAB.w, TAB.h,
+      { active: entry.id === tab, tabInfo: entry },
     ));
   }
 
-  function allControls() {
-    return [...topBar(), ...panelControls()];
+  function panelContents() {
+    if (!open) return [];
+
+    if (tab === 'wall' || tab === 'floor') {
+      const swatches = tab === 'wall' ? WALL_COLORS : FLOOR_COLORS;
+      const current = tab === 'wall' ? room.wall : room.floor;
+      return swatches.map((color, i) => button(
+        `paint:${i}`, CELL.x + i * 112, CELL.y + 26, 96, 96,
+        { swatch: color, color, active: current === color },
+      ));
+    }
+
+    if (tab === 'people') {
+      const controls = [button('addPerson', CELL.x, CELL.y, CELL.w, CELL.h, { addPerson: true })];
+      cast().forEach((character, i) => {
+        controls.push(button(`person:${i}`, CELL.x + (i + 1) * CELL.step, CELL.y,
+          CELL.w, CELL.h, { character }));
+      });
+      return controls;
+    }
+
+    return catalog.inCategory(tab).map((def, i) => button(
+      `item:${def.id}`, CELL.x + i * CELL.step, CELL.y, CELL.w, CELL.h, { def },
+    ));
   }
+
+  /**
+   * Controls for the selected object, floating just above it rather than
+   * pinned to the top of the screen — so they are next to what they act on,
+   * and gone entirely when nothing is selected.
+   */
+  function selectionControls() {
+    if (!selected) return [];
+
+    const ids = isItem(selected)
+      ? [['shrink', 'shrink'], ['grow', 'grow'], ['flip', 'flip'],
+        ['sendBack', 'layerDown'], ['bringFront', 'layerUp'], ['delete', 'trash']]
+      : [['edit', 'person'], ['delete', 'trash']];
+
+    const t = transform();
+    const width = ids.length * PIP + (ids.length - 1) * 6;
+    const height = isItem(selected)
+      ? (catalog.get(selected.item)?.h ?? 0) * selected.scale
+      : CHAR_H;
+
+    // Above the object, or below it when that would leave the screen.
+    let top = t.y + (selected.y - height) * t.s - PIP - 14;
+    if (top < 12) top = t.y + selected.y * t.s + 14;
+    const left = Math.min(1280 - width - 16, Math.max(16, t.x + selected.x * t.s - width / 2));
+
+    return ids.map(([id, icon], i) => button(
+      id, left + i * (PIP + 6), top, PIP, PIP,
+      { icon, round: true, tone: id === 'delete' ? 'danger' : undefined },
+    ));
+  }
+
+  const allControls = () => [
+    ...permanent(), ...tabs(), ...panelContents(), ...selectionControls(),
+  ];
 
   // ---------------------------------------------------------------- input
 
-  function handleControl(hit) {
+  function act(hit) {
     switch (hit.id) {
       case 'back': game.setScene(createHouse(game)); return true;
-      case 'person': addCharacter(); return true;
-      case 'wall': panel = panel === 'wall' ? null : 'wall'; return true;
-      case 'floor': panel = panel === 'floor' ? null : 'floor'; return true;
-      case 'drawer': panel = panel === 'items' ? null : 'items'; return true;
+      case 'drawer': open = !open; return true;
+      case 'addPerson': openCreator(null); return true;
+      case 'edit': openCreator(selected); return true;
       case 'delete': removeSelected(); return true;
-      case 'edit':
-        if (selected) {
-          const target = selected;
-          game.setScene(createCharacterCreator(game, (spec) => {
-            target.spec = spec;
-            game.persist();
-            game.setScene(createRoomScene(game, roomId));
-          }, () => game.setScene(createRoomScene(game, roomId)), target.spec));
-        }
-        return true;
       default: break;
     }
 
-    if (!selected) return false;
+    const [kind, value] = hit.id.split(':');
+    if (kind === 'tab') { tab = value; return true; }
+    if (kind === 'paint') {
+      if (tab === 'wall') room.wall = hit.color;
+      else room.floor = hit.color;
+      game.persist();
+      return true;
+    }
+    if (kind === 'person') { selected = hit.character; return true; }
 
+    if (!selected) return false;
     switch (hit.id) {
       case 'shrink': selected.scale = clampScale(selected.scale - 0.15); break;
       case 'grow': selected.scale = clampScale(selected.scale + 0.15); break;
@@ -212,31 +253,19 @@ export function createRoomScene(game, roomId) {
     return true;
   }
 
-  function handlePanelTap(hit) {
-    const [kind, value] = hit.id.split(':');
-    if (kind === 'cat') { category = value; return true; }
-    if (kind === 'paint') {
-      if (panel === 'wall') room.wall = hit.color;
-      else room.floor = hit.color;
-      game.persist();
-      return true;
-    }
-    return false;
-  }
-
   return {
     enter() { selected = null; },
 
     onPointerDown(x, y) {
       const hit = hitTest(allControls(), x, y);
 
-      // Dragging an item out of the drawer is how furniture gets placed, so a
-      // press on a drawer cell starts a placement rather than acting on tap.
+      // Dragging out of the drawer is how furniture is placed, so a press on a
+      // drawer cell starts a placement rather than waiting for a tap.
       if (hit?.def) {
         drag = { mode: 'place', def: hit.def, sx: x, sy: y };
         return;
       }
-      if (hit) return; // handled on tap, so a slip does not fire it
+      if (hit) return; // everything else acts on tap, so a slip does nothing
 
       if (!inRoom(x, y)) return;
       const p = toRoom(x, y);
@@ -278,9 +307,7 @@ export function createRoomScene(game, roomId) {
 
     onTap(x, y) {
       const hit = hitTest(allControls(), x, y);
-      if (!hit) return;
-      if (handleControl(hit)) return;
-      handlePanelTap(hit);
+      if (hit) act(hit);
     },
 
     draw(ctx) {
@@ -289,7 +316,7 @@ export function createRoomScene(game, roomId) {
 
       const t = transform();
       ctx.save();
-      fillRR(ctx, t.x, t.y, ROOM_W * t.s, ROOM_H * t.s, 12, '#000');
+      fillRR(ctx, t.x, t.y, ROOM_W * t.s, ROOM_H * t.s, 14, '#000');
       ctx.clip();
       ctx.translate(t.x, t.y);
       ctx.scale(t.s, t.s);
@@ -297,46 +324,79 @@ export function createRoomScene(game, roomId) {
       drawRoomContents(ctx, room, cast(), catalog, game.time, selected);
       ctx.restore();
 
-      if (panel) drawPanelBody(ctx, panel, catalog, category, room);
-      drawButtons(ctx, allControls().filter((c) => !c.def && !c.category));
-      if (panel === 'items') drawDrawerContents(ctx, panelControls());
+      if (open) drawDrawer(ctx, tabs(), panelContents(), tab, game.time);
 
-      if (drag?.mode === 'place') drawGhost(ctx, drag);
+      drawButtons(ctx, permanent());
+      drawButtons(ctx, selectionControls());
+
+      if (drag?.mode === 'place') {
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        ctx.translate(drag.sx, drag.sy);
+        drawItemArt(ctx, drag.def, 0);
+        ctx.restore();
+      }
     },
   };
 }
 
 // ---------------------------------------------------------------- drawing
 
-function drawPanelBody(ctx, panel, catalog, category, room) {
-  drawPanel(ctx, 24, PANEL_TOP, 1232, 720 - PANEL_TOP, COLORS.panel, 22);
+function drawDrawer(ctx, tabControls, contents, tab, time) {
+  drawPanel(ctx, 16, PANEL_TOP, 1248, 720 - PANEL_TOP, COLORS.panel, 24);
 
-  if (panel !== 'items') {
-    ctx.fillStyle = COLORS.inkDim;
-    ctx.font = '600 22px system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(panel === 'wall' ? 'Wall' : 'Floor', 64, PANEL_TOP + 42);
-  }
-}
-
-/** Category tabs and item cells, both showing the art rather than words. */
-function drawDrawerContents(ctx, controls) {
-  for (const control of controls) {
-    if (control.category) {
-      fillRR(ctx, control.x, control.y, control.w, control.h, 12,
-        control.active ? COLORS.buttonActive : COLORS.button);
+  for (const control of tabControls) {
+    fillRR(ctx, control.x, control.y, control.w, control.h, 14,
+      control.active ? COLORS.buttonActive : COLORS.button);
+    const info = control.tabInfo;
+    if (info.label) {
       ctx.fillStyle = COLORS.ink;
       ctx.font = '600 17px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(control.category.label, control.x + control.w / 2, control.y + control.h / 2);
-    } else if (control.def) {
-      fillRR(ctx, control.x, control.y, control.w, control.h, 12, '#413945');
-      drawFitted(ctx, control.def, control.x + control.w / 2, control.y + control.h - 12,
-        control.w - 20, control.h - 24);
+      ctx.fillText(info.label, control.x + control.w / 2, control.y + control.h / 2);
+    } else {
+      drawButton(ctx, { ...control, icon: info.icon, w: control.w, h: control.h, flat: true });
     }
   }
+
+  for (const control of contents) {
+    if (control.def) {
+      fillRR(ctx, control.x, control.y, control.w, control.h, 12, '#413945');
+      drawFitted(ctx, control.def, control.x + control.w / 2, control.y + control.h - 12,
+        control.w - 18, control.h - 24);
+    } else if (control.addPerson) {
+      fillRR(ctx, control.x, control.y, control.w, control.h, 12, '#413945');
+      fillCircle(ctx, control.x + control.w / 2, control.y + control.h / 2, 26,
+        COLORS.buttonActive);
+      drawPlus(ctx, control.x + control.w / 2, control.y + control.h / 2);
+    } else if (control.character) {
+      fillRR(ctx, control.x, control.y, control.w, control.h, 12, '#413945');
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(control.x, control.y, control.w, control.h);
+      ctx.clip();
+      const scale = (control.h - 20) / CHAR_H;
+      ctx.translate(control.x + control.w / 2, control.y + control.h - 10);
+      ctx.scale(scale, scale);
+      drawCharacter(ctx, control.character.spec, time);
+      ctx.restore();
+    } else {
+      drawButton(ctx, control);
+    }
+  }
+}
+
+function drawPlus(ctx, cx, cy) {
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - 12, cy);
+  ctx.lineTo(cx + 12, cy);
+  ctx.moveTo(cx, cy - 12);
+  ctx.lineTo(cx, cy + 12);
+  ctx.stroke();
 }
 
 /** Draws an item scaled down to fit a cell, standing on the cell's floor. */
@@ -346,14 +406,5 @@ function drawFitted(ctx, def, cx, baseY, maxW, maxH) {
   ctx.translate(cx, baseY);
   ctx.scale(fit, fit);
   drawItemArt(ctx, def, 0);
-  ctx.restore();
-}
-
-/** The item following the finger before it is dropped. */
-function drawGhost(ctx, drag) {
-  ctx.save();
-  ctx.globalAlpha = 0.75;
-  ctx.translate(drag.sx, drag.sy);
-  drawItemArt(ctx, drag.def, 0);
   ctx.restore();
 }

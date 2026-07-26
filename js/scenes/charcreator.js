@@ -6,11 +6,12 @@
  */
 
 import { button, hitTest, drawButtons, drawPanel, COLORS, TOUCH } from '../ui/widgets.js';
+import { drawIcon } from '../ui/icons.js';
 import { fillRR } from '../render/shapes.js';
 import { drawCharacter, CHAR_H } from '../render/character.js';
 import {
   EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS, LIP_COLORS, EYE_COLORS,
-  createCharacterSpec, clampSpec,
+  SKIN_TONES, createCharacterSpec, clampSpec,
 } from '../model/character.js';
 
 /** Parts shown as a head close-up; the rest are shown full length. */
@@ -118,7 +119,7 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
         drawOption(ctx, control, spec, part(), game.time);
       }
       for (const control of tabControls()) {
-        drawTab(ctx, control, spec, game.time);
+        drawTab(ctx, control, spec);
       }
 
       drawButtons(ctx, [...swatchControls(), cancel, done]);
@@ -126,11 +127,41 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
   };
 }
 
-/** A tab shows the character wearing whatever that part currently is. */
-function drawTab(ctx, control, spec, time) {
+/**
+ * A tab is a drawing of the feature it edits, tinted with the colour currently
+ * chosen for it.
+ *
+ * It used to be a thumbnail of the character, which could not distinguish the
+ * brows tab from the eyes tab — eleven tabs showed the same face at slightly
+ * different crops. A symbol says what the tab is for; the tint says what is
+ * currently set.
+ */
+function drawTab(ctx, control, spec) {
   fillRR(ctx, control.x, control.y, control.w, control.h, 14,
     control.active ? COLORS.buttonActive : COLORS.button);
-  drawMini(ctx, spec, control, cropFor(control.part.key), time);
+
+  drawIcon(
+    ctx, control.part.icon,
+    control.x + control.w / 2, control.y + control.h / 2,
+    tabTint(control.part.key, spec, control.active),
+    1.05,
+  );
+}
+
+/** The colour a tab's symbol is drawn in, previewing the current choice. */
+function tabTint(key, spec, active) {
+  switch (key) {
+    case 'skin': return SKIN_TONES[spec.skin];
+    case 'hair': return HAIR_COLORS[spec.hairColor];
+    case 'brows': return HAIR_COLORS[spec.hairColor];
+    case 'eyes': return EYE_COLORS[spec.eyeColor];
+    case 'mouth': return LIP_COLORS[spec.mouthColor];
+    case 'top': return CLOTH_COLORS[spec.topColor];
+    case 'bottom': return CLOTH_COLORS[spec.bottomColor];
+    case 'shoes': return CLOTH_COLORS[spec.shoesColor];
+    case 'extra': return CLOTH_COLORS[spec.extraColor];
+    default: return active ? '#2c262e' : COLORS.ink;
+  }
 }
 
 /** How closely a cell should frame the character for a given part. */
