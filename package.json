@@ -1,0 +1,10 @@
+{
+  "name": "rotem-game",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Toca Boca style 2D sandbox. Ships with no dependencies and no build step — this file exists only so node:test can run the model layer.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

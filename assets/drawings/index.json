@@ -1,0 +1,4 @@
+{
+  "comment": "Item ids that have a drawing in this folder. Maintained by tools/make_sprite.py \u2014 you should not need to edit it by hand.",
+  "drawings": []
+}

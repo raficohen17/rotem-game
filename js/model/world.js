@@ -1,0 +1,186 @@
+/**
+ * The save format, and the migrations that keep old saves working.
+ *
+ * Pure data and pure functions — no DOM, no canvas — so node:test can cover
+ * this directly. That matters more here than anywhere else in the codebase:
+ * the worst bug this app could have is Rotem opening it one morning to find
+ * the houses she built are gone.
+ */
+
+export const CURRENT_VERSION = 1;
+
+export const ROOM_IDS = ['bedroom', 'living', 'kitchen', 'bath'];
+
+export const DEFAULT_WALL = '#f3d9e6';
+export const DEFAULT_FLOOR = '#c98f5f';
+
+/** Rooms as they appear in the cutaway: two upstairs, two below. */
+export const HOUSE_LAYOUT = ['bedroom', 'bath', 'living', 'kitchen'];
+
+export const WALL_COLORS = [
+  '#f3d9e6', '#dfe9f7', '#e7f3dc', '#fdf0d0', '#f7dcd0',
+  '#e4dcf5', '#d3ecec', '#f5e6f7', '#ece7df', '#cfd8e8',
+];
+
+export const FLOOR_COLORS = [
+  '#c98f5f', '#8a5a3a', '#d9c9a8', '#a8b8a0', '#b8a8c8',
+  '#e0d0b0', '#6f8fa8', '#c8a0a0', '#9a9a9a', '#4f6f5f',
+];
+
+/** Where a character stands when first placed, in design coordinates. */
+export const SPAWN = { x: 640, y: 660 };
+
+let idCounter = 0;
+
+/** Short unique id. Not security-sensitive — just needs to not collide. */
+export function makeId() {
+  const rand = globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID().slice(0, 8)
+    : `x${(idCounter += 1)}`;
+  return rand;
+}
+
+function emptyRoom() {
+  return { wall: DEFAULT_WALL, floor: DEFAULT_FLOOR, items: [] };
+}
+
+/** @returns {object} a brand new world, ready to save. */
+export function createWorld(name = 'My House') {
+  const rooms = {};
+  for (const id of ROOM_IDS) rooms[id] = emptyRoom();
+
+  return {
+    version: CURRENT_VERSION,
+    id: makeId(),
+    name,
+    createdAt: 0, // stamped by the caller; keeps this function deterministic
+    rooms,
+    characters: [],
+    thumb: null,
+  };
+}
+
+/**
+ * A placed piece of furniture.
+ * `x` is the horizontal centre and `y` the baseline it sits on, so depth
+ * sorting is just "larger y draws later".
+ */
+export function placeItem(catalogId, x, y) {
+  return { uid: makeId(), item: catalogId, x, y, z: 0, scale: 1, flip: false, tint: 0 };
+}
+
+export function placeCharacter(spec, room, x = SPAWN.x, y = SPAWN.y) {
+  return { uid: makeId(), spec, room, x, y, z: 0 };
+}
+
+/**
+ * Next free layer above everything currently placed, for "bring to front".
+ *
+ * Depth normally comes from the baseline — lower on the floor means nearer —
+ * but that leaves no way to pull one item out of a pile without also moving
+ * it. `z` is that escape hatch, and nothing else touches it.
+ */
+export function frontZ(entries) {
+  return entries.reduce((top, entry) => Math.max(top, entry.z ?? 0), 0) + 1;
+}
+
+export function backZ(entries) {
+  return entries.reduce((low, entry) => Math.min(low, entry.z ?? 0), 0) - 1;
+}
+
+/*
+ * Migrations.
+ *
+ * Each entry upgrades a world from version N to N+1. There are none yet — v1
+ * is the first format — but the machinery and its tests exist from day one so
+ * that the first schema change is a routine edit rather than a data loss
+ * incident.
+ *
+ * @type {Record<number, (world: object) => object>}
+ */
+export const MIGRATIONS = {};
+
+/**
+ * Brings a loaded world up to the current version and repairs anything
+ * missing. Returns null if the input is too broken to salvage.
+ */
+export function migrateWorld(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+
+  let world = { ...raw };
+  let version = Number.isInteger(world.version) ? world.version : 1;
+
+  while (version < CURRENT_VERSION) {
+    const step = MIGRATIONS[version];
+    if (!step) return null; // gap in the chain — refuse rather than corrupt
+    world = step(world);
+    version += 1;
+  }
+
+  // A save written by a NEWER build than the one running. Rotem might install
+  // an update on the phone and then open an older cached copy. Loading it
+  // read-and-repair is safer than throwing her house away.
+  world.version = CURRENT_VERSION;
+
+  return repairWorld(world);
+}
+
+/** Fills in anything absent so the rest of the code never checks for gaps. */
+export function repairWorld(world) {
+  const safe = {
+    version: CURRENT_VERSION,
+    id: typeof world.id === 'string' && world.id ? world.id : makeId(),
+    name: typeof world.name === 'string' && world.name ? world.name : 'My House',
+    createdAt: Number.isFinite(world.createdAt) ? world.createdAt : 0,
+    rooms: {},
+    characters: [],
+    thumb: typeof world.thumb === 'string' ? world.thumb : null,
+  };
+
+  const rooms = world.rooms && typeof world.rooms === 'object' ? world.rooms : {};
+  for (const id of ROOM_IDS) {
+    const room = rooms[id] && typeof rooms[id] === 'object' ? rooms[id] : {};
+    safe.rooms[id] = {
+      wall: typeof room.wall === 'string' ? room.wall : DEFAULT_WALL,
+      floor: typeof room.floor === 'string' ? room.floor : DEFAULT_FLOOR,
+      items: Array.isArray(room.items) ? room.items.filter(isValidItem).map(repairItem) : [],
+    };
+  }
+
+  if (Array.isArray(world.characters)) {
+    safe.characters = world.characters
+      .filter((c) => c && typeof c === 'object' && typeof c.spec === 'object')
+      .map((c) => ({
+        uid: typeof c.uid === 'string' ? c.uid : makeId(),
+        spec: c.spec,
+        room: ROOM_IDS.includes(c.room) ? c.room : ROOM_IDS[0],
+        x: Number.isFinite(c.x) ? c.x : SPAWN.x,
+        y: Number.isFinite(c.y) ? c.y : SPAWN.y,
+        z: Number.isFinite(c.z) ? c.z : 0,
+      }));
+  }
+
+  return safe;
+}
+
+/** Guarantees every optional field exists, so nothing downstream checks. */
+function repairItem(entry) {
+  return {
+    uid: typeof entry.uid === 'string' ? entry.uid : makeId(),
+    item: entry.item,
+    x: entry.x,
+    y: entry.y,
+    z: Number.isFinite(entry.z) ? entry.z : 0,
+    scale: Number.isFinite(entry.scale) && entry.scale > 0 ? entry.scale : 1,
+    flip: entry.flip === true,
+    tint: Number.isInteger(entry.tint) && entry.tint >= 0 ? entry.tint : 0,
+  };
+}
+
+function isValidItem(entry) {
+  return entry
+    && typeof entry === 'object'
+    && typeof entry.item === 'string'
+    && Number.isFinite(entry.x)
+    && Number.isFinite(entry.y);
+}

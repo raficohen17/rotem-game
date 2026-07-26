@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "categories": [
+    { "id": "sleep",   "label": "Beds" },
+    { "id": "sit",     "label": "Seats" },
+    { "id": "table",   "label": "Tables" },
+    { "id": "store",   "label": "Storage" },
+    { "id": "kitchen", "label": "Kitchen" },
+    { "id": "bath",    "label": "Bath" },
+    { "id": "decor",   "label": "Decor" },
+    { "id": "pet",     "label": "Pets" },
+    { "id": "wall",    "label": "Walls" }
+  ],
+  "items": [
+    { "id": "bed_single",   "cat": "sleep",   "w": 300, "h": 170, "colors": ["#e05a7a", "#5a7fe0", "#6fbf5f", "#f2b13d"] },
+    { "id": "bed_double",   "cat": "sleep",   "w": 380, "h": 180, "colors": ["#9b6bd8", "#e05a7a", "#3fb8c9", "#f2b13d"] },
+    { "id": "bunk_bed",     "cat": "sleep",   "w": 300, "h": 320, "colors": ["#5a7fe0", "#e05a7a", "#6fbf5f"] },
+    { "id": "crib",         "cat": "sleep",   "w": 200, "h": 160, "colors": ["#f0a8c8", "#a8d8f0", "#f7e07a"] },
+    { "id": "cushion",      "cat": "sleep",   "w": 120, "h": 55,  "colors": ["#f2913d", "#9b6bd8", "#3fb8c9", "#e05a7a"] },
+
+    { "id": "sofa",         "cat": "sit",     "w": 340, "h": 155, "colors": ["#4f9bd8", "#e05a7a", "#6fbf5f", "#9b6bd8"] },
+    { "id": "armchair",     "cat": "sit",     "w": 180, "h": 155, "colors": ["#e05a7a", "#4f9bd8", "#f2b13d"] },
+    { "id": "chair",        "cat": "sit",     "w": 110, "h": 175, "colors": ["#c98f5f", "#e05a7a", "#4f9bd8", "#3a3550"] },
+    { "id": "stool",        "cat": "sit",     "w": 90,  "h": 110, "colors": ["#c98f5f", "#f2b13d", "#6fbf5f"] },
+    { "id": "beanbag",      "cat": "sit",     "w": 160, "h": 120, "colors": ["#f2913d", "#9b6bd8", "#3fb8c9"] },
+
+    { "id": "table_dining", "cat": "table",   "w": 300, "h": 145, "colors": ["#c98f5f", "#8a5a3a", "#ffffff"] },
+    { "id": "table_coffee", "cat": "table",   "w": 220, "h": 90,  "colors": ["#c98f5f", "#8a5a3a", "#ffffff"] },
+    { "id": "desk",         "cat": "table",   "w": 260, "h": 155, "colors": ["#c98f5f", "#3a3550", "#ffffff"] },
+    { "id": "nightstand",   "cat": "table",   "w": 110, "h": 125, "colors": ["#c98f5f", "#8a5a3a", "#f0a8c8"] },
+
+    { "id": "wardrobe",     "cat": "store",   "w": 220, "h": 340, "colors": ["#c98f5f", "#8a5a3a", "#f0a8c8", "#a8d8f0"] },
+    { "id": "bookshelf",    "cat": "store",   "w": 240, "h": 320, "colors": ["#c98f5f", "#8a5a3a", "#3a3550"] },
+    { "id": "dresser",      "cat": "store",   "w": 220, "h": 180, "colors": ["#c98f5f", "#f0a8c8", "#a8d8f0"] },
+    { "id": "toybox",       "cat": "store",   "w": 160, "h": 120, "colors": ["#f2b13d", "#e05a7a", "#4f9bd8"] },
+
+    { "id": "fridge",       "cat": "kitchen", "w": 180, "h": 330, "colors": ["#e8eef2", "#d8dde0", "#f0a8c8", "#3a3550"] },
+    { "id": "stove",        "cat": "kitchen", "w": 180, "h": 180, "colors": ["#d8dde0", "#3a3550"] },
+    { "id": "counter",      "cat": "kitchen", "w": 260, "h": 160, "colors": ["#c98f5f", "#e8eef2", "#6fbf5f"] },
+    { "id": "sink_kitchen", "cat": "kitchen", "w": 200, "h": 155, "colors": ["#e8eef2", "#c98f5f"] },
+
+    { "id": "toilet",       "cat": "bath",    "w": 130, "h": 185, "colors": ["#ffffff", "#e8eef2"] },
+    { "id": "bathtub",      "cat": "bath",    "w": 320, "h": 155, "colors": ["#ffffff", "#a8d8f0", "#f0a8c8"] },
+    { "id": "sink_bath",    "cat": "bath",    "w": 140, "h": 165, "colors": ["#ffffff", "#e8eef2"] },
+    { "id": "shower",       "cat": "bath",    "w": 180, "h": 330, "colors": ["#a8d8f0", "#e8eef2"] },
+
+    { "id": "lamp_floor",   "cat": "decor",   "w": 120, "h": 330, "colors": ["#f7d04a", "#f0a8c8", "#a8d8f0"] },
+    { "id": "lamp_table",   "cat": "decor",   "w": 90,  "h": 115, "colors": ["#f7d04a", "#f0a8c8", "#6fbf5f"] },
+    { "id": "plant_tall",   "cat": "decor",   "w": 150, "h": 290, "colors": ["#4fa84f", "#6fbf5f", "#2f7f4f"] },
+    { "id": "plant_small",  "cat": "decor",   "w": 100, "h": 120, "colors": ["#4fa84f", "#6fbf5f", "#e05a7a"] },
+    { "id": "tv",           "cat": "decor",   "w": 280, "h": 190, "colors": ["#3a3550", "#e8eef2"] },
+    { "id": "rug_round",    "cat": "decor",   "w": 300, "h": 60,  "colors": ["#e05a7a", "#4f9bd8", "#f2b13d", "#9b6bd8"] },
+    { "id": "teddy",        "cat": "decor",   "w": 100, "h": 125, "colors": ["#c98f5f", "#f0a8c8", "#8a5a3a"] },
+    { "id": "cake",         "cat": "decor",   "w": 110, "h": 90,  "colors": ["#f0a8c8", "#f7d04a", "#8a5a3a"] },
+    { "id": "balloons",     "cat": "decor",   "w": 150, "h": 240, "colors": ["#e05a7a", "#4f9bd8", "#f7d04a", "#6fbf5f"] },
+
+    { "id": "cat_bed",      "cat": "pet",     "w": 140, "h": 75,  "colors": ["#f0a8c8", "#a8d8f0", "#f7d04a"] },
+    { "id": "dog_bowl",     "cat": "pet",     "w": 90,  "h": 50,  "colors": ["#e05a7a", "#4f9bd8", "#6fbf5f"] },
+    { "id": "cat_tower",    "cat": "pet",     "w": 170, "h": 320, "colors": ["#c98f5f", "#f0a8c8", "#a8d8f0"] },
+    { "id": "fish_tank",    "cat": "pet",     "w": 200, "h": 145, "colors": ["#a8d8f0", "#3fb8c9"] },
+
+    { "id": "window",       "cat": "wall",    "w": 220, "h": 200, "surface": "wall", "colors": ["#ffffff", "#c98f5f", "#3a3550"] },
+    { "id": "picture",      "cat": "wall",    "w": 140, "h": 120, "surface": "wall", "colors": ["#f2b13d", "#e05a7a", "#4f9bd8"] },
+    { "id": "clock",        "cat": "wall",    "w": 90,  "h": 90,  "surface": "wall", "colors": ["#ffffff", "#f2b13d", "#3a3550"] },
+    { "id": "shelf_wall",   "cat": "wall",    "w": 200, "h": 60,  "surface": "wall", "colors": ["#c98f5f", "#ffffff", "#f0a8c8"] },
+    { "id": "door",         "cat": "wall",    "w": 160, "h": 300, "surface": "wall", "colors": ["#c98f5f", "#8a5a3a", "#e05a7a"] }
+  ]
+}
