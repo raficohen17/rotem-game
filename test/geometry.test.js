@@ -110,7 +110,7 @@ test('an item dropped onto a table stands on it and draws in front', () => {
   const table = placeItem('table', 600, 480);
   const tank = placeItem('tank', 600, 340);
 
-  const host = findSurface(tank, [table], lookupTwo, 600, 340);
+  const host = findSurface(tank, [table], lookupTwo, 600, 340, defs.tank);
   assert.ok(host, 'the table is found as a surface');
   assert.equal(host.top, 480 - 145, 'its top is the table top');
 
@@ -126,7 +126,7 @@ test('a drop onto open floor finds no surface', () => {
   const table = placeItem('table', 200, 480);
   const tank = placeItem('tank', 900, 500);
 
-  assert.equal(findSurface(tank, [table], lookupTwo, 900, 500), null);
+  assert.equal(findSurface(tank, [table], lookupTwo, 900, 500, defs.tank), null);
 });
 
 test('a drop well above a table does not snap to it', () => {
@@ -135,7 +135,7 @@ test('a drop well above a table does not snap to it', () => {
   const table = placeItem('table', 600, 480);
   const tank = placeItem('tank', 600, 200);
 
-  assert.equal(findSurface(tank, [table], lookupTwo, 600, 200), null,
+  assert.equal(findSurface(tank, [table], lookupTwo, 600, 200, defs.tank), null,
     'out of reach of the surface');
 });
 
@@ -145,8 +145,8 @@ test('an item never stands on itself, or on a wall item', () => {
   const table = placeItem('table', 600, 480);
   const poster = placeItem('poster', 600, 300);
 
-  assert.equal(findSurface(table, [table], lookupTwo, 600, 480), null, 'not itself');
-  assert.equal(findSurface(table, [poster], lookupTwo, 600, 300), null, 'not a wall item');
+  assert.equal(findSurface(table, [table], lookupTwo, 600, 480, defs.table), null, 'not itself');
+  assert.equal(findSurface(table, [poster], lookupTwo, 600, 300, defs.table), null, 'not a wall item');
 });
 
 test('stacking picks the highest surface under the finger', () => {
@@ -155,6 +155,29 @@ test('stacking picks the highest surface under the finger', () => {
   const table = placeItem('table', 600, 480);
   const box = placeItem('box', 600, 335); // standing on the table
 
-  const host = findSurface(placeItem('lamp', 600, 255), [table, box], lookupTwo, 600, 255);
+  const host = findSurface(placeItem('lamp', 600, 255), [table, box], lookupTwo, 600, 255, defs.lamp);
   assert.equal(host.item, box, 'lands on the box, not the table below it');
+});
+
+test('a wide item overlapping the edge of a cupboard still lands on it', () => {
+  // The television case: its centre sits just past the cupboard's left edge,
+  // but most of a player would call that "on the cupboard".
+  const defs = { cupboard: { w: 220, h: 180 }, tv: { w: 280, h: 190 } };
+  const lookupTwo = (id) => defs[id];
+  const cupboard = placeItem('cupboard', 700, 480);
+  const tv = placeItem('tv', 560, 300);
+
+  const host = findSurface(tv, [cupboard], lookupTwo, 560, 300, defs.tv);
+  assert.ok(host, 'overlapping footprints are enough');
+  assert.equal(host.item, cupboard);
+});
+
+test('an item merely brushing a surface does not snap to it', () => {
+  const defs = { cupboard: { w: 220, h: 180 }, tv: { w: 280, h: 190 } };
+  const lookupTwo = (id) => defs[id];
+  const cupboard = placeItem('cupboard', 700, 480);
+
+  // Far enough left that only a sliver overlaps.
+  const host = findSurface(placeItem('tv', 380, 300), [cupboard], lookupTwo, 380, 300, defs.tv);
+  assert.equal(host, null);
 });

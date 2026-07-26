@@ -77,23 +77,31 @@ export function clampScale(scale) {
 }
 
 /** How close a dropped baseline must be to a surface to land on it. */
-export const SNAP_REACH = 46;
+export const SNAP_REACH = 62;
+
+/** How much of the narrower item must sit over the surface to count. */
+const SNAP_OVERLAP = 0.34;
 
 /**
  * The item a dropped object should stand on, or null for the floor.
  *
  * Depth otherwise comes only from the baseline — lower on screen means nearer
- * — so anything lifted onto a table has a higher baseline than the table and
- * therefore draws behind it. That makes putting a fish tank on a table
+ * — so anything lifted onto a cupboard has a higher baseline than the cupboard
+ * and therefore draws behind it. That makes putting a television on a cupboard
  * impossible, which is an obvious thing to want to do.
  *
- * A drop counts as landing on a surface when the baseline is near that item's
- * top and horizontally over it. Wall items and the object itself are never
- * hosts, and neither is anything already standing on the mover.
+ * The test is an overlap between the two footprints, not "is the centre point
+ * inside". A player lining a wide television up against the left edge of a
+ * cupboard reasonably expects it to land there, and a centre-point test
+ * silently refuses.
  *
+ * @param {{w: number, h: number}} movingDef catalog entry of the moving item
  * @param {(id: string) => ({w: number, h: number, surface?: string}|undefined)} lookup
  */
-export function findSurface(moving, items, lookup, x, y) {
+export function findSurface(moving, items, lookup, x, y, movingDef) {
+  const halfWidth = ((movingDef?.w ?? 0) * (moving.scale ?? 1)) / 2;
+  const left = x - halfWidth;
+  const right = x + halfWidth;
   let best = null;
 
   for (const candidate of items) {
@@ -102,13 +110,15 @@ export function findSurface(moving, items, lookup, x, y) {
     if (!def || def.surface === 'wall') continue;
 
     const bounds = itemBounds(candidate, def);
-    if (x < bounds.left + 6 || x > bounds.right - 6) continue;
-
     const drop = y - bounds.top;
     if (drop < -SNAP_REACH || drop > SNAP_REACH) continue;
 
-    // Prefer the highest surface under the finger, so stacking works.
-    if (!best || bounds.top < best.top) best = { item: candidate, top: bounds.top };
+    const overlap = Math.min(right, bounds.right) - Math.max(left, bounds.left);
+    const needed = Math.min(halfWidth * 2, bounds.w) * SNAP_OVERLAP;
+    if (overlap < Math.max(needed, 8)) continue;
+
+    // Prefer the highest surface in reach, so stacking works.
+    if (!best || bounds.top < best.top) best = { item: candidate, top: bounds.top, bounds };
   }
 
   return best;

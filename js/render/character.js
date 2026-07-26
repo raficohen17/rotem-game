@@ -23,6 +23,7 @@
  */
 
 import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, paperLayer } from './shapes.js';
+import { litFill } from './materials.js';
 import {
   SKIN_TONES, HAIR_COLORS, CLOTH_COLORS, LIP_COLORS, EYE_COLORS, FACE_SHAPES,
   BUILDS, clampSpec,
@@ -69,6 +70,7 @@ function metricsFor(b) {
     hipW: b.hip,
     armW: b.arm,
     legW: Math.round(b.hip * 0.56),
+    legX: b.hip * 0.42,
     hipY,
     waistY: hipY - 26,
     torsoTop,
@@ -175,9 +177,8 @@ export function drawCharacter(ctx, rawSpec, time = 0) {
 // ------------------------------------------------------------------- body
 
 function drawLegs(ctx, skin) {
-  const x = B.hipW * 0.42;
-  capsule(ctx, -x, B.hipY - 6, -12, B.legW, skin);
-  capsule(ctx, x, B.hipY - 6, -12, B.legW, skin);
+  capsule(ctx, -B.legX, B.hipY - 6, -10, B.legW, skin);
+  capsule(ctx, B.legX, B.hipY - 6, -10, B.legW, skin);
 }
 
 function drawNeck(ctx, skin) {
@@ -229,7 +230,7 @@ function drawHands(ctx, skin, sway) {
     ctx.save();
     ctx.translate(B.armX * side, B.shoulderY);
     ctx.rotate(armAngle(sway, side));
-    fillEllipse(ctx, 0, B.armLen - 4, B.armW * 0.62, B.armW * 0.8, skin);
+    fillEllipse(ctx, 0, B.armLen + 2, B.armW * 0.5, B.armW * 0.62, skin);
     ctx.restore();
   }
 }
@@ -746,142 +747,189 @@ function drawFrontHair(ctx, style, color, shape) {
 }
 
 // --------------------------------------------------------------- clothing
+//
+// Everything here is measured off the build. The previous version mixed
+// derived positions with leftover constants — shoes at a hard-coded x while
+// the legs had moved — which is how a character ended up standing beside her
+// own boots.
+//
+// A garment is one shape that includes its own shoulders, rather than a slab
+// with sleeve tubes stuck on the sides. That is what stops the sleeves reading
+// as separate lumps floating next to the body.
 
-function sleeve(ctx, side, length, color, sway) {
+/** A sleeve that follows the arm, tapering from shoulder to wrist. */
+function sleeve(ctx, side, length, color, sway, flare = 6) {
   ctx.save();
   ctx.translate(B.armX * side, B.shoulderY);
   ctx.rotate(armAngle(sway, side));
-  capsule(ctx, 0, -10, length, B.armW + 5, color);
+
+  const top = (B.armW + flare) / 2;
+  const cuff = (B.armW + 3) / 2;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(-top, -10);
+  ctx.quadraticCurveTo(-top - 2, length * 0.5, -cuff, length);
+  ctx.quadraticCurveTo(0, length + 5, cuff, length);
+  ctx.quadraticCurveTo(top + 2, length * 0.5, top, -10);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
-/** A garment that follows the torso, nipped in at the waist like the body. */
-function bodyGarment(ctx, color, top = B.torsoTop - 4, bottom = B.hipY + 6) {
-  const sw = B.shoulderW + 3;
-  const ww = B.waistW + 3;
-  const hw = B.hipW + 3;
-  const waist = Math.max(top + 20, Math.min(B.waistY, bottom - 10));
+/**
+ * The body of a garment: shoulders, waist and hem, following the build.
+ *
+ * `neck` cuts the collar lower for a vest or a scoop; `shoulder` widens it
+ * enough to meet the sleeves so there is no seam between them.
+ */
+function garment(ctx, color, options = {}) {
+  const top = options.top ?? B.torsoTop - 5;
+  const bottom = options.bottom ?? B.hipY + 8;
+  const neck = options.neck ?? 0.42;
+  const sw = B.shoulderW + (options.shoulder ?? 6);
+  const ww = B.waistW + 4;
+  const hw = B.hipW + 5;
+  const waist = Math.max(top + 22, Math.min(B.waistY, bottom - 12));
 
-  ctx.fillStyle = color;
+  ctx.fillStyle = litFill(ctx, top, bottom - top, color, 0.12);
   ctx.beginPath();
-  ctx.moveTo(-sw, top + 16);
-  ctx.quadraticCurveTo(-sw, top, -sw * 0.45, top);
-  ctx.lineTo(sw * 0.45, top);
-  ctx.quadraticCurveTo(sw, top, sw, top + 16);
+  ctx.moveTo(-sw, top + 14);
+  ctx.quadraticCurveTo(-sw + 2, top, -sw * neck, top + 4);
+  ctx.quadraticCurveTo(0, top + 14, sw * neck, top + 4);
+  ctx.quadraticCurveTo(sw - 2, top, sw, top + 14);
   ctx.quadraticCurveTo(ww, waist - 12, ww, waist);
-  ctx.quadraticCurveTo(hw, bottom - 16, hw, bottom);
-  ctx.lineTo(-hw, bottom);
-  ctx.quadraticCurveTo(-hw, bottom - 16, -ww, waist);
-  ctx.quadraticCurveTo(-ww, waist - 12, -sw, top + 16);
+  ctx.quadraticCurveTo(hw, bottom - 14, hw, bottom);
+  ctx.quadraticCurveTo(0, bottom + 7, -hw, bottom);
+  ctx.quadraticCurveTo(-hw, bottom - 14, -ww, waist);
+  ctx.quadraticCurveTo(-ww, waist - 12, -sw, top + 14);
   ctx.closePath();
   ctx.fill();
 }
 
 /** Keeps a pattern inside the garment it belongs to. */
-function withinGarment(ctx, draw, top = B.torsoTop - 4, bottom = B.hipY + 10) {
+function withinGarment(ctx, draw, top = B.torsoTop - 5, bottom = B.hipY + 10) {
   ctx.save();
   ctx.beginPath();
-  ctx.rect(-44, top, 88, bottom - top);
+  ctx.rect(-B.hipW - 6, top, (B.hipW + 6) * 2, bottom - top);
   ctx.clip();
   draw();
   ctx.restore();
 }
 
+/** A turned collar, the detail that makes a shirt read as a shirt. */
+function collar(ctx, color) {
+  const top = B.torsoTop - 5;
+  const w = B.shoulderW * 0.6;
+  fillPoly(ctx, [-w, top + 2, 0, top + 26, -6, top + 2], shade(color, 0.34));
+  fillPoly(ctx, [w, top + 2, 0, top + 26, 6, top + 2], shade(color, 0.34));
+}
+
 function drawTop(ctx, style, color, sway) {
+  const top = B.torsoTop - 5;
+
   switch (style) {
     case 1: // long sleeves
-      sleeve(ctx, -1, 60, color, sway);
-      sleeve(ctx, 1, 60, color, sway);
-      bodyGarment(ctx, color);
+      sleeve(ctx, -1, 62, color, sway);
+      sleeve(ctx, 1, 62, color, sway);
+      garment(ctx, color);
       break;
-    case 2: // sleeveless
-      bodyGarment(ctx, color, B.torsoTop + 8);
+    case 2: // vest, cut away at the shoulder
+      garment(ctx, color, { shoulder: -6, neck: 0.3 });
       break;
     case 3: // hoodie
-      sleeve(ctx, -1, 58, color, sway);
-      sleeve(ctx, 1, 58, color, sway);
-      bodyGarment(ctx, color, B.torsoTop - 8);
-      fillEllipse(ctx, 0, B.torsoTop - 2, 36, 17, shade(color, -0.2));
-      strokeLine(ctx, -10, B.torsoTop + 20, -10, B.torsoTop + 40, shade(color, 0.45), 3.5);
-      strokeLine(ctx, 10, B.torsoTop + 20, 10, B.torsoTop + 40, shade(color, 0.45), 3.5);
+      sleeve(ctx, -1, 62, color, sway, 8);
+      sleeve(ctx, 1, 62, color, sway, 8);
+      garment(ctx, color, { top: top - 4, bottom: B.hipY + 14 });
+      fillEllipse(ctx, 0, top + 2, B.shoulderW * 0.9, 15, shade(color, -0.2));
+      strokeLine(ctx, -8, top + 22, -8, top + 44, shade(color, 0.45), 3);
+      strokeLine(ctx, 8, top + 22, 8, top + 44, shade(color, 0.45), 3);
       break;
     case 4: // stripes
-      sleeve(ctx, -1, 32, color, sway);
-      sleeve(ctx, 1, 32, color, sway);
-      bodyGarment(ctx, color);
+      sleeve(ctx, -1, 34, color, sway);
+      sleeve(ctx, 1, 34, color, sway);
+      garment(ctx, color);
       withinGarment(ctx, () => {
-        for (let i = 0; i < 5; i += 1) {
-          fillRR(ctx, -44, B.torsoTop + 8 + i * 16, 88, 7, 3, shade(color, 0.5));
+        for (let i = 0; i < 6; i += 1) {
+          fillRR(ctx, -60, top + 12 + i * 15, 120, 6, 3, shade(color, 0.42));
         }
       });
       break;
     case 5: // chunky knit
-      sleeve(ctx, -1, 62, color, sway);
-      sleeve(ctx, 1, 62, color, sway);
-      bodyGarment(ctx, color, B.torsoTop - 6, B.hipY + 12);
-      for (let i = -1; i <= 1; i += 1) {
-        strokeLine(ctx, i * 18, B.torsoTop + 10, i * 18, B.hipY, shade(color, -0.16), 3.5);
-      }
+      sleeve(ctx, -1, 64, color, sway, 9);
+      sleeve(ctx, 1, 64, color, sway, 9);
+      garment(ctx, color, { top: top - 3, bottom: B.hipY + 14 });
+      withinGarment(ctx, () => {
+        for (let i = -1; i <= 1; i += 1) {
+          strokeLine(ctx, i * 15, top + 12, i * 15, B.hipY, shade(color, -0.16), 3);
+        }
+      });
       break;
     case 6: // dungarees, straps over a bare shoulder
-      bodyGarment(ctx, color, B.torsoTop + 30);
-      fillRR(ctx, -26, B.torsoTop - 2, 13, 44, 5, color);
-      fillRR(ctx, 13, B.torsoTop - 2, 13, 44, 5, color);
-      fillRR(ctx, -20, B.torsoTop + 34, 40, 22, 6, shade(color, 0.18));
+      garment(ctx, color, { top: top + 34, shoulder: -8 });
+      fillRR(ctx, -B.shoulderW * 0.55, top, 12, 46, 4, color);
+      fillRR(ctx, B.shoulderW * 0.55 - 12, top, 12, 46, 4, color);
+      fillRR(ctx, -18, top + 38, 36, 22, 5, shade(color, 0.16));
       break;
-    case 7: // blouse with a collar
-      sleeve(ctx, -1, 34, color, sway);
-      sleeve(ctx, 1, 34, color, sway);
-      bodyGarment(ctx, color);
-      fillPoly(ctx, [-20, B.torsoTop - 2, 0, B.torsoTop + 26, -4, B.torsoTop - 2], shade(color, 0.35));
-      fillPoly(ctx, [20, B.torsoTop - 2, 0, B.torsoTop + 26, 4, B.torsoTop - 2], shade(color, 0.35));
-      for (let i = 0; i < 3; i += 1) {
-        fillCircle(ctx, 0, B.torsoTop + 34 + i * 15, 3, shade(color, -0.3));
-      }
+    case 7: // blouse with a collar and buttons
+      sleeve(ctx, -1, 38, color, sway);
+      sleeve(ctx, 1, 38, color, sway);
+      garment(ctx, color);
+      collar(ctx, color);
+      for (let i = 0; i < 3; i += 1) fillCircle(ctx, 0, top + 34 + i * 15, 3, shade(color, -0.3));
       break;
-    case 8: // open cardigan over a plain shirt
-      sleeve(ctx, -1, 60, color, sway);
-      sleeve(ctx, 1, 60, color, sway);
-      bodyGarment(ctx, color);
-      withinGarment(ctx, () => {
-        fillRR(ctx, -13, B.torsoTop - 4, 26, 100, 4, shade(color, 0.42));
-      });
-      break;
-    case 9: // crop top
-      bodyGarment(ctx, color, B.torsoTop + 4, B.hipY - 26);
-      sleeve(ctx, -1, 24, color, sway);
-      sleeve(ctx, 1, 24, color, sway);
-      break;
-    case 10: // puffer jacket
+    case 8: // cardigan open over a shirt
       sleeve(ctx, -1, 62, color, sway);
       sleeve(ctx, 1, 62, color, sway);
-      bodyGarment(ctx, color, B.torsoTop - 10, B.hipY + 12);
-      withinGarment(ctx, () => {
-        for (let i = 0; i < 4; i += 1) {
-          strokeLine(ctx, -44, B.torsoTop + 8 + i * 19, 44, B.torsoTop + 8 + i * 19,
-            shade(color, -0.18), 3);
-        }
-      }, B.torsoTop - 10, B.hipY + 12);
+      garment(ctx, color);
+      withinGarment(ctx, () => fillRR(ctx, -11, top, 22, 110, 4, shade(color, 0.4)));
       break;
-    case 11: // sports jersey
-      bodyGarment(ctx, color, B.torsoTop + 2);
-      sleeve(ctx, -1, 26, shade(color, 0.3), sway);
-      sleeve(ctx, 1, 26, shade(color, 0.3), sway);
-      withinGarment(ctx, () => {
-        fillRR(ctx, -44, B.torsoTop + 34, 88, 16, 3, shade(color, 0.4));
-        fillCircle(ctx, 0, B.torsoTop + 20, 9, shade(color, 0.4));
-      });
+    case 9: // crop top
+      sleeve(ctx, -1, 26, color, sway);
+      sleeve(ctx, 1, 26, color, sway);
+      garment(ctx, color, { bottom: B.hipY - 26, neck: 0.32 });
       break;
+    case 10: {
+      // A field jacket: heavy, with lapels, chest pockets and a zip.
+      sleeve(ctx, -1, 68, shade(color, -0.1), sway, 9);
+      sleeve(ctx, 1, 68, shade(color, -0.1), sway, 9);
+      garment(ctx, color, { top: top - 4, bottom: B.hipY + 16, shoulder: 8 });
+      const jw = B.shoulderW;
+      fillPoly(ctx, [-jw * 0.62, top - 2, 0, top + 34, -8, top - 2], shade(color, -0.22));
+      fillPoly(ctx, [jw * 0.62, top - 2, 0, top + 34, 8, top - 2], shade(color, -0.22));
+      strokeLine(ctx, 0, top + 32, 0, B.hipY + 10, shade(color, -0.3), 3);
+      for (const side of [-1, 1]) {
+        fillRR(ctx, side * 24 - 14, top + 44, 28, 20, 3, shade(color, -0.14));
+        fillRR(ctx, side * 24 - 14, top + 44, 28, 5, 2, shade(color, 0.18));
+      }
+      break;
+    }
+    case 11: {
+      // A school jumper over a collared shirt, with a striped tie.
+      sleeve(ctx, -1, 62, color, sway, 8);
+      sleeve(ctx, 1, 62, color, sway, 8);
+      garment(ctx, color, { top: top - 2, bottom: B.hipY + 12 });
+      // The shirt showing at the neck, then the tie over it.
+      fillPoly(ctx, [-20, top, 0, top + 30, 20, top], '#f6f1e8');
+      collar(ctx, '#f6f1e8');
+      fillPoly(ctx, [-7, top + 12, 7, top + 12, 5, top + 26, -5, top + 26], '#8a3f4a');
+      fillPoly(ctx, [-6, top + 26, 6, top + 26, 3, top + 62, -3, top + 62], '#8a3f4a');
+      for (let i = 0; i < 3; i += 1) {
+        strokeLine(ctx, -6, top + 32 + i * 10, 6, top + 28 + i * 10, '#dcb85c', 2.5);
+      }
+      // A ribbed hem, the giveaway detail on a school jumper.
+      fillRR(ctx, -B.hipW - 5, B.hipY + 4, (B.hipW + 5) * 2, 9, 4, shade(color, -0.16));
+      break;
+    }
     default: // short sleeves
-      sleeve(ctx, -1, 30, color, sway);
-      sleeve(ctx, 1, 30, color, sway);
-      bodyGarment(ctx, color);
+      sleeve(ctx, -1, 32, color, sway);
+      sleeve(ctx, 1, 32, color, sway);
+      garment(ctx, color);
   }
 }
 
 function skirt(ctx, color, hem, flare) {
   const w = B.hipW + 5;
-  ctx.fillStyle = color;
+  ctx.fillStyle = litFill(ctx, B.hipY - 14, hem - B.hipY + 14, color, 0.12);
   ctx.beginPath();
   ctx.moveTo(-w, B.hipY - 14);
   ctx.lineTo(w, B.hipY - 14);
@@ -892,100 +940,109 @@ function skirt(ctx, color, hem, flare) {
   ctx.fill();
 }
 
+/** Trousers as one seat with two legs, so they join at the hip. */
 function trousers(ctx, color, hem, width) {
-  const x = B.hipW * 0.42;
-  capsule(ctx, -x, B.hipY - 18, hem, width, color);
-  capsule(ctx, x, B.hipY - 18, hem, width, color);
-  fillRR(ctx, -B.hipW - 2, B.hipY - 20, (B.hipW + 2) * 2, 28, 12, color);
+  ctx.fillStyle = litFill(ctx, B.hipY - 20, hem - B.hipY + 20, color, 0.1);
+  fillRR(ctx, -B.hipW - 4, B.hipY - 20, (B.hipW + 4) * 2, 30, 10, ctx.fillStyle);
+  capsule(ctx, -B.legX, B.hipY - 12, hem, width, ctx.fillStyle);
+  capsule(ctx, B.legX, B.hipY - 12, hem, width, ctx.fillStyle);
+  // The inside seam, which is what stops it reading as one slab.
+  strokeLine(ctx, 0, B.hipY + 4, 0, hem - 6, shade(color, -0.2), 2.5);
 }
 
 function drawBottom(ctx, style, color) {
   switch (style) {
     case 1: // shorts
-      trousers(ctx, color, B.hipY + 26, B.legW + 8);
+      trousers(ctx, color, B.hipY + 34, B.legW + 8);
       break;
     case 2: // short skirt
-      skirt(ctx, color, B.hipY + 34, 54);
+      skirt(ctx, color, B.hipY + 40, B.hipW + 26);
       break;
     case 3: // long skirt
-      skirt(ctx, color, B.hipY + 62, 62);
+      skirt(ctx, color, B.hipY + 74, B.hipW + 34);
       break;
     case 5: // leggings
       trousers(ctx, color, -12, B.legW + 2);
       break;
     case 6: // pleated skirt
-      skirt(ctx, color, B.hipY + 44, 58);
+      skirt(ctx, color, B.hipY + 52, B.hipW + 30);
       for (let i = -2; i <= 2; i += 1) {
-        strokeLine(ctx, i * 13, B.hipY - 10, i * 21, B.hipY + 38, shade(color, -0.18), 3);
+        strokeLine(ctx, i * 12, B.hipY - 8, i * 20, B.hipY + 46, shade(color, -0.18), 3);
       }
       break;
     case 7: // dungaree trousers
-      trousers(ctx, color, -14, B.legW + 8);
-      fillRR(ctx, -34, B.hipY - 26, 68, 20, 8, color);
+      trousers(ctx, color, -14, B.legW + 9);
       break;
     case 8: // wide legged
-      capsule(ctx, -20, B.hipY - 18, -14, 38, color);
-      capsule(ctx, 20, B.hipY - 18, -14, 38, color);
-      fillRR(ctx, -38, B.hipY - 20, 76, 28, 12, color);
+      trousers(ctx, color, -12, B.legW + 16);
       break;
     case 9: // tutu, in three layers
-      skirt(ctx, shade(color, -0.12), B.hipY + 40, 70);
-      skirt(ctx, color, B.hipY + 28, 60);
-      skirt(ctx, shade(color, 0.22), B.hipY + 16, 48);
+      skirt(ctx, shade(color, -0.12), B.hipY + 46, B.hipW + 42);
+      skirt(ctx, color, B.hipY + 34, B.hipW + 32);
+      skirt(ctx, shade(color, 0.22), B.hipY + 22, B.hipW + 20);
       break;
     default: // trousers
-      trousers(ctx, color, -16, B.legW + 6);
+      trousers(ctx, color, -14, B.legW + 6);
   }
 }
 
 function drawDress(ctx, color) {
-  bodyGarment(ctx, color, B.torsoTop - 2, B.hipY - 6);
-  skirt(ctx, color, B.hipY + 46, 64);
-  fillRR(ctx, -40, B.hipY - 22, 80, 9, 4, shade(color, -0.3));
+  garment(ctx, color, { bottom: B.hipY - 8 });
+  skirt(ctx, color, B.hipY + 54, B.hipW + 36);
+  fillRR(ctx, -B.hipW - 6, B.hipY - 24, (B.hipW + 6) * 2, 10, 4, shade(color, -0.3));
 }
 
+/**
+ * Shoes, drawn on the feet.
+ *
+ * The x came from a constant while the legs came from the build, so on most
+ * builds the shoes stood beside the character rather than under her. Both now
+ * read B.legX.
+ */
 function drawShoes(ctx, style, color) {
-  const shoe = (x, side) => {
+  const shoe = (x) => {
+    const toe = x + B.legW * 0.28; // shoes point slightly outward
     switch (style) {
-      case 1: // boots
-        capsule(ctx, x, -42, -1, 30, color);
-        fillEllipse(ctx, x + 3, -6, 19, 8, shade(color, -0.2));
+      case 1: // ankle boots
+        fillRR(ctx, x - B.legW / 2 - 2, -40, B.legW + 4, 34, 6, litFill(ctx, -40, 34, color, 0.14));
+        fillEllipse(ctx, toe, -6, B.legW * 0.72, 8, shade(color, -0.22));
+        fillRR(ctx, x - B.legW / 2 - 2, -40, B.legW + 4, 5, 2, shade(color, 0.28));
         break;
       case 2: // sandals
-        fillEllipse(ctx, x + 2, -6, 17, 7, color);
-        strokeLine(ctx, x - 4, -8, x + 8, -20, color, 5);
+        fillEllipse(ctx, toe, -6, B.legW * 0.66, 7, color);
+        strokeLine(ctx, x - 4, -8, x + 6, -20, color, 4.5);
         break;
       case 3: // trainers
-        fillRR(ctx, x - 13, -24, 32, 20, 10, color);
-        fillEllipse(ctx, x + 3, -6, 20, 8, PAPER);
+        fillRR(ctx, x - B.legW / 2 - 3, -24, B.legW + 8, 20, 8, litFill(ctx, -24, 20, color, 0.14));
+        fillEllipse(ctx, toe, -5, B.legW * 0.78, 8, PAPER);
         break;
-      case 4: // mary janes, with a strap
-        fillEllipse(ctx, x + 2, -8, 18, 10, color);
-        strokeLine(ctx, x - 10, -14, x + 14, -14, shade(color, -0.25), 4);
-        fillCircle(ctx, x + 2, -14, 3.5, shade(color, 0.4));
+      case 4: // mary janes with a strap
+        fillEllipse(ctx, toe, -8, B.legW * 0.72, 10, litFill(ctx, -18, 20, color, 0.14));
+        strokeLine(ctx, x - B.legW * 0.5, -15, x + B.legW * 0.6, -15, shade(color, -0.25), 4);
+        fillCircle(ctx, toe, -15, 3.2, shade(color, 0.4));
         break;
       case 5: // wellies
-        capsule(ctx, x + 1, -56, -2, 28, color);
-        fillEllipse(ctx, x + 4, -6, 20, 9, shade(color, -0.25));
-        fillRR(ctx, x - 13, -50, 28, 7, 3, shade(color, 0.3));
+        fillRR(ctx, x - B.legW / 2 - 3, -62, B.legW + 6, 56, 8, litFill(ctx, -62, 56, color, 0.14));
+        fillEllipse(ctx, toe, -6, B.legW * 0.8, 9, shade(color, -0.25));
+        fillRR(ctx, x - B.legW / 2 - 3, -56, B.legW + 6, 7, 3, shade(color, 0.3));
         break;
       case 6: // fluffy slippers
-        fillEllipse(ctx, x + 2, -9, 20, 12, color);
-        fillCircle(ctx, x + 2, -18, 9, shade(color, 0.32));
+        fillEllipse(ctx, toe, -9, B.legW * 0.8, 11, color);
+        fillCircle(ctx, toe, -18, B.legW * 0.42, shade(color, 0.32));
         break;
       case 7: // high tops with laces
-        fillRR(ctx, x - 13, -36, 31, 32, 11, color);
-        fillEllipse(ctx, x + 3, -6, 21, 8, PAPER);
+        fillRR(ctx, x - B.legW / 2 - 3, -38, B.legW + 8, 34, 9, litFill(ctx, -38, 34, color, 0.14));
+        fillEllipse(ctx, toe, -5, B.legW * 0.8, 8, PAPER);
         for (let i = 0; i < 3; i += 1) {
-          strokeLine(ctx, x - 8, -30 + i * 8, x + 12, -30 + i * 8, PAPER, 2.5);
+          strokeLine(ctx, x - 6, -32 + i * 8, x + 7, -32 + i * 8, PAPER, 2.2);
         }
         break;
-      default: // simple flats
-        fillEllipse(ctx, x + 2, -8, 18, 10, color);
+      default: // flats
+        fillEllipse(ctx, toe, -7, B.legW * 0.68, 9, litFill(ctx, -16, 18, color, 0.14));
     }
   };
-  shoe(-19, -1);
-  shoe(19, 1);
+  shoe(-B.legX);
+  shoe(B.legX);
 }
 
 // ---------------------------------------------------------------- hairpin
