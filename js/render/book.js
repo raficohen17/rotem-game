@@ -14,8 +14,58 @@ import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, roundRect, shade
 import { litFill, sideLit, within } from './materials.js';
 import { COVER_COLORS, COVER_PATTERNS, TITLE_STYLES, clampBook } from '../model/book.js';
 
+/**
+ * The smallest type worth drawing.
+ *
+ * Below this letters stop being letters and become texture, which reads as a
+ * smudge on the cover rather than as a title.
+ */
+const MIN_TYPE = 7;
+
 /** How much of the width is the spine, seen very slightly from the side. */
 const SPINE = 0.11;
+
+/**
+ * A book lying flat, seen from the side.
+ *
+ * Books standing upright show their covers, which is the point of designing
+ * one — but three books balanced on each other's top edges is a tower, not a
+ * pile, and looked absurd. A book dropped onto another lies down instead: you
+ * see the page edges, the spine at one end, and a sliver of the cover on top.
+ * Stack a few and it reads as a real pile.
+ */
+export function drawBookFlat(ctx, rawDesign, w, h) {
+  const design = clampBook(rawDesign);
+  const cover = COVER_COLORS[design.cover];
+  const spineW = Math.max(6, w * 0.07);
+
+  // Page block, with the leaves showing along the long front edge.
+  ctx.fillStyle = litFill(ctx, -h, h, '#efe6d6', 0.1);
+  fillRR(ctx, -w / 2 + spineW, -h + 3, w - spineW, h - 4, 2, ctx.fillStyle);
+  ctx.strokeStyle = '#d8ccb8';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i += 1) {
+    const y = -h + 4 + (i * (h - 6)) / 4;
+    ctx.beginPath();
+    ctx.moveTo(-w / 2 + spineW + 2, y);
+    ctx.lineTo(w / 2 - 3, y);
+    ctx.stroke();
+  }
+
+  // The boards: a sliver of the cover top and bottom, and the spine end.
+  ctx.fillStyle = litFill(ctx, -h, 5, cover, 0.2);
+  fillRR(ctx, -w / 2, -h, w, 5, 2, ctx.fillStyle);
+  ctx.fillStyle = shade(cover, -0.18);
+  fillRR(ctx, -w / 2, -4, w, 4, 2, ctx.fillStyle);
+
+  ctx.fillStyle = sideLit(ctx, -w / 2, spineW, shade(cover, -0.12), 0.24);
+  fillRR(ctx, -w / 2, -h, spineW, h, 2, ctx.fillStyle);
+
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  fillEllipse(ctx, 0, -1, w * 0.48, 3, '#000');
+  ctx.restore();
+}
 
 export function drawBook(ctx, rawDesign, w, h) {
   const design = clampBook(rawDesign);
@@ -61,15 +111,16 @@ function drawPattern(ctx, design, x, y, w, h) {
     ctx.globalAlpha = 0.85;
 
     if (style === 'stripes') {
-      for (let i = 0; i < 9; i += 1) {
-        fillRR(ctx, x, y + 6 + i * (h / 9), w, h / 22, 2, ink);
+      const bands = Math.max(7, Math.round(h / 30));
+      for (let i = 0; i < bands; i += 1) {
+        fillRR(ctx, x, y + 6 + i * (h / bands), w, Math.max(2, h / (bands * 2.4)), 2, ink);
       }
       return;
     }
     if (style === 'checks') {
-      const size = w / 5;
-      for (let cx = 0; cx < 6; cx += 1) {
-        for (let cy = 0; cy < 9; cy += 1) {
+      const size = w / Math.max(5, Math.round(w / 42));
+      for (let cx = 0; cx * size < w; cx += 1) {
+        for (let cy = 0; cy * size < h; cy += 1) {
           if ((cx + cy) % 2) continue;
           ctx.fillStyle = ink;
           ctx.fillRect(x + cx * size, y + cy * size, size, size);
@@ -79,8 +130,10 @@ function drawPattern(ctx, design, x, y, w, h) {
     }
 
     // The scattered patterns share a layout: staggered rows of one motif.
-    const cols = 3;
-    const rows = 4;
+    // Density follows the size of the cover, so a big cover is not sparse and
+    // a shelf-sized one is not three enormous blobs.
+    const cols = Math.max(3, Math.round(w / 52));
+    const rows = Math.max(4, Math.round(h / 52));
     const stepX = w / cols;
     const stepY = h / rows;
 
@@ -154,18 +207,29 @@ function drawTitle(ctx, design, x, y, w, h) {
   const style = TITLE_STYLES[design.titleStyle];
   const maxWidth = w * 0.78;
 
-  // Shrink until every word fits. Dropping the tail of a title she typed is
-  // worse than setting it small — "Anne of Green Gables" must not become
-  // "Anne of Green".
+  /*
+   * Shrink until every word fits — but never below a size a person can read.
+   *
+   * On the designer's big preview every title fits comfortably, so nothing is
+   * ever dropped there. On a shelf a book is barely eighty pixels tall, and
+   * "Anne of Green Gables" set across four lines at that size is grey noise
+   * rather than a title. Below the floor it is better to show fewer words
+   * clearly than every word illegibly — you can always pick the book up.
+   */
+  const floor = Math.max(MIN_TYPE, h * 0.075);
+  const maxLines = h < 160 ? 2 : 4;
+
   let size = Math.round(h * 0.135);
   let lines = [];
-  for (; size > h * 0.055; size -= 1) {
+  for (; size > floor; size -= 1) {
     ctx.font = `700 ${size}px Georgia, serif`;
-    const attempt = wrap(ctx, title, maxWidth, 4);
+    const attempt = wrap(ctx, title, maxWidth, maxLines);
     if (attempt.complete) { lines = attempt.lines; break; }
     lines = attempt.lines;
   }
+  size = Math.max(size, floor);
   ctx.font = `700 ${size}px Georgia, serif`;
+  if (lines.length > maxLines) lines = lines.slice(0, maxLines);
 
   const arch = style === 'arched' && lines.length === 1;
   const lineHeight = size * 1.26;

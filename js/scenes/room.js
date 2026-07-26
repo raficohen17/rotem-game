@@ -91,15 +91,32 @@ export function createRoomScene(game, roomId) {
     if (isWallItem(entry)) return false;
     const host = findSurface(entry, room.items, (id) => catalog.get(id), x, y,
       catalog.get(entry.item));
-    if (!host) return false;
+    if (!host) {
+      if (entry.item === 'book' && entry.lying) standUp(entry);
+      return false;
+    }
 
     entry.x = x;
     entry.y = host.top;
     entry.z = (host.item.z ?? 0) + 1;
 
-    // Something landing in a shelf is scaled to the headroom, so a book put on
-    // a bookshelf sits in the shelf instead of standing through the one above.
+    /*
+     * A book dropped onto another book makes a pile, and a pile is flat.
+     *
+     * The book underneath lies down too — a stack balanced on the top edge of
+     * an upright book is still a tower, just a shorter one. So the first book
+     * on a table stands and shows its cover, and the moment a second joins it
+     * they both lie down and read as a pile.
+     */
     const def = catalog.get(entry.item);
+    if (entry.item === 'book' && host.item.item === 'book') {
+      if (!host.item.lying) lieFlat(host.item, catalog.get(host.item.item));
+      lieFlat(entry, def);
+      entry.y = host.item.y - (host.item.h ?? def.h) * host.item.scale;
+    } else if (entry.item === 'book' && entry.lying) {
+      standUp(entry);
+    }
+
     if (def && Number.isFinite(host.maxHeight)) {
       const natural = def.h * entry.scale;
       if (natural > host.maxHeight) {
@@ -107,6 +124,20 @@ export function createRoomScene(game, roomId) {
       }
     }
     return true;
+  }
+
+  /** Lays a book down: same book, turned on its side. */
+  function lieFlat(entry, def) {
+    entry.lying = true;
+    entry.w = def.h * 0.86;
+    entry.h = Math.max(22, def.w * 0.28);
+  }
+
+  /** Stands a book back up when it is moved off a pile. */
+  function standUp(entry) {
+    delete entry.lying;
+    delete entry.w;
+    delete entry.h;
   }
 
   /** Keeps anything placed within reach of a finger. */

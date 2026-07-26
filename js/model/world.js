@@ -192,6 +192,11 @@ function repairItem(entry) {
     ...(entry.design && typeof entry.design === 'object'
       ? { design: clampBook(entry.design) }
       : {}),
+    // A book laid flat on a pile keeps its orientation and the size that goes
+    // with it, or it would spring upright the next time the world is opened.
+    ...(entry.lying === true && Number.isFinite(entry.w) && Number.isFinite(entry.h)
+      ? { lying: true, w: entry.w, h: entry.h }
+      : {}),
   };
 }
 
