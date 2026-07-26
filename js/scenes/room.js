@@ -12,7 +12,9 @@
  * the room.
  */
 
-import { button, hitTest, drawPanel, drawButton, drawButtons, COLORS } from '../ui/widgets.js';
+import {
+  button, hitTest, drawPanel, drawButton, drawButtons, tabRow, COLORS,
+} from '../ui/widgets.js';
 import { fillRR, fillCircle, roundRect, shade } from '../render/shapes.js';
 import { drawItemArt } from '../render/catalog.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
@@ -30,17 +32,24 @@ import { createBookDesigner } from './bookdesigner.js';
 import { createHouse } from './house.js';
 
 const PANEL_TOP = 470;
-const TAB = { y: 482, w: 98, h: 58, step: 102, x: 46 };
 const CELL = { y: 550, w: 100, h: 156, step: 106, x: 46 };
 
 /** Floating controls are smaller than pinned ones: they sit near the thumb. */
 const PIP = 58;
 
-/** Tabs that are not furniture categories. */
-const EXTRA_TABS = [
+/**
+ * Tabs that are not furniture categories.
+ *
+ * The ids are prefixed because the catalog has a category called `wall` too —
+ * the one holding windows, pictures and clocks. When the paint tab was also
+ * called `wall`, selecting the wall-decor drawer opened the paint swatches
+ * instead, and those five items could not be placed at all. A test now checks
+ * these ids against the catalog's.
+ */
+export const EXTRA_TABS = [
   { id: 'people', icon: 'person' },
-  { id: 'wall', icon: 'wall' },
-  { id: 'floor', icon: 'floor' },
+  { id: 'paintWall', icon: 'wall' },
+  { id: 'paintFloor', icon: 'floor' },
 ];
 
 export function createRoomScene(game, roomId) {
@@ -255,8 +264,9 @@ export function createRoomScene(game, roomId) {
       ...EXTRA_TABS.map((e) => ({ id: e.id, icon: e.icon })),
       ...catalog.categories.map((c) => ({ id: c.id, label: c.label })),
     ];
+    const row = tabRow(all.length);
     return all.map((entry, i) => button(
-      `tab:${entry.id}`, TAB.x + i * TAB.step, TAB.y, TAB.w, TAB.h,
+      `tab:${entry.id}`, row.at(i), row.y, row.w, row.h,
       { active: entry.id === tab, tabInfo: entry },
     ));
   }
@@ -264,14 +274,15 @@ export function createRoomScene(game, roomId) {
   function panelContents() {
     if (!open) return [];
 
-    if (tab === 'wall' || tab === 'floor') {
-      const swatches = tab === 'wall' ? WALL_COLORS : FLOOR_COLORS;
-      const current = tab === 'wall' ? room.wall : room.floor;
+    if (tab === 'paintWall' || tab === 'paintFloor') {
+      const paintingWall = tab === 'paintWall';
+      const swatches = paintingWall ? WALL_COLORS : FLOOR_COLORS;
+      const current = paintingWall ? room.wall : room.floor;
       const colors = swatches.map((color, i) => button(
         `paint:${i}`, CELL.x + i * 70, CELL.y + 4, 64, 64,
         { swatch: color, color, active: current === color },
       ));
-      if (tab === 'wall') return colors;
+      if (paintingWall) return colors;
 
       // The floor also gets a surface, chosen separately from its colour —
       // six patterns times ten colours is sixty floors rather than six.
@@ -315,8 +326,14 @@ export function createRoomScene(game, roomId) {
 
     const t = transform();
     const width = ids.length * PIP + (ids.length - 1) * 6;
+
+    // The row sits above the object at its natural height, not its scaled one.
+    // Measuring the live size moved the buttons on every tap of grow or
+    // shrink — sliding them out from under the one finger that is tapping the
+    // same button several times in a row, which is exactly how resizing is
+    // used. Moving the object still moves the row with it.
     const height = isItem(selected)
-      ? (selected.h ?? catalog.get(selected.item)?.h ?? 0) * selected.scale
+      ? (selected.h ?? catalog.get(selected.item)?.h ?? 0)
       : CHAR_H;
 
     // Above the object, or below it when that would leave the screen.
@@ -350,7 +367,7 @@ export function createRoomScene(game, roomId) {
     const [kind, value] = hit.id.split(':');
     if (kind === 'tab') { tab = value; return true; }
     if (kind === 'paint') {
-      if (tab === 'wall') room.wall = hit.color;
+      if (tab === 'paintWall') room.wall = hit.color;
       else room.floor = hit.color;
       game.persist();
       return true;

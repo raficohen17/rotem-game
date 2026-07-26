@@ -13,6 +13,38 @@ import { drawIcon } from './icons.js';
 /** Minimum touch target in design pixels — sized for a child's finger. */
 export const TOUCH = 72;
 
+/** The design space every scene is laid out in, before letterbox scaling. */
+export const SCREEN = { w: 1280, h: 720 };
+
+/**
+ * Lays a row of tabs across the screen.
+ *
+ * The tabs used to be a fixed 102px apart, which fitted the ten tabs there
+ * were when it was written and ran 88px off the right edge once there were
+ * thirteen — the wall-decor tab was drawn past the end of the screen and could
+ * not be tapped at all, so pictures and windows were unreachable. Sizing the
+ * step from the count means the row always fits, however many drawers there
+ * are, and a tab is never wider than it needs to be.
+ *
+ * @param {number} count how many tabs are in the row
+ * @param {{x: number, y: number, h: number, gap: number, maxW: number}} [row]
+ */
+export function tabRow(count, row = TAB_ROW) {
+  const span = SCREEN.w - row.x * 2;
+  const step = count > 0 ? Math.min(row.maxW + row.gap, span / count) : row.maxW;
+  return {
+    x: row.x,
+    y: row.y,
+    h: row.h,
+    step,
+    w: step - row.gap,
+    /** The left edge of tab `i`. */
+    at: (i) => row.x + i * step,
+  };
+}
+
+const TAB_ROW = { x: 30, y: 482, h: 58, gap: 6, maxW: 98 };
+
 /* A warm charcoal surround, so the tinted paper of the rooms is what carries
    the colour rather than competing with the interface. */
 export const COLORS = {
