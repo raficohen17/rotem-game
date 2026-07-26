@@ -32,8 +32,10 @@ const PALETTES = {
 };
 
 // Eleven parts no longer fit in one column at a finger-sized target, so the
-// tabs run two across.
-const TAB = { x: 20, y: 76, size: 64, step: 70, cols: 2 };
+// tabs run two across. Nine rows of them is what sets the size: 70 is the
+// largest that still leaves the last row on the screen, and anything smaller
+// lands under a child's fingertip on the phone.
+const TAB = { x: 20, y: 36, size: 70, step: 75, cols: 2 };
 
 // Five across and three down holds the largest part list (fourteen hairstyles)
 // on one screen, so no part needs paging.

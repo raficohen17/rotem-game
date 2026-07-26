@@ -31,11 +31,18 @@ import { createCharacterCreator } from './charcreator.js';
 import { createBookDesigner } from './bookdesigner.js';
 import { createHouse } from './house.js';
 
-const PANEL_TOP = 470;
-const CELL = { y: 550, w: 100, h: 156, step: 106, x: 46 };
+const PANEL_TOP = 456;
+const CELL = { y: 548, w: 100, h: 152, step: 106, x: 46 };
 
-/** Floating controls are smaller than pinned ones: they sit near the thumb. */
-const PIP = 58;
+/**
+ * The floating round controls.
+ *
+ * They used to be 58, on the reasoning that a control next to the thing it
+ * acts on can be smaller than one pinned to the edge. On the phone that came
+ * out as 33px, well under what a child can hit — and these are the buttons she
+ * taps most.
+ */
+const PIP = 72;
 
 /**
  * Tabs that are not furniture categories.
@@ -68,7 +75,7 @@ export function createRoomScene(game, roomId) {
    */
   function transform() {
     return open
-      ? { x: 121, y: 14, s: 0.865 }
+      ? { x: 136, y: 12, s: 0.84 }
       : { x: 20, y: 22, s: 1.033 };
   }
 
@@ -503,7 +510,7 @@ function drawDrawer(ctx, tabControls, contents, tab, time, floorColor) {
     const info = control.tabInfo;
     if (info.label) {
       ctx.fillStyle = COLORS.ink;
-      ctx.font = '600 17px system-ui, sans-serif';
+      ctx.font = '600 20px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(info.label, control.x + control.w / 2, control.y + control.h / 2);

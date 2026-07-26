@@ -17,6 +17,26 @@ export const TOUCH = 72;
 export const SCREEN = { w: 1280, h: 720 };
 
 /**
+ * The screen this is actually played on: a Pixel held sideways.
+ *
+ * Worth naming, because the design space is nearly twice as tall as the phone
+ * and everything shrinks to about four sevenths on the way there. A 58px
+ * button drawn here is a 33px button under her thumb, which is well under the
+ * 48dp Android asks for. A test measures the real controls against this.
+ */
+export const PHONE = { w: 915, h: 412 };
+
+/** How many real pixels one design pixel becomes on a given screen. */
+export function screenScale(screen = PHONE) {
+  return Math.min(screen.w / SCREEN.w, screen.h / SCREEN.h);
+}
+
+/** A design-space length as it actually lands on the phone. */
+export function onScreen(designPx, screen = PHONE) {
+  return designPx * screenScale(screen);
+}
+
+/**
  * Lays a row of tabs across the screen.
  *
  * The tabs used to be a fixed 102px apart, which fitted the ten tabs there
@@ -43,7 +63,7 @@ export function tabRow(count, row = TAB_ROW) {
   };
 }
 
-const TAB_ROW = { x: 30, y: 482, h: 58, gap: 6, maxW: 98 };
+const TAB_ROW = { x: 20, y: 468, h: 70, gap: 6, maxW: 110 };
 
 /* A warm charcoal surround, so the tinted paper of the rooms is what carries
    the colour rather than competing with the interface. */

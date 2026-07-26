@@ -9,17 +9,25 @@
  *
  * BUMP CACHE_VERSION ON EVERY DEPLOY or Rotem keeps playing the old build.
  */
-const CACHE_VERSION = 'v19';
+const CACHE_VERSION = 'v20';
 const CACHE_NAME = `rotem-${CACHE_VERSION}`;
 
 // Only the shell is precached. Everything else (art, catalog) is cached the
 // first time it is requested, so adding items never means editing this list.
+//
+// The icons are the exception that has to be listed: the page never requests
+// them, so the fetch handler never sees them. The browser asks for them
+// out-of-band when the app is installed or shown on the home screen, which is
+// exactly when there may be no network. A test keeps this list honest against
+// the manifest.
 const SHELL = [
   '.',
   'index.html',
   'manifest.webmanifest',
   'css/style.css',
   'js/main.js',
+  'assets/icon-192.png',
+  'assets/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {

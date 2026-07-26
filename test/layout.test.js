@@ -43,7 +43,7 @@ test('a short row does not stretch its tabs across the screen', () => {
   // Four tabs sharing the full width would each be 300px wide, which reads as
   // a row of panels rather than a row of tabs.
   const row = tabRow(4);
-  assert.ok(row.w <= 98, `a tab is ${row.w}px wide`);
+  assert.ok(row.w <= 110, `a tab is ${row.w}px wide`);
 });
 
 test('the row still fits if a category is added later', () => {
