@@ -9,16 +9,20 @@ import { button, hitTest, drawButtons, drawPanel, COLORS, TOUCH } from '../ui/wi
 import { fillRR } from '../render/shapes.js';
 import { drawCharacter, CHAR_H } from '../render/character.js';
 import {
-  EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS, LIP_COLORS,
+  EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS, LIP_COLORS, EYE_COLORS,
   createCharacterSpec, clampSpec,
 } from '../model/character.js';
 
 /** Parts shown as a head close-up; the rest are shown full length. */
-const HEAD_PARTS = new Set(['skin', 'hair', 'eyes', 'nose', 'mouth', 'extra']);
+const HEAD_PARTS = new Set(['face', 'skin', 'hair', 'brows', 'eyes', 'nose', 'mouth', 'extra']);
+
+/** Parts where the difference is small enough to need a tighter crop. */
+const FEATURE_PARTS = new Set(['brows', 'eyes', 'nose', 'mouth']);
 
 /** Which palette belongs to which colour part. */
 const PALETTES = {
   hairColor: HAIR_COLORS,
+  eyeColor: EYE_COLORS,
   mouthColor: LIP_COLORS,
   topColor: CLOTH_COLORS,
   bottomColor: CLOTH_COLORS,
@@ -26,10 +30,9 @@ const PALETTES = {
   extraColor: CLOTH_COLORS,
 };
 
-const TAB_X = 26;
-const TAB_SIZE = 66;
-const TAB_STEP = 70;
-const TAB_TOP = 74;
+// Eleven parts no longer fit in one column at a finger-sized target, so the
+// tabs run two across.
+const TAB = { x: 22, y: 92, size: 66, step: 74, cols: 2 };
 
 // Five across and three down holds the largest part list (fourteen hairstyles)
 // on one screen, so no part needs paging.
@@ -67,7 +70,10 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
 
   function tabControls() {
     return EDITABLE_PARTS.map((entry, i) => button(
-      `tab:${i}`, TAB_X, TAB_TOP + i * TAB_STEP, TAB_SIZE, TAB_SIZE,
+      `tab:${i}`,
+      TAB.x + (i % TAB.cols) * TAB.step,
+      TAB.y + Math.floor(i / TAB.cols) * TAB.step,
+      TAB.size, TAB.size,
       { active: i === partIndex, part: entry },
     ));
   }
@@ -99,10 +105,10 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
       ctx.fillRect(0, 0, 1280, 720);
 
       // Preview
-      drawPanel(ctx, 116, 96, 470, 600, '#2c262e', 22);
+      drawPanel(ctx, 182, 96, 404, 600, '#2c262e', 22);
       ctx.save();
-      ctx.translate(351, 640);
-      ctx.scale(1.6, 1.6);
+      ctx.translate(384, 646);
+      ctx.scale(1.62, 1.62);
       drawCharacter(ctx, spec, game.time);
       ctx.restore();
 
@@ -124,7 +130,13 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
 function drawTab(ctx, control, spec, time) {
   fillRR(ctx, control.x, control.y, control.w, control.h, 14,
     control.active ? COLORS.buttonActive : COLORS.button);
-  drawMini(ctx, spec, control, HEAD_PARTS.has(control.part.key), time);
+  drawMini(ctx, spec, control, cropFor(control.part.key), time);
+}
+
+/** How closely a cell should frame the character for a given part. */
+function cropFor(key) {
+  if (FEATURE_PARTS.has(key)) return 'feature';
+  return HEAD_PARTS.has(key) ? 'head' : 'body';
 }
 
 function drawOption(ctx, control, spec, part, time) {
@@ -132,7 +144,7 @@ function drawOption(ctx, control, spec, part, time) {
     control.active ? COLORS.buttonActive : '#413945');
 
   const preview = { ...spec, [part.key]: control.option };
-  drawMini(ctx, preview, control, HEAD_PARTS.has(part.key), time);
+  drawMini(ctx, preview, control, cropFor(part.key), time);
 }
 
 /**
@@ -140,7 +152,7 @@ function drawOption(ctx, control, spec, part, time) {
  * length for clothing, whichever makes the difference between options easiest
  * to see.
  */
-function drawMini(ctx, spec, box, headOnly, time) {
+function drawMini(ctx, spec, box, crop, time) {
   ctx.save();
   fillRR(ctx, box.x + 4, box.y + 4, box.w - 8, box.h - 8, 10, '#00000000');
   ctx.beginPath();
@@ -148,10 +160,15 @@ function drawMini(ctx, spec, box, headOnly, time) {
   ctx.clip();
 
   const cx = box.x + box.w / 2;
-  if (headOnly) {
-    // Framed head-and-shoulders rather than head-only, and sitting high in the
-    // cell: what tells fourteen hairstyles apart is the silhouette below the
-    // ears, and a tighter crop cut exactly that off.
+  if (crop === 'feature') {
+    // Brows, eyes, noses and mouths differ by a few pixels. Filling the cell
+    // with the face is the only framing in which the options are comparable.
+    const scale = Math.min(box.w, box.h) / 125;
+    ctx.translate(cx, box.y + box.h * 0.52 + 198 * scale);
+    ctx.scale(scale, scale);
+  } else if (crop === 'head') {
+    // Head and shoulders: what tells fourteen hairstyles apart is the
+    // silhouette below the ears, and a tighter crop cut exactly that off.
     const scale = Math.min(box.w, box.h) / 205;
     ctx.translate(cx, box.y + box.h * 0.4 + 198 * scale);
     ctx.scale(scale, scale);
