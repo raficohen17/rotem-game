@@ -16,8 +16,12 @@
 import { button, hitTest, drawButtons, drawTitle, COLORS, TOUCH } from '../ui/widgets.js';
 import { fillRR, fillEllipse, fillPoly, roundRect, shade } from '../render/shapes.js';
 import { litFill, sideLit, woodGrain, within } from '../render/materials.js';
-import { drawRoomShell, drawRoomContents, ROOM_W, ROOM_H, renderHouseThumbnail } from '../render/room.js';
+import {
+  drawRoomShell, drawRoomContents, ROOM_W, ROOM_H, FLOOR_Y, renderHouseThumbnail,
+} from '../render/room.js';
 import { HOUSE_LAYOUT } from '../model/world.js';
+import { beginWalk, STAIR_X, LINKS, HOUSE_GRID } from '../model/travel.js';
+import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import { createRoomScene } from './room.js';
 
 /** The painted carcass. Warm cream with a rose roof, to match the rooms. */
@@ -58,6 +62,39 @@ export function cellBox(index) {
 export function createHouse(game) {
   const back = button('back', 1186, 24, TOUCH, TOUCH, { icon: 'home', round: true });
 
+  /**
+   * The character waiting to be sent somewhere.
+   *
+   * Tapping a character picks her up; the next tap on a room sends her walking
+   * there. With nobody picked up a tap on a room zooms into it, which is what
+   * it always did — so the new gesture costs the old one nothing.
+   */
+  let traveller = null;
+
+  /** Turns a screen point into the room under it, and the point within it. */
+  function locate(x, y) {
+    for (let i = 0; i < HOUSE_LAYOUT.length; i += 1) {
+      const box = cellBox(i);
+      if (x < box.x || x > box.x + box.w || y < box.y || y > box.y + box.h) continue;
+      return {
+        roomId: HOUSE_LAYOUT[i],
+        x: (x - box.x) / CELL_SCALE,
+        y: (y - box.y) / CELL_SCALE,
+      };
+    }
+    return null;
+  }
+
+  /** The character under a screen point, if any. */
+  function characterAt(x, y) {
+    const spot = locate(x, y);
+    if (!spot) return null;
+    return game.charactersIn(spot.roomId).find((c) => (
+      spot.x >= c.x - CHAR_W / 2 && spot.x <= c.x + CHAR_W / 2
+      && spot.y >= c.y - CHAR_H && spot.y <= c.y
+    )) ?? null;
+  }
+
   const rooms = HOUSE_LAYOUT.map((id, index) => {
     const box = cellBox(index);
     return button(`room:${id}`, box.x, box.y, box.w, box.h, { roomId: id });
@@ -67,6 +104,21 @@ export function createHouse(game) {
     controls: [...rooms, back],
 
     onTap(x, y) {
+      // Sending someone walking takes priority over zooming into a room.
+      const tapped = characterAt(x, y);
+      if (tapped) { traveller = traveller === tapped ? null : tapped; return; }
+
+      if (traveller) {
+        const spot = locate(x, y);
+        if (spot) {
+          beginWalk(traveller, spot.roomId, spot.x, ROOM_W);
+          game.persist();
+          traveller = null;
+          return;
+        }
+        traveller = null;
+      }
+
       const hit = hitTest(this.controls, x, y);
       if (!hit) return;
 
@@ -101,12 +153,14 @@ export function createHouse(game) {
         ctx.scale(CELL_SCALE, CELL_SCALE);
         drawRoomShell(ctx, room);
         drawRoomContents(ctx, room, game.charactersIn(id), game.catalog, game.time);
+        if (traveller && traveller.room === id) drawPickedUp(ctx, traveller);
         ctx.restore();
 
         drawRecess(ctx, box);
       });
 
       drawStructure(ctx);
+      if (traveller) drawHint(ctx);
       drawTitle(ctx, game.world.name, BODY.x + 6, BODY.y - ROOF_HEIGHT - 26, 30);
       drawButtons(ctx, [back]);
     },
@@ -222,6 +276,8 @@ function drawStructure(ctx) {
   ctx.fillRect(BODY.x + WALL, slabY + SLAB, BODY.w - WALL * 2, 10);
   ctx.restore();
 
+  drawStaircase(ctx);
+
   // A bright inner edge all round, like the lip of a real dolls' house.
   ctx.strokeStyle = TRIM;
   ctx.lineWidth = 3;
@@ -233,4 +289,97 @@ function drawStructure(ctx) {
   const stepW = BODY.w * 0.22;
   fillRR(ctx, BODY.x + BODY.w / 2 - stepW / 2, BODY.y + BODY.h, stepW, 16, 4,
     litFill(ctx, BODY.y + BODY.h, 16, shade(EXTERIOR, -0.16), 0.14));
+}
+
+/** A ring under whoever is waiting to be sent, drawn in room coordinates. */
+function drawPickedUp(ctx, character) {
+  ctx.save();
+  ctx.strokeStyle = '#f0c86a';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.ellipse(character.x, character.y - 4, CHAR_W * 0.42, 16, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Says what the picked-up character is waiting for. */
+function drawHint(ctx) {
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = '600 22px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Tap a room to walk there', 640, BODY.y + BODY.h + 46);
+}
+
+/**
+ * The staircase, drawn across the slab so it actually connects two floors.
+ *
+ * This is house structure, not room furniture. Drawn inside a room it rose to
+ * that room's own ceiling and joined nothing — a flight of stairs that goes
+ * nowhere is worse than no stairs at all.
+ */
+function drawStaircase(ctx) {
+  const link = LINKS.find((entry) => entry.kind === 'stair');
+  if (!link) return;
+
+  const [upper, lower] = link.between[0] === HOUSE_GRID[1]
+    ? [link.between[0], link.between[1]]
+    : [link.between[1], link.between[0]];
+
+  const upperBox = cellBox(HOUSE_GRID.indexOf(upper));
+  const lowerBox = cellBox(HOUSE_GRID.indexOf(lower));
+
+  // Both floors, in house coordinates.
+  const topFloor = upperBox.y + FLOOR_Y * CELL_SCALE;
+  const bottomFloor = lowerBox.y + FLOOR_Y * CELL_SCALE;
+  const centre = lowerBox.x + STAIR_X * CELL_SCALE;
+  const width = 190 * CELL_SCALE;
+  const left = centre - width / 2;
+
+  const wood = '#c2996b';
+  const steps = 11;
+  const rise = bottomFloor - topFloor;
+
+  // A stairwell cut through the slab, so the flight passes through it rather
+  // than stopping underneath.
+  ctx.fillStyle = '#2a2429';
+  ctx.fillRect(left, upperBox.y + upperBox.h, width, SLAB);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left - 4, topFloor - 6, width + 8, rise + 10);
+  ctx.clip();
+
+  for (let i = 0; i < steps; i += 1) {
+    const y = bottomFloor - (rise / steps) * (i + 1);
+    const x = left + (width / steps) * i;
+    const w = width / steps + 1.5;
+    const h = rise / steps + 1.5;
+    ctx.fillStyle = litFill(ctx, y, h, wood, 0.16);
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = shade(wood, 0.3);
+    ctx.fillRect(x, y, w, 3);
+    ctx.fillStyle = shade(wood, -0.3);
+    ctx.fillRect(x, y, 1.5, h);
+  }
+  ctx.restore();
+
+  // A banister following the pitch, with posts down to the treads.
+  ctx.strokeStyle = shade(wood, -0.3);
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(left + 4, bottomFloor - 34);
+  ctx.lineTo(left + width - 4, topFloor - 34);
+  ctx.stroke();
+  for (let i = 1; i < steps; i += 2) {
+    const x = left + (width / steps) * i;
+    const y = bottomFloor - (rise / steps) * i;
+    ctx.strokeStyle = shade(wood, -0.2);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y - 34);
+    ctx.stroke();
+  }
 }

@@ -10,8 +10,9 @@
 import { drawItem } from './catalog.js';
 import { drawCharacter } from './character.js';
 import { drawOrder } from '../model/geometry.js';
-import { shade, fillRR, roundRect } from './shapes.js';
+import { shade, fillRR, roundRect, strokeLine } from './shapes.js';
 import { litFill } from './materials.js';
+import { partitionSide } from '../model/travel.js';
 
 export const ROOM_W = 1200;
 export const ROOM_H = 520;
@@ -58,6 +59,47 @@ export function drawRoomShell(ctx, room) {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, FLOOR_Y, ROOM_W, 14);
   ctx.restore();
+
+  if (room.id) drawOpenings(ctx, room);
+}
+
+/** Door height and width, in room coordinates. */
+const DOOR = { w: 140, h: 250 };
+
+/**
+ * The doorway through the partition, flush with the edge of the room.
+ *
+ * Only the door is drawn here. The staircase spans two floors and a slab, so
+ * it belongs to the house frame — drawn inside one room it rose to that room's
+ * own ceiling and connected nothing, which is exactly as odd as it sounds.
+ */
+function drawOpenings(ctx, room) {
+  const side = partitionSide(room.id);
+  const doorX = side === 'right' ? ROOM_W - DOOR.w : 0;
+  const top = FLOOR_Y - DOOR.h;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(doorX, top, DOOR.w, DOOR.h);
+  ctx.clip();
+  // The room beyond, falling away into shadow, with its floor running through.
+  ctx.fillStyle = shade(room.wall, -0.44);
+  ctx.fillRect(doorX, top, DOOR.w, DOOR.h);
+  ctx.fillStyle = shade(room.wall, -0.58);
+  ctx.fillRect(doorX, top, DOOR.w, DOOR.h * 0.4);
+  ctx.fillStyle = shade(room.floor, -0.34);
+  ctx.fillRect(doorX, FLOOR_Y - 30, DOOR.w, 30);
+  ctx.restore();
+
+  // Lintel over the top and a jamb on the room side only — the other side is
+  // the partition itself.
+  ctx.fillStyle = litFill(ctx, top - 4, 18, shade(room.wall, 0.16), 0.2);
+  ctx.fillRect(doorX - (side === 'right' ? 10 : 0), top - 4, DOOR.w + 10, 18);
+  ctx.fillStyle = shade(room.wall, 0.08);
+  ctx.fillRect(side === 'right' ? doorX - 10 : doorX + DOOR.w, top - 4, 10, DOOR.h + 4);
+
+  ctx.fillStyle = shade(room.floor, 0.18);
+  ctx.fillRect(doorX, FLOOR_Y - 6, DOOR.w, 6);
 }
 
 /**
@@ -270,7 +312,10 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
     } else {
       ctx.save();
       ctx.translate(entry.placed.x, entry.placed.y);
-      drawCharacter(ctx, entry.placed.spec, time);
+      drawCharacter(ctx, entry.placed.spec, time, {
+        walking: Boolean(entry.placed.walk),
+        facing: entry.placed.facing ?? 1,
+      });
       ctx.restore();
     }
   }

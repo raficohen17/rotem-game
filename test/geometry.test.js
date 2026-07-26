@@ -5,7 +5,10 @@ import {
   itemBounds, boundsContain, drawOrder, hitTest, clampScale, clampToRoom,
   findSurface, MIN_SCALE, MAX_SCALE,
 } from '../js/model/geometry.js';
-import { placeItem } from '../js/model/world.js';
+import { placeItem, ROOM_IDS } from '../js/model/world.js';
+import {
+  routeBetween, planWalk, beginWalk, stepWalk, isWalking,
+} from '../js/model/travel.js';
 
 const DEFS = {
   sofa: { w: 340, h: 155, surface: 'floor' },
@@ -180,4 +183,61 @@ test('an item merely brushing a surface does not snap to it', () => {
   // Far enough left that only a sliver overlaps.
   const host = findSurface(placeItem('tv', 380, 300), [cupboard], lookupTwo, 380, 300, defs.tv);
   assert.equal(host, null);
+});
+
+// --- travel between rooms -------------------------------------------------
+
+test('rooms on one floor are one doorway apart', () => {
+  assert.deepEqual(routeBetween('bedroom', 'bath'), ['bedroom', 'bath']);
+  assert.deepEqual(routeBetween('living', 'kitchen'), ['living', 'kitchen']);
+});
+
+test('crossing floors goes through the stairs', () => {
+  assert.deepEqual(routeBetween('bath', 'kitchen'), ['bath', 'kitchen']);
+});
+
+test('the far diagonal takes a door, the stairs, then a door', () => {
+  // Bedroom is top-left and living is bottom-left, and the stairs are on the
+  // right — so the only route is the long way round.
+  assert.deepEqual(routeBetween('bedroom', 'living'),
+    ['bedroom', 'bath', 'kitchen', 'living']);
+});
+
+test('every room can reach every other room', () => {
+  for (const from of ROOM_IDS) {
+    for (const to of ROOM_IDS) {
+      assert.ok(routeBetween(from, to), `${from} -> ${to} is reachable`);
+    }
+  }
+});
+
+test('a walk plan leaves each room by the right exit', () => {
+  const legs = planWalk('bedroom', 'living', 300, 1200);
+  assert.deepEqual(legs.map((l) => l.room), ['bedroom', 'bath', 'kitchen', 'living']);
+  assert.deepEqual(legs.map((l) => l.exit), ['door', 'stair', 'door', null]);
+  assert.equal(legs.at(-1).x, 300, 'the last leg walks to where she was sent');
+});
+
+test('walking within one room is a single leg', () => {
+  const legs = planWalk('bath', 'bath', 400, 1200);
+  assert.deepEqual(legs, [{ room: 'bath', x: 400, exit: null }]);
+});
+
+test('a walk advances, changes room at the door, and finishes', () => {
+  const her = { room: 'bedroom', x: 200, y: 500 };
+  assert.equal(beginWalk(her, 'bath', 300, 1200), true);
+
+  // Generous enough to cross both rooms: a room is 1200 wide and a frame
+  // covers four units, so a short loop would time out before she arrived.
+  for (let i = 0; i < 2000 && isWalking(her); i += 1) stepWalk(her, 1 / 60, 1200);
+
+  assert.equal(her.room, 'bath', 'she arrived in the other room');
+  assert.equal(her.x, 300, 'and stopped where she was sent');
+  assert.equal(isWalking(her), false);
+});
+
+test('a walk to an unknown room is refused rather than hanging', () => {
+  const her = { room: 'bedroom', x: 200 };
+  assert.equal(beginWalk(her, 'attic', 300, 1200), false);
+  assert.equal(isWalking(her), false);
 });
