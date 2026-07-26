@@ -11,6 +11,7 @@ import { drawIcon } from '../ui/icons.js';
 import { fillRR } from '../render/shapes.js';
 import { MAX_WORLDS, addWorld, removeWorld } from '../model/storage.js';
 import { createWorld } from '../model/world.js';
+import { VERSION } from '../version.js';
 
 const COLS = 5;
 const SLOT_W = 220;
@@ -125,6 +126,13 @@ export function createMenu(game) {
         ctx.textAlign = 'center';
         ctx.fillText('Ten houses is the most. Delete one to make a new one.', 640, 640);
       }
+
+      // Which build this is, so a stale copy is obvious without dev tools.
+      ctx.fillStyle = COLORS.inkDim;
+      ctx.font = '500 16px system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(VERSION, 1240, 700);
 
       drawButtons(ctx, this.controls.filter((c) => c.icon));
       if (confirm) confirm.draw(ctx);

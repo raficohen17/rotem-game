@@ -24,6 +24,12 @@ export const WALL_COLORS = [
   '#dfd8e4', '#d3e0de', '#e8dce4', '#ebe5d9', '#ccd3da',
 ];
 
+/**
+ * Floor surfaces. The colour is chosen separately, so six patterns times ten
+ * colours gives sixty floors rather than six.
+ */
+export const FLOOR_STYLES = ['boards', 'tiles', 'checker', 'herringbone', 'carpet', 'plain'];
+
 export const FLOOR_COLORS = [
   '#c2996b', '#8a6448', '#d6c8ab', '#a3b09b', '#b3a6bd',
   '#ded0b4', '#6f8794', '#bf9a97', '#9c968d', '#556b5c',
@@ -43,7 +49,7 @@ export function makeId() {
 }
 
 function emptyRoom() {
-  return { wall: DEFAULT_WALL, floor: DEFAULT_FLOOR, items: [] };
+  return { wall: DEFAULT_WALL, floor: DEFAULT_FLOOR, floorStyle: 'boards', items: [] };
 }
 
 /** @returns {object} a brand new world, ready to save. */
@@ -145,6 +151,8 @@ export function repairWorld(world) {
     safe.rooms[id] = {
       wall: typeof room.wall === 'string' ? room.wall : DEFAULT_WALL,
       floor: typeof room.floor === 'string' ? room.floor : DEFAULT_FLOOR,
+      // Rooms saved before floor patterns existed get the original boards.
+      floorStyle: FLOOR_STYLES.includes(room.floorStyle) ? room.floorStyle : 'boards',
       items: Array.isArray(room.items) ? room.items.filter(isValidItem).map(repairItem) : [],
     };
   }

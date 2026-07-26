@@ -76,6 +76,44 @@ export function clampScale(scale) {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
 }
 
+/** How close a dropped baseline must be to a surface to land on it. */
+export const SNAP_REACH = 46;
+
+/**
+ * The item a dropped object should stand on, or null for the floor.
+ *
+ * Depth otherwise comes only from the baseline — lower on screen means nearer
+ * — so anything lifted onto a table has a higher baseline than the table and
+ * therefore draws behind it. That makes putting a fish tank on a table
+ * impossible, which is an obvious thing to want to do.
+ *
+ * A drop counts as landing on a surface when the baseline is near that item's
+ * top and horizontally over it. Wall items and the object itself are never
+ * hosts, and neither is anything already standing on the mover.
+ *
+ * @param {(id: string) => ({w: number, h: number, surface?: string}|undefined)} lookup
+ */
+export function findSurface(moving, items, lookup, x, y) {
+  let best = null;
+
+  for (const candidate of items) {
+    if (candidate === moving) continue;
+    const def = lookup(candidate.item);
+    if (!def || def.surface === 'wall') continue;
+
+    const bounds = itemBounds(candidate, def);
+    if (x < bounds.left + 6 || x > bounds.right - 6) continue;
+
+    const drop = y - bounds.top;
+    if (drop < -SNAP_REACH || drop > SNAP_REACH) continue;
+
+    // Prefer the highest surface under the finger, so stacking works.
+    if (!best || bounds.top < best.top) best = { item: candidate, top: bounds.top };
+  }
+
+  return best;
+}
+
 /** Keeps an item from being dragged off where it can never be grabbed again. */
 export function clampToRoom(x, y, room) {
   return {

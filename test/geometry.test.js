@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   itemBounds, boundsContain, drawOrder, hitTest, clampScale, clampToRoom,
-  MIN_SCALE, MAX_SCALE,
+  findSurface, MIN_SCALE, MAX_SCALE,
 } from '../js/model/geometry.js';
 import { placeItem } from '../js/model/world.js';
 
@@ -99,4 +99,62 @@ test('dragging past the wall stops at the edge', () => {
   assert.deepEqual(clampToRoom(9000, 300, room), { x: 1200, y: 300 });
   assert.deepEqual(clampToRoom(600, 9000, room), { x: 600, y: 520 });
   assert.deepEqual(clampToRoom(600, 0, room), { x: 600, y: 100 });
+});
+
+test('an item dropped onto a table stands on it and draws in front', () => {
+  // The fish-tank-on-a-table case: without this the tank keeps a baseline
+  // above the table's and therefore renders behind it.
+  const defs = { table: { w: 300, h: 145 }, tank: { w: 200, h: 145 } };
+  const lookupTwo = (id) => defs[id];
+
+  const table = placeItem('table', 600, 480);
+  const tank = placeItem('tank', 600, 340);
+
+  const host = findSurface(tank, [table], lookupTwo, 600, 340);
+  assert.ok(host, 'the table is found as a surface');
+  assert.equal(host.top, 480 - 145, 'its top is the table top');
+
+  tank.y = host.top;
+  tank.z = (host.item.z ?? 0) + 1;
+  const ordered = drawOrder([table, tank], lookupTwo);
+  assert.equal(ordered.at(-1), tank, 'the tank draws in front of the table');
+});
+
+test('a drop onto open floor finds no surface', () => {
+  const defs = { table: { w: 300, h: 145 }, tank: { w: 200, h: 145 } };
+  const lookupTwo = (id) => defs[id];
+  const table = placeItem('table', 200, 480);
+  const tank = placeItem('tank', 900, 500);
+
+  assert.equal(findSurface(tank, [table], lookupTwo, 900, 500), null);
+});
+
+test('a drop well above a table does not snap to it', () => {
+  const defs = { table: { w: 300, h: 145 }, tank: { w: 200, h: 145 } };
+  const lookupTwo = (id) => defs[id];
+  const table = placeItem('table', 600, 480);
+  const tank = placeItem('tank', 600, 200);
+
+  assert.equal(findSurface(tank, [table], lookupTwo, 600, 200), null,
+    'out of reach of the surface');
+});
+
+test('an item never stands on itself, or on a wall item', () => {
+  const defs = { table: { w: 300, h: 145 }, poster: { w: 140, h: 120, surface: 'wall' } };
+  const lookupTwo = (id) => defs[id];
+  const table = placeItem('table', 600, 480);
+  const poster = placeItem('poster', 600, 300);
+
+  assert.equal(findSurface(table, [table], lookupTwo, 600, 480), null, 'not itself');
+  assert.equal(findSurface(table, [poster], lookupTwo, 600, 300), null, 'not a wall item');
+});
+
+test('stacking picks the highest surface under the finger', () => {
+  const defs = { table: { w: 300, h: 145 }, box: { w: 120, h: 80 }, lamp: { w: 60, h: 60 } };
+  const lookupTwo = (id) => defs[id];
+  const table = placeItem('table', 600, 480);
+  const box = placeItem('box', 600, 335); // standing on the table
+
+  const host = findSurface(placeItem('lamp', 600, 255), [table, box], lookupTwo, 600, 255);
+  assert.equal(host.item, box, 'lands on the box, not the table below it');
 });

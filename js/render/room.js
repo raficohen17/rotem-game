@@ -42,7 +42,7 @@ export function drawRoomShell(ctx, room) {
   // Floor, with boards running away from the viewer.
   ctx.fillStyle = litFill(ctx, FLOOR_Y, ROOM_H - FLOOR_Y, room.floor, 0.08);
   ctx.fillRect(0, FLOOR_Y, ROOM_W, ROOM_H - FLOOR_Y);
-  drawFloorboards(ctx, room.floor);
+  drawFloorPattern(ctx, room.floor, room.floorStyle);
 
   // Skirting board: a face, a lip along the top, and a shadow it casts down
   // onto the floor.
@@ -61,12 +61,20 @@ export function drawRoomShell(ctx, room) {
 }
 
 /**
- * Boards receding toward the back wall.
+ * The floor surface.
  *
- * Rows get shorter with distance and the seams within each row are offset, so
- * the floor reads as a surface you could walk across rather than as a band.
+ * Every pattern uses the same trick: rows get taller toward the front, so the
+ * floor recedes. It is the cheapest depth cue available and the reason the
+ * floor stops reading as a stripe of colour. The colour is chosen separately,
+ * so six patterns and ten colours give sixty floors.
  */
-function drawFloorboards(ctx, color) {
+export function drawFloorSample(ctx, color, style = 'boards') {
+  drawFloorPattern(ctx, color, style);
+}
+
+function drawFloorPattern(ctx, color, style = 'boards') {
+  if (style === 'plain') return;
+
   const depth = ROOM_H - FLOOR_Y;
   const rows = 5;
 
@@ -75,33 +83,151 @@ function drawFloorboards(ctx, color) {
   ctx.rect(0, FLOOR_Y, ROOM_W, depth);
   ctx.clip();
 
+  // Row boundaries, each band taller than the one behind it.
+  const bands = [];
+  let y = FLOOR_Y;
+  for (let row = 0; row < rows; row += 1) {
+    const h = (depth / rows) * (0.62 + row * 0.19);
+    bands.push({ top: y, height: h });
+    y += h;
+  }
+
+  if (style === 'carpet') drawCarpet(ctx, color, bands);
+  else if (style === 'checker') drawChecker(ctx, color, bands);
+  else if (style === 'tiles') drawTiles(ctx, color, bands, false);
+  else if (style === 'herringbone') drawHerringbone(ctx, color, bands);
+  else drawBoards(ctx, color, bands);
+
+  ctx.restore();
+}
+
+/** Long planks with staggered end joints. */
+function drawBoards(ctx, color, bands) {
   ctx.strokeStyle = shade(color, -0.22);
   ctx.lineWidth = 2;
 
-  let y = FLOOR_Y;
-  for (let row = 0; row < rows; row += 1) {
-    // Each row is taller than the one behind it.
-    const h = (depth / rows) * (0.62 + row * 0.19);
-    y += h;
-
+  bands.forEach((band, row) => {
+    const bottom = band.top + band.height;
     ctx.globalAlpha = 0.7;
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(ROOM_W, y);
+    ctx.moveTo(0, bottom);
+    ctx.lineTo(ROOM_W, bottom);
     ctx.stroke();
 
-    // Board ends, staggered row to row.
     ctx.globalAlpha = 0.45;
     const boardW = 190 + row * 30;
     const offset = (row % 2) * boardW * 0.5;
     for (let x = offset; x < ROOM_W; x += boardW) {
       ctx.beginPath();
-      ctx.moveTo(x, y - h);
-      ctx.lineTo(x, y);
+      ctx.moveTo(x, band.top);
+      ctx.lineTo(x, bottom);
       ctx.stroke();
     }
-  }
-  ctx.restore();
+  });
+  ctx.globalAlpha = 1;
+}
+
+/** Square tiles with a grout line, aligned row to row. */
+function drawTiles(ctx, color, bands) {
+  ctx.strokeStyle = shade(color, -0.26);
+  ctx.lineWidth = 2.5;
+  ctx.globalAlpha = 0.65;
+
+  bands.forEach((band, row) => {
+    const bottom = band.top + band.height;
+    ctx.beginPath();
+    ctx.moveTo(0, bottom);
+    ctx.lineTo(ROOM_W, bottom);
+    ctx.stroke();
+
+    const tileW = 96 + row * 16;
+    for (let x = 0; x < ROOM_W; x += tileW) {
+      ctx.beginPath();
+      ctx.moveTo(x, band.top);
+      ctx.lineTo(x, bottom);
+      ctx.stroke();
+    }
+    // A highlight along the top of each tile, so they read as glazed.
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, band.top + 2, ROOM_W, 3);
+    ctx.restore();
+  });
+  ctx.globalAlpha = 1;
+}
+
+/** Two-tone squares in a chequerboard. */
+function drawChecker(ctx, color, bands) {
+  const dark = shade(color, -0.24);
+
+  bands.forEach((band, row) => {
+    const tileW = 96 + row * 16;
+    let i = row % 2;
+    for (let x = 0; x < ROOM_W; x += tileW) {
+      if (i % 2 === 0) {
+        ctx.fillStyle = dark;
+        ctx.fillRect(x, band.top, tileW, band.height);
+      }
+      i += 1;
+    }
+  });
+
+  ctx.strokeStyle = shade(color, -0.34);
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.5;
+  bands.forEach((band) => {
+    const bottom = band.top + band.height;
+    ctx.beginPath();
+    ctx.moveTo(0, bottom);
+    ctx.lineTo(ROOM_W, bottom);
+    ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+}
+
+/** Short planks laid at alternating angles. */
+function drawHerringbone(ctx, color, bands) {
+  ctx.strokeStyle = shade(color, -0.24);
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.6;
+
+  bands.forEach((band, row) => {
+    const bottom = band.top + band.height;
+    const step = 54 + row * 10;
+    for (let x = -step; x < ROOM_W + step; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, bottom);
+      ctx.lineTo(x + step * 0.5, band.top);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, band.top);
+      ctx.lineTo(x + step * 0.5, bottom);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(0, bottom);
+    ctx.lineTo(ROOM_W, bottom);
+    ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+}
+
+/** Flecked pile, with no seams at all. */
+function drawCarpet(ctx, color, bands) {
+  ctx.globalAlpha = 0.4;
+  bands.forEach((band, row) => {
+    const size = 3 + row * 0.8;
+    const step = 26 - row * 2;
+    for (let x = (row * 11) % step; x < ROOM_W; x += step) {
+      for (let y = band.top + step / 2; y < band.top + band.height; y += step) {
+        const shift = ((x / step) | 0) % 2 ? step / 2 : 0;
+        ctx.fillStyle = ((x + y) | 0) % 3 ? shade(color, -0.14) : shade(color, 0.14);
+        ctx.fillRect(x, y + shift, size, size);
+      }
+    }
+  });
+  ctx.globalAlpha = 1;
 }
 
 /**
