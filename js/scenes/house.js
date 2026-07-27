@@ -223,7 +223,10 @@ function drawStanding(ctx) {
 
   ctx.save();
   ctx.globalAlpha = 0.4;
-  fillEllipse(ctx, cx, baseY + 22, BODY.w * 0.52, 26, '#000');
+  // Kept on the canvas: at +22 with a 26 radius it ran 8px past the bottom
+  // edge, and a shape drawn off the screen is the one thing this house has
+  // already been caught doing.
+  fillEllipse(ctx, cx, baseY + 16, BODY.w * 0.52, 22, '#000');
   ctx.restore();
 }
 

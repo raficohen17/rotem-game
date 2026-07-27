@@ -138,8 +138,10 @@ export function createMenu(game) {
       }
 
       // Which build this is, so a stale copy is obvious without dev tools.
+      // Read off a phone, so it is held to the same legibility floor as
+      // everything else — at 16px it came out at 9px on the Pixel.
       ctx.fillStyle = COLORS.inkDim;
-      ctx.font = '500 16px system-ui, sans-serif';
+      ctx.font = '500 20px system-ui, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'alphabetic';
       ctx.fillText(VERSION, 1240, 700);

@@ -400,6 +400,9 @@ export function createRoomScene(game, roomId) {
   }
 
   return {
+    /** Every tappable thing right now. Exposed so a test can check them all. */
+    allControls,
+
     enter() { selected = null; },
 
     onPointerDown(x, y) {

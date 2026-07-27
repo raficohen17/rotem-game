@@ -109,6 +109,9 @@ export function createBookDesigner(game, initial, onDone, onCancel) {
   ];
 
   return {
+    /** Every tappable thing right now. Exposed so a test can check them all. */
+    allControls: controls,
+
     onTap(x, y) {
       const hit = hitTest(controls(), x, y);
       if (!hit) { input.blur(); typing = false; return; }

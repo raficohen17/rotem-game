@@ -108,6 +108,9 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
   }
 
   return {
+    /** Every tappable thing right now. Exposed so a test can check them all. */
+    allControls: controls,
+
     onTap(x, y) {
       const hit = hitTest(controls(), x, y);
       if (!hit) return;
