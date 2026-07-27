@@ -12,6 +12,7 @@ import { dirname, join } from 'node:path';
 
 import { createWorld, placeItem, placeCharacter, HOUSE_LAYOUT } from '../../js/model/world.js';
 import { createBook } from '../../js/model/book.js';
+import { recordingContext } from './recorder.js';
 
 /** Distinctive and one word, so it never wraps into lines a test cannot match. */
 export const BOOK_TITLE = 'Bookish';
@@ -81,6 +82,25 @@ export function stubGame(overrides = {}) {
 }
 
 /**
+ * A canvas for code that renders to an offscreen tile.
+ *
+ * The character creator draws each option cell once into its own canvas and
+ * blits it after that, so a scene running under the recorder needs somewhere
+ * for those tiles to go. What the tile contains is not recorded — the scene
+ * only ever puts it on screen with one drawImage, and that is what the
+ * scene-wide checks are about. Cell contents are covered by the character
+ * tests instead.
+ */
+function stubCanvas() {
+  return {
+    width: 0,
+    height: 0,
+    getContext: () => recordingContext().ctx,
+    toDataURL: () => 'data:,',
+  };
+}
+
+/**
  * The book designer builds a hidden input to raise the phone's keyboard, so it
  * needs just enough DOM to get through its constructor.
  */
@@ -88,7 +108,7 @@ export function withDocument(run) {
   const had = 'document' in globalThis;
   const previous = globalThis.document;
   globalThis.document = {
-    createElement: () => ({
+    createElement: (tag) => (tag === 'canvas' ? stubCanvas() : {
       style: {},
       value: '',
       setAttribute() {},

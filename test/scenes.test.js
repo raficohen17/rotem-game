@@ -5,6 +5,7 @@ import { hitTest } from '../js/ui/widgets.js';
 import { recordingContext, SCREEN, onScreen, MIN_TEXT } from './helpers/recorder.js';
 import { stubGame, withDocument, BOOK_TITLE } from './helpers/stubs.js';
 import { HOUSE_LAYOUT } from '../js/model/world.js';
+import { EDITABLE_PARTS } from '../js/model/character.js';
 
 import { createMenu } from '../js/scenes/menu.js';
 import { createHouse } from '../js/scenes/house.js';
@@ -70,6 +71,18 @@ function scenes() {
   });
 
   add('the character creator', () => createCharacterCreator(stubGame(), () => {}, () => {}));
+  // Every tab, not just the one it opens on. The colour swatches ran five
+  // swatches off the side of the screen for a whole release because the
+  // creator was only ever checked in its default state, where the swatch row
+  // is empty.
+  ['looks', ...EDITABLE_PARTS.map((p) => p.key)].forEach((key, index) => {
+    add(`the creator's ${key} tab`, () => {
+      const scene = createCharacterCreator(stubGame(), () => {}, () => {});
+      const tab = scene.allControls().find((c) => c.id === `tab:${index}`);
+      scene.onTap(tab.x + tab.w / 2, tab.y + tab.h / 2);
+      return scene;
+    });
+  });
   add('the book designer', () => withDocument(
     () => createBookDesigner(stubGame(), null, () => {}, () => {}),
   ));

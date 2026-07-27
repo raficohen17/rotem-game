@@ -219,6 +219,24 @@ export const ICONS = {
     }
   },
 
+  /* A lock of hair with a drop of colour on it. */
+  hairColor(ctx, c) {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-16, 16);
+    ctx.quadraticCurveTo(-20, -12, -2, -20);
+    ctx.quadraticCurveTo(14, -13, 8, 4);
+    ctx.quadraticCurveTo(6, 13, -4, 12);
+    ctx.quadraticCurveTo(-10, 11, -8, 16);
+    ctx.closePath();
+    ctx.fill();
+    // The drop, cut out of the lock so it reads on any background.
+    fillCircle(ctx, 12, 12, 8, c);
+    ctx.globalCompositeOperation = 'destination-out';
+    fillCircle(ctx, 12, 12, 4.5, '#000');
+    ctx.globalCompositeOperation = 'source-over';
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

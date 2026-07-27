@@ -179,9 +179,19 @@ export const EDITABLE_PARTS = [
   { key: 'build', colorKey: null, icon: 'build' },
   { key: 'face', colorKey: null, icon: 'face' },
   { key: 'skin', colorKey: null, icon: 'skin' },
-  { key: 'hair', colorKey: 'hairColor', icon: 'hair' },
+  { key: 'hair', colorKey: null, icon: 'hair' },
+  /*
+   * Hair colour has its own tab.
+   *
+   * It used to be a strip of 52px swatches tucked under the hair shapes, which
+   * is a small target for the thing a child changes most — and it took the
+   * place brows used to occupy in the rail, which is where Rotem went looking
+   * for it. Brows are gone from the rail: eight brow shapes differ by a few
+   * pixels on a face this size, so the tab did nothing visible in most cases.
+   * The part itself stays in the spec, so no saved character changes.
+   */
+  { key: 'hairColor', colorKey: null, icon: 'hairColor' },
   { key: 'hairpin', colorKey: 'hairpinColor', icon: 'hairpin' },
-  { key: 'brows', colorKey: null, icon: 'brows' },
   { key: 'eyes', colorKey: 'eyeColor', icon: 'eyes' },
   { key: 'nose', colorKey: null, icon: 'nose' },
   { key: 'mouth', colorKey: 'mouthColor', icon: 'mouth' },

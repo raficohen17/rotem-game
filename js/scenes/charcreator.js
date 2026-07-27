@@ -15,7 +15,7 @@ import {
 } from '../model/character.js';
 
 /** Parts shown as a head close-up; the rest are shown full length. */
-const HEAD_PARTS = new Set(['face', 'skin', 'hair', 'brows', 'eyes', 'nose', 'mouth', 'extra']);
+const HEAD_PARTS = new Set(['face', 'skin', 'hair', 'hairColor', 'brows', 'eyes', 'nose', 'mouth', 'extra']);
 
 /** Parts where the difference is small enough to need a tighter crop. */
 const FEATURE_PARTS = new Set(['brows', 'eyes', 'nose', 'mouth']);
@@ -41,6 +41,28 @@ const TAB = { x: 20, y: 36, size: 70, step: 75, cols: 2 };
 // on one screen, so no part needs paging.
 const GRID_X = 648;
 const GRID_Y = 122;
+
+/**
+ * Lays the colour swatches out across the panel, wrapping when they run out.
+ *
+ * Fixed at a 52px swatch on a 58px step, the row fitted the ten colours it was
+ * written for and ran to x=1512 once the wardrobe had fifteen — five swatches
+ * off the side of a 1280 screen, unreachable. Wrapping rather than shrinking:
+ * squeezing fifteen into the same width gives a 35px swatch, which is 20px on
+ * the phone and under what a child can hit.
+ */
+export function swatchRow(count) {
+  const STEP = 58;
+  const cols = Math.floor((1264 - GRID_X) / STEP);
+  return {
+    cols,
+    step: STEP,
+    size: STEP - 6,
+    rows: Math.max(1, Math.ceil(count / cols)),
+    x: (i) => GRID_X + (i % cols) * STEP,
+    y: (i) => SWATCH_Y + Math.floor(i / cols) * STEP,
+  };
+}
 
 /** The box the look cards are dealt into. */
 const LOOK_BOX = { right: 1264, bottom: 700, gap: 10, maxH: 220 };
@@ -104,8 +126,9 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
     const colorKey = part().colorKey;
     if (!colorKey || onLooks()) return [];
     const palette = PALETTES[colorKey] ?? CLOTH_COLORS;
+    const row = swatchRow(palette.length);
     return palette.map((color, i) => button(
-      `col:${i}`, GRID_X + i * 58, SWATCH_Y, 52, 52,
+      `col:${i}`, row.x(i), row.y(i), row.size, row.size,
       { swatch: color, active: spec[colorKey] === i },
     ));
   }
@@ -162,8 +185,8 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
       drawPanel(ctx, 620, 96, 636, 600, COLORS.panel, 22);
 
       for (const control of optionControls()) {
-        if (control.look) drawLookCard(ctx, control, spec, game.time);
-        else drawOption(ctx, control, spec, part(), game.time);
+        if (control.look) drawLookCard(ctx, control, spec);
+        else drawOption(ctx, control, spec, part());
       }
       for (const control of tabControls()) {
         drawTab(ctx, control, spec);
@@ -212,14 +235,15 @@ function tabTint(key, spec, active) {
 }
 
 /** A whole look, shown full length with its name underneath. */
-function drawLookCard(ctx, control, spec, time) {
+function drawLookCard(ctx, control, spec) {
   fillRR(ctx, control.x, control.y, control.w, control.h, 16,
     control.active ? COLORS.buttonActive : '#413945');
 
+  // A look card shows a fixed outfit, so it never changes at all once drawn.
   const preview = applyLook(spec, control.look.id);
-  drawMini(ctx, preview, {
+  drawCachedMini(ctx, preview, {
     x: control.x, y: control.y, w: control.w, h: control.h - 30,
-  }, 'body', time);
+  }, 'body');
 
   ctx.fillStyle = COLORS.ink;
   ctx.font = '600 20px system-ui, sans-serif';
@@ -234,12 +258,72 @@ function cropFor(key) {
   return HEAD_PARTS.has(key) ? 'head' : 'body';
 }
 
-function drawOption(ctx, control, spec, part, time) {
+function drawOption(ctx, control, spec, part) {
   fillRR(ctx, control.x, control.y, control.w, control.h, 14,
     control.active ? COLORS.buttonActive : '#413945');
 
   const preview = { ...spec, [part.key]: control.option };
-  drawMini(ctx, preview, control, cropFor(part.key), time);
+  drawCachedMini(ctx, preview, control, cropFor(part.key));
+}
+
+/*
+ * Option cells, rendered once and kept.
+ *
+ * Every cell used to draw a whole character on every frame — up to nineteen of
+ * them on the hair tab, each one allocating a spread of the spec, two
+ * clampSpecs and a fresh metrics object. Sixty times a second that is enough
+ * garbage to make the collector stall for a tenth of a second at a time, which
+ * on a phone is the screen locking up for a moment every time she changes
+ * something. The stalls were not on any one tab; they landed wherever the
+ * collector happened to run.
+ *
+ * A cell only changes when the character does, so it is drawn to its own small
+ * canvas and blitted after that. The big preview still animates — that is the
+ * one that is meant to be alive.
+ */
+const miniCache = new Map();
+const MINI_CACHE_LIMIT = 400;
+
+function drawCachedMini(ctx, spec, box, crop) {
+  const w = Math.round(box.w);
+  const h = Math.round(box.h);
+  const key = `${crop}|${w}x${h}|${miniKey(spec, crop)}`;
+
+  let tile = miniCache.get(key);
+  if (!tile) {
+    // Cheaper to drop the lot than to track which cells a change invalidates;
+    // it refills in one frame and this only trips after a lot of browsing.
+    if (miniCache.size > MINI_CACHE_LIMIT) miniCache.clear();
+    tile = document.createElement('canvas');
+    tile.width = w * MINI_SCALE;
+    tile.height = h * MINI_SCALE;
+    const tctx = tile.getContext('2d');
+    tctx.scale(MINI_SCALE, MINI_SCALE);
+    drawMini(tctx, spec, { x: 0, y: 0, w, h }, crop, 0);
+    miniCache.set(key, tile);
+  }
+  ctx.drawImage(tile, box.x, box.y, w, h);
+}
+
+/** Drawn at twice the cell size, so the tiles survive the letterbox scale. */
+const MINI_SCALE = 2;
+
+/**
+ * What a cell actually depends on.
+ *
+ * Keying on the whole spec would redraw every cell whenever anything changed,
+ * including parts the cell does not show — a head crop does not care what the
+ * shoes are.
+ */
+const MINI_KEYS = {
+  feature: ['build', 'face', 'skin', 'brows', 'eyes', 'eyeColor', 'nose', 'mouth', 'mouthColor', 'hair', 'hairColor'],
+  head: ['build', 'face', 'skin', 'hair', 'hairColor', 'hairpin', 'hairpinColor', 'brows', 'eyes', 'eyeColor', 'nose', 'mouth', 'mouthColor'],
+};
+
+function miniKey(spec, crop) {
+  const keys = MINI_KEYS[crop];
+  if (!keys) return Object.values(spec).join(',');
+  return keys.map((k) => spec[k]).join(',');
 }
 
 /**
