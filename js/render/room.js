@@ -10,9 +10,9 @@
 import { drawItem } from './catalog.js';
 import { drawBookFlat } from './book.js';
 import { resolveUse, carriedItems, isOn, switchFor } from '../model/using.js';
-import { drawCharacter } from './character.js';
+import { drawCharacter, CHAR_H } from './character.js';
 import { drawOrder } from '../model/geometry.js';
-import { shade, deepen, fillRR, roundRect, strokeLine } from './shapes.js';
+import { shade, deepen, fillRR, fillEllipse, roundRect, strokeLine } from './shapes.js';
 import { litFill } from './materials.js';
 import { partitionSide } from '../model/travel.js';
 
@@ -353,6 +353,11 @@ export function roomContents(room, characters, catalog) {
   const lookup = (id) => catalog.get(id);
   const orderedItems = drawOrder(room.items, lookup);
   const rank = new Map(orderedItems.map((placed, index) => [placed, index]));
+  // Characters rank after every item, so a tie on the baseline puts her in
+  // front of the furniture rather than behind it. Without this they all fell
+  // back to rank 0 and anything placed after the first item drew over them —
+  // which is why sitting on a sofa put her behind its back.
+  cast.forEach((entry, i) => rank.set(entry.placed, orderedItems.length + i));
 
   return [...items, ...cast].sort((a, b) => {
     const aWall = a.kind === 'item' && lookup(a.placed.item)?.surface === 'wall';
@@ -384,15 +389,41 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
       if (def && isOn(entry.placed)) drawSwitchedOn(ctx, entry.placed, def, time);
     } else {
       const doing = resolveUse(entry.placed, room.items);
+      const host = doing ? catalog.get(doing.item.item) : null;
+      // Anchored to the object she is on, not to a constant: a stool and a
+      // sofa are not the same height, and a fixed figure floats above one and
+      // sinks into the other.
+      const seatY = doing?.seat && host
+        ? ((doing.item.h ?? host.h) * doing.item.scale) * doing.seat
+        : undefined;
+
       ctx.save();
       ctx.translate(entry.placed.x, entry.placed.y);
+      if (doing?.pose === 'lie') {
+        // Lying is the standing figure turned on its side and laid on the
+        // mattress, which needs no new joints at all. Turning about her feet
+        // swings her whole length out to one side, so she is shifted half a
+        // body first and ends up centred on the bed.
+        //
+        // Scaled to the bed she is on, because a 310-tall figure on a 300-wide
+        // single bed hangs her feet off the end. A cot is shorter still.
+        const bedW = host ? (doing.item.w ?? host.w) * doing.item.scale : CHAR_H;
+        const fit = Math.min(1, (bedW * 0.94) / CHAR_H);
+        ctx.translate((CHAR_H * fit) / 2, -(seatY ?? 0));
+        ctx.rotate(-Math.PI / 2);
+        ctx.scale(fit, fit);
+      }
       drawCharacter(ctx, entry.placed.spec, time, {
         walking: Boolean(entry.placed.walk),
         facing: entry.placed.facing ?? 1,
+        pose: doing?.pose === 'sit' ? 'sit' : 'stand',
+        seatY,
+        asleep: doing?.asleep === true,
       });
       if (doing?.action === 'read') drawReading(ctx, doing.item, time);
       ctx.restore();
       if (doing?.action === 'shower') drawShowerRunning(ctx, doing.item, time);
+      if (doing?.action === 'bathe') drawBathWater(ctx, doing.item, host, time);
     }
   }
 }
@@ -540,6 +571,28 @@ function drawSwitchedOn(ctx, placed, def, time) {
     default:
       break;
   }
+}
+
+/** The water she is sitting in, drawn over her so she is in it, not on it. */
+function drawBathWater(ctx, item, def, time) {
+  if (!def) return;
+  const w = (item.w ?? def.w) * item.scale;
+  const h = (item.h ?? def.h) * item.scale;
+  const left = item.x - w / 2;
+  const top = item.y - h;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left, top + h * 0.3, w, h * 0.7);
+  ctx.clip();
+  ctx.globalAlpha = 0.72;
+  fillRR(ctx, left + w * 0.06, top + h * 0.42, w * 0.88, h * 0.5, 8, '#a9d6e5');
+  ctx.globalAlpha = 0.5;
+  for (let i = 0; i < 4; i += 1) {
+    const bob = Math.sin(time * 1.6 + i) * 3;
+    fillEllipse(ctx, left + w * (0.2 + i * 0.2), top + h * 0.44 + bob, 11, 5, '#e8f4f8');
+  }
+  ctx.restore();
 }
 
 function drawSelectionHalo(ctx, entry, catalog) {

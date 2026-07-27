@@ -11,18 +11,19 @@
 
 ## 2. A knee, so she can sit and lie
 
-- [ ] 2.1 One leg frame that every leg-drawing function consumes
-- [ ] 2.2 `stand` reproduces today's drawing exactly
-- [ ] 2.3 `sit` — thigh forward, shin down
-- [ ] 2.4 `lie` — horizontal
-- [ ] 2.5 Garments, socks and shoes follow the frame
+- [x] 2.1 Seating is a shift of hipY — everything above it derives from that
+      one number, so no separate leg frame was needed after all
+- [x] 2.2 `stand` reproduces today's drawing exactly
+- [x] 2.3 `sit` — thigh forward, shin down
+- [x] 2.4 `lie` — horizontal
+- [x] 2.5 Garments, socks and shoes follow the frame
 
 ## 3. Actions that use the pose
 
-- [ ] 3.1 `sleep` — beds, eyes closed
-- [ ] 3.2 `sit` — sofa, armchair, chair, stool, beanbag, toilet
-- [ ] 3.3 `bathe` — bathtub, in the water to the shoulders
-- [ ] 3.4 Anchor each to the object: seat height, mattress height
+- [x] 3.1 `sleep` — beds, eyes closed
+- [x] 3.2 `sit` — sofa, armchair, chair, stool, beanbag, toilet
+- [x] 3.3 `bathe` — bathtub, in the water to the shoulders
+- [x] 3.4 Anchor each to the object: seat height, mattress height
 
 ## 4. The cutaway house
 
@@ -33,7 +34,7 @@
 ## 5. Checks
 
 - [x] 5.1 Every affording id is a real catalog item
-- [ ] 5.2 Every sibling of a usable item affords the same action
+- [x] 5.2 Every sibling of a usable item affords the same action
 - [x] 5.3 Every action's icon exists
 - [ ] 5.4 The scene harness passes for each pose
 - [ ] 5.5 Screenshots at 915x412 of every new action

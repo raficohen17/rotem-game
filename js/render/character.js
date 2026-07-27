@@ -61,6 +61,49 @@ const PAPER = '#f6f1e8';
  * first, so there is no interleaving to worry about — and the alternative was
  * an extra parameter on every garment.
  */
+/**
+ * How high off the floor she sits when nothing says otherwise.
+ *
+ * Overridden per seat, because a stool and a sofa are not the same height and
+ * a figure drawn at a fixed height floats above one and sinks into the other.
+ */
+export const DEFAULT_SEAT = 92;
+
+/** Which pose the figure currently being drawn is in. */
+let POSE = 'stand';
+
+/**
+ * The same figure, sitting.
+ *
+ * Everything above the hip — waist, torso, shoulders, chin, and through them
+ * the head and arms — is derived from hipY, so lowering that one number sits
+ * the whole character down and shortens the legs to the shins in one move.
+ * Seen from the front the thighs point at the viewer and foreshorten to
+ * nothing, which is exactly why this reads as sitting rather than as a short
+ * person standing: the body drops, the shins stay, and the seat drawn around
+ * her does the rest.
+ */
+export function seatedMetrics(build, seatY) {
+  return seated(metricsFor(build), seatY);
+}
+
+/** The standing metrics for a build, exposed so a test can compare poses. */
+export function standMetrics(build) {
+  return metricsFor(build);
+}
+
+function seated(b, seatY) {
+  const drop = b.hipY + seatY; // hipY is negative; seatY is a height
+  return {
+    ...b,
+    hipY: b.hipY - drop,
+    waistY: b.waistY - drop,
+    torsoTop: b.torsoTop - drop,
+    shoulderY: b.shoulderY - drop,
+    chinY: b.chinY - drop,
+  };
+}
+
 function metricsFor(b) {
   const hipY = -b.leg;
   const torsoTop = hipY - 82;
@@ -115,6 +158,8 @@ export function headBounds(rawSpec) {
 export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   const spec = clampSpec(rawSpec);
   B = metricsFor(BUILDS[spec.build]);
+  POSE = motion?.pose === 'sit' ? 'sit' : 'stand';
+  if (POSE === 'sit') B = seated(B, motion.seatY ?? DEFAULT_SEAT);
   const skin = SKIN_TONES[spec.skin];
   const hairColor = HAIR_COLORS[spec.hairColor];
 
@@ -130,7 +175,8 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   // Characters blink out of step with each other — a room where everyone
   // blinks in unison looks wrong in a way that is hard to place.
   const phase = spec.skin * 1.7 + spec.hair * 2.3 + spec.eyes * 0.9;
-  const blinking = (time + phase) % 4.2 < 0.13;
+  // Asleep is a blink that does not end.
+  const blinking = motion?.asleep === true || (time + phase) % 4.2 < 0.13;
 
   const shape = FACE_SHAPES[spec.face];
   const headY = B.chinY - shape.chin * HEAD_SCALE;
@@ -196,6 +242,16 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
  * walking at this scale — a full knee joint would be invisible.
  */
 function drawLegs(ctx, skin, stride = 0) {
+  // Sitting, the thighs point at the viewer and foreshorten to nothing, so
+  // without a knee at the front of each one the figure reads as somebody
+  // short standing behind the furniture rather than as somebody sitting on it.
+  if (POSE === 'sit') {
+    for (const side of [-1, 1]) {
+      fillRR(ctx, side * B.legX - B.legW * 0.62, B.hipY - 10,
+        B.legW * 1.24, 30, B.legW * 0.55, shade(skin, -0.05));
+    }
+  }
+
   for (const side of [-1, 1]) {
     ctx.save();
     ctx.translate(side * B.legX, B.hipY - 6);

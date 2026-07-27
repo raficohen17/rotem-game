@@ -9,7 +9,7 @@
  *
  * BUMP CACHE_VERSION ON EVERY DEPLOY or Rotem keeps playing the old build.
  */
-const CACHE_VERSION = 'v29';
+const CACHE_VERSION = 'v30';
 const CACHE_NAME = `rotem-${CACHE_VERSION}`;
 
 // Only the shell is precached. Everything else (art, catalog) is cached the

@@ -290,6 +290,57 @@ export const ICONS = {
     }
   },
 
+  /* A figure on a seat, for sitting down. */
+  sit(ctx, c) {
+    fillCircle(ctx, -3, -15, 6, c);
+    // Back, thigh and shin as one bent line.
+    stroke(ctx, c, 5);
+    ctx.beginPath();
+    ctx.moveTo(-3, -8);
+    ctx.lineTo(-3, 3);
+    ctx.lineTo(11, 3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(11, 3);
+    ctx.lineTo(11, 17);
+    ctx.stroke();
+    strokeLine(ctx, -14, 17, -14, -2, c, 4);
+    strokeLine(ctx, -16, 3, -1, 3, c, 4);
+  },
+
+  /* Z's, for going to sleep. */
+  sleep(ctx, c) {
+    const zed = (x, y, size) => {
+      stroke(ctx, c, size * 0.26);
+      ctx.beginPath();
+      ctx.moveTo(x - size / 2, y - size / 2);
+      ctx.lineTo(x + size / 2, y - size / 2);
+      ctx.lineTo(x - size / 2, y + size / 2);
+      ctx.lineTo(x + size / 2, y + size / 2);
+      ctx.stroke();
+    };
+    zed(-8, 10, 13);
+    zed(6, -4, 11);
+    zed(15, -16, 8);
+  },
+
+  /* A tub with water in it. */
+  bathe(ctx, c) {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-19, -4);
+    ctx.lineTo(19, -4);
+    ctx.quadraticCurveTo(17, 15, 8, 15);
+    ctx.lineTo(-8, 15);
+    ctx.quadraticCurveTo(-17, 15, -19, -4);
+    ctx.closePath();
+    ctx.fill();
+    strokeLine(ctx, -21, -8, 21, -8, c, 3.4);
+    fillCircle(ctx, -11, -15, 3, c);
+    fillCircle(ctx, -1, -19, 2.6, c);
+    fillCircle(ctx, 8, -15, 2.2, c);
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

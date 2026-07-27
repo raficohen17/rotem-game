@@ -76,6 +76,41 @@ export const ACTIONS = {
     icon: 'shower',
     carried: false,
   },
+  sit: {
+    offset: 0,
+    facing: 1,
+    inFront: true,
+    label: 'sit',
+    icon: 'sit',
+    carried: false,
+    pose: 'sit',
+    /* Where the seat is, as a fraction of the item's height. A stool and a
+       sofa are not the same height, and a figure sat at a fixed height floats
+       above one and sinks into the other. */
+    seat: 0.46,
+  },
+  sleep: {
+    offset: 0,
+    facing: 1,
+    inFront: true,
+    label: 'sleep',
+    icon: 'sleep',
+    carried: false,
+    pose: 'lie',
+    asleep: true,
+    seat: 0.62,
+  },
+  bathe: {
+    offset: 0,
+    facing: 1,
+    // The tub draws over her, so she is in the water rather than on it.
+    inFront: false,
+    label: 'bathe',
+    icon: 'bathe',
+    carried: false,
+    pose: 'sit',
+    seat: 0.34,
+  },
 };
 
 /**
@@ -88,6 +123,23 @@ export const ACTIONS = {
 export const AFFORDS = {
   book: 'read',
   shower: 'shower',
+
+  /* Every bed, so a bunk and a cot are not mysteriously different. */
+  bed_single: 'sleep',
+  bed_double: 'sleep',
+  bunk_bed: 'sleep',
+  crib: 'sleep',
+
+  /* Every seat. A game where the sofa works and the armchair does not reads
+     as broken rather than as unfinished. */
+  sofa: 'sit',
+  armchair: 'sit',
+  chair: 'sit',
+  stool: 'sit',
+  beanbag: 'sit',
+  toilet: 'sit',
+
+  bathtub: 'bathe',
 };
 
 /** The action an item offers, or null if it is only furniture. */

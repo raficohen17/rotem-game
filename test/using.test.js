@@ -32,8 +32,9 @@ test('every affordance names an action that exists', () => {
 });
 
 test('furniture with no use offers none', () => {
-  assert.equal(useFor('sofa'), null);
-  assert.equal(canUse(placeItem('sofa', 100, 470)), false);
+  // A dining table is furniture you arrange, not furniture you occupy.
+  assert.equal(useFor('table_dining'), null);
+  assert.equal(canUse(placeItem('table_dining', 100, 470)), false);
   assert.equal(canUse(null), false);
 });
 
@@ -55,7 +56,7 @@ test('using something puts her at it', () => {
 
 test('she cannot use a thing that offers nothing', () => {
   const her = placeCharacter(undefined, 'bath', 200, 470);
-  assert.equal(beginUse(her, placeItem('sofa', 640, 470)), false);
+  assert.equal(beginUse(her, placeItem('wardrobe', 640, 470)), false);
   assert.equal(isUsing(her), false);
 });
 
@@ -184,10 +185,13 @@ test('a lamp turns on and off again', () => {
 });
 
 test('a sofa has no switch', () => {
+  // It can be sat on, which is a different thing: a seat is occupied by one
+  // person, a lamp is a state of the room.
   const sofa = placeItem('sofa', 300, 470);
   assert.equal(canSwitch(sofa), false);
   assert.equal(toggleSwitch(sofa), false);
   assert.equal(isOn(sofa), false);
+  assert.equal(canUse(sofa), true);
 });
 
 test('a lamp she left on is still on tomorrow', () => {
@@ -231,4 +235,48 @@ test('switching something is not the same as using it', () => {
   const shower = placeItem('shower', 640, 470);
   assert.equal(canSwitch(shower), false, 'a shower is occupied, not switched');
   assert.equal(canUse(shower), true);
+});
+
+/* ------------------------------------------------- poses and their hosts */
+
+test('every bed can be slept in and every seat sat on', () => {
+  // A game where the sofa works and the armchair does not reads as broken
+  // rather than as unfinished, so the whole drawer has to be covered.
+  const inCategory = (cat) => catalogItems.filter((i) => i.cat === cat).map((i) => i.id);
+
+  for (const id of inCategory('sleep')) {
+    // A cushion is a thing you put on a bed, not a thing you sleep in.
+    if (id === 'cushion') continue;
+    assert.equal(useFor(id), 'sleep', `${id} can be slept in`);
+  }
+  for (const id of inCategory('sit')) {
+    assert.equal(useFor(id), 'sit', `${id} can be sat on`);
+  }
+});
+
+test('a pose action says how it is drawn', () => {
+  for (const name of ['sit', 'sleep', 'bathe']) {
+    const action = ACTIONS[name];
+    assert.ok(['sit', 'lie'].includes(action.pose), `${name} names a pose`);
+    assert.ok(action.seat > 0 && action.seat < 1,
+      `${name} anchors to a fraction of its host's height, not a constant`);
+  }
+});
+
+test('sitting heights differ by what is being sat on', () => {
+  // A stool and a sofa are not the same height. Anchoring to a constant
+  // floats her above one and sinks her into the other.
+  assert.notEqual(ACTIONS.sit.seat, ACTIONS.bathe.seat);
+  assert.ok(ACTIONS.bathe.seat < ACTIONS.sit.seat, 'a bath is sat in lower than a chair');
+});
+
+test('sleeping closes her eyes', () => {
+  assert.equal(ACTIONS.sleep.asleep, true);
+  assert.notEqual(ACTIONS.sit.asleep, true, 'sitting does not');
+});
+
+test('what she is lying in is drawn behind her and a bath in front', () => {
+  // She lies on top of a mattress and down inside a bath.
+  assert.equal(ACTIONS.sleep.inFront, true);
+  assert.equal(ACTIONS.bathe.inFront, false);
 });

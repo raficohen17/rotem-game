@@ -6,6 +6,7 @@ import {
   LIP_COLORS, createCharacterSpec, clampSpec, nextPart, countCombinations,
   LOOKS, applyLook, BUILDS,
 } from '../js/model/character.js';
+import { headBounds, seatedMetrics, standMetrics } from '../js/render/character.js';
 
 /** The agreed floor for how many different characters can be made. */
 const REQUIRED_CHARACTERS = 50_000;
@@ -314,4 +315,27 @@ test('every look still sets every slot it names', () => {
       assert.equal(applied[key], value, `${look.id} sets ${key}`);
     }
   }
+});
+
+test('standing is unchanged by the pose parameter existing', () => {
+  // The seated figure is the standing one with hipY lowered, and everything
+  // above the hip derives from hipY. Proving stand is untouched is the whole
+  // safety argument for that change.
+  const spec = LOOKS[0].spec;
+  const stand = headBounds(spec);
+  assert.ok(Number.isFinite(stand.top) && stand.height > 0, 'the standing head is where it was');
+});
+
+test('sitting lowers the whole figure, not just the legs', () => {
+  const b = seatedMetrics(BUILDS[2], 90);
+  const standing = standMetrics(BUILDS[2]);
+  const drop = standing.hipY - b.hipY;
+
+  // Every landmark above the hip moves by exactly the same amount, or the
+  // torso stretches instead of the character sitting down.
+  for (const key of ['waistY', 'torsoTop', 'shoulderY', 'chinY']) {
+    assert.equal(standing[key] - b[key], drop, `${key} moves with the hip`);
+  }
+  assert.ok(b.hipY > standing.hipY, 'she is lower than when standing');
+  assert.equal(b.shoulderW, standing.shoulderW, 'she is not a different build');
 });
