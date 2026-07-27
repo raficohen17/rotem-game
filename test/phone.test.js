@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { lookGrid } from '../js/scenes/charcreator.js';
+import { LOOKS } from '../js/model/character.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -237,3 +239,30 @@ function designerControls() {
     'a title style button': style[2] === 'ROW.size' ? designerRow().size : Number(style[2]),
   };
 }
+
+/* ------------------------------------------------------------- the looks */
+
+test('the looks grid fits however many looks there are', () => {
+  // Fixed at three per row on a 230px step, the seventh look started a row
+  // that ran to y=802 on a 720-tall canvas — three outfits drawn off screen.
+  for (const count of [3, 6, 9, 12, 15]) {
+    const grid = lookGrid(count);
+    const last = count - 1;
+    const right = grid.x + (last % grid.cols) * grid.stepX + grid.w;
+    const bottom = grid.y + Math.floor(last / grid.cols) * grid.stepY + grid.h;
+    assert.ok(right <= SCREEN.w, `${count} looks: the last card ends at x=${Math.round(right)}`);
+    assert.ok(bottom <= SCREEN.h, `${count} looks: the last card ends at y=${Math.round(bottom)}`);
+  }
+});
+
+test('a look card stays big enough to tap and to see', () => {
+  const grid = lookGrid(LOOKS.length);
+  assert.ok(onScreen(grid.w) >= MIN_TAP, `a card is ${onScreen(grid.w).toFixed(1)}px wide`);
+  assert.ok(onScreen(grid.h) >= MIN_TAP, `a card is ${onScreen(grid.h).toFixed(1)}px tall`);
+});
+
+test('look cards do not overlap', () => {
+  const grid = lookGrid(LOOKS.length);
+  assert.ok(grid.stepX >= grid.w, 'columns are clear of each other');
+  assert.ok(grid.stepY >= grid.h, 'rows are clear of each other');
+});

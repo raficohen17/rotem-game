@@ -41,6 +41,25 @@ const TAB = { x: 20, y: 36, size: 70, step: 75, cols: 2 };
 // on one screen, so no part needs paging.
 const GRID_X = 648;
 const GRID_Y = 122;
+
+/** The box the look cards are dealt into. */
+const LOOK_BOX = { right: 1264, bottom: 700, gap: 10, maxH: 220 };
+
+/**
+ * Lays the looks out to fit however many there are.
+ *
+ * Fixed at a 190x220 card on a 200x230 step, the seventh look started a third
+ * row that ran to y=802 on a 720-tall canvas — three whole outfits drawn off
+ * the bottom of the screen. Sizing the card from the count means adding a look
+ * is still a matter of writing it down.
+ */
+export function lookGrid(count, cols = 3) {
+  const rows = Math.max(1, Math.ceil(count / cols));
+  const { gap, maxH } = LOOK_BOX;
+  const w = (LOOK_BOX.right - GRID_X - (cols - 1) * gap) / cols;
+  const h = Math.min(maxH, (LOOK_BOX.bottom - GRID_Y - (rows - 1) * gap) / rows);
+  return { cols, rows, w, h, stepX: w + gap, stepY: h + gap, x: GRID_X, y: GRID_Y };
+}
 const CELL = { w: 112, h: 128, stepX: 120, stepY: 136, cols: 5 };
 const SWATCH_Y = 566;
 
@@ -62,11 +81,12 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
 
   function optionControls() {
     if (onLooks()) {
+      const grid = lookGrid(LOOKS.length);
       return LOOKS.map((look, i) => button(
         `look:${look.id}`,
-        GRID_X + (i % 3) * 200,
-        GRID_Y + Math.floor(i / 3) * 230,
-        190, 220,
+        grid.x + (i % grid.cols) * grid.stepX,
+        grid.y + Math.floor(i / grid.cols) * grid.stepY,
+        grid.w, grid.h,
         { look },
       ));
     }

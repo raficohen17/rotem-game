@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   PART_COUNTS, PART_KEYS, EDITABLE_PARTS, SKIN_TONES, HAIR_COLORS, CLOTH_COLORS,
   LIP_COLORS, createCharacterSpec, clampSpec, nextPart, countCombinations,
-  LOOKS, applyLook,
+  LOOKS, applyLook, BUILDS,
 } from '../js/model/character.js';
 
 /** The agreed floor for how many different characters can be made. */
@@ -229,4 +229,89 @@ test('an ordinary item gains no design field', async () => {
   const loaded = migrateWorld(JSON.parse(JSON.stringify(world)));
 
   assert.equal('design' in loaded.rooms.living.items[0], false);
+});
+
+/* ------------------------------------------------------------------ boys */
+
+test('builds are not all one silhouette', () => {
+  // Every build was drawn from the same narrow-shouldered template, with the
+  // widest hips on the two that read most feminine, so no combination of
+  // parts made a boy.
+  const broad = BUILDS.filter((b) => b.shoulder > b.hip);
+  assert.ok(broad.length >= 2, `${broad.length} builds have shoulders wider than hips`);
+
+  const legs = broad.map((b) => b.leg);
+  assert.ok(Math.max(...legs) - Math.min(...legs) >= 25,
+    'the boyish builds cover a range of heights, not one');
+});
+
+test('no two builds are the same figure at a different size', () => {
+  const shape = (b) => [b.shoulder / b.hip, b.waist / b.hip].map((n) => n.toFixed(2)).join();
+  const shapes = BUILDS.map(shape);
+  assert.equal(new Set(shapes).size, shapes.length, 'every build is its own shape');
+});
+
+test('there are several short haircuts, not one', () => {
+  // Thirteen of the original fourteen were long or styled long. The one short
+  // cut was a pixie, so short hair and "girl" were the same choice.
+  assert.ok(PART_COUNTS.hair >= 19, `${PART_COUNTS.hair} hairstyles`);
+});
+
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+test('a mouth can be a natural colour rather than a lipstick', () => {
+  // A rose lipstick carries more blue than green; a natural lip is warmer and
+  // browner, so green above blue is the line between them. Every one of the
+  // original eight was a lipstick, which made up every face in the game
+  // whether or not anybody asked for it.
+  const natural = LIP_COLORS.filter((c) => { const [, g, b] = rgb(c); return g >= b; });
+  assert.ok(natural.length >= 2, `${natural.length} natural lip tones`);
+});
+
+test('the wardrobe has colours that are not sweets', () => {
+  // Six of the original ten were pink or purple, and none of the other four
+  // was a navy, a green, a brown or a grey — so a boy came out in orchid.
+  const has = (test) => CLOTH_COLORS.some((c) => test(...rgb(c)));
+  assert.ok(has((r, g, b) => b > r && b > g && b < 140), 'there is a navy');
+  assert.ok(has((r, g, b) => g > r && g > b), 'there is a green');
+  assert.ok(has((r, g, b) => r > g && g > b && r < 190), 'there is a brown');
+  assert.ok(has((r, g, b) => Math.max(r, g, b) - Math.min(r, g, b) < 30), 'there is a neutral');
+});
+
+test('adding parts left every saved character alone', () => {
+  // Parts are stored as indices, so appending is safe and inserting is not.
+  // These are the values the original tables had at these positions.
+  assert.equal(BUILDS[0].id, 'petite');
+  assert.equal(BUILDS[5].id, 'athletic');
+  assert.equal(LIP_COLORS[0], '#c96878');
+  assert.equal(CLOTH_COLORS[0], '#e0708a');
+  assert.equal(CLOTH_COLORS[9], '#4a4258');
+  assert.equal(LOOKS[0].id, 'school');
+  assert.equal(LOOKS[5].id, 'explorer');
+});
+
+test('boys can be dressed in one tap', () => {
+  const boys = LOOKS.filter((l) => ['schoolboy', 'scruff', 'sprig'].includes(l.id));
+  assert.equal(boys.length, 3, 'three boy looks');
+
+  for (const look of boys) {
+    const spec = clampSpec(look.spec);
+    // A look that lands on a part it did not mean is a look that was clamped,
+    // which means it named an index that does not exist.
+    for (const [key, value] of Object.entries(look.spec)) {
+      assert.equal(spec[key], value, `${look.id} sets ${key} to a real option`);
+    }
+    assert.ok(spec.hair >= 14, `${look.id} wears one of the short cuts`);
+    assert.ok(BUILDS[spec.build].shoulder > BUILDS[spec.build].hip,
+      `${look.id} has a boyish build`);
+  }
+});
+
+test('every look still sets every slot it names', () => {
+  for (const look of LOOKS) {
+    const applied = applyLook(createCharacterSpec(), look.id);
+    for (const [key, value] of Object.entries(look.spec)) {
+      assert.equal(applied[key], value, `${look.id} sets ${key}`);
+    }
+  }
 });

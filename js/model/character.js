@@ -27,11 +27,31 @@ export const HAIR_COLORS = [
 export const CLOTH_COLORS = [
   '#e0708a', '#f2a2ba', '#f7cddb', '#c98ad0', '#8f7ad8',
   '#6fa8dc', '#5fc4bd', '#f0c86a', '#faf3ea', '#4a4258',
+  /*
+   * Colours that are not sweets.
+   *
+   * Six of the ten above are pink or purple and none of the rest is a navy, a
+   * green, a brown or a grey — so a boy could be given trousers and a jumper
+   * and still come out dressed in orchid. The palette was quietly doing more
+   * to decide who these people were than any of the parts.
+   *
+   * Appended, so nothing already saved changes colour.
+   */
+  '#33406b', '#4f7a4a', '#8a6046', '#7d7a86', '#a8443f',
 ];
 
 export const LIP_COLORS = [
   '#c96878', '#d98292', '#b04f62', '#e8a0ae',
   '#96384c', '#e07a92', '#c05a70', '#f0bcc4',
+  /*
+   * Natural tones.
+   *
+   * Every colour above is a lipstick, so every face in the game was wearing
+   * one whether or not it was asked for — which is most of why a figure kept
+   * reading as a girl after the hair and the shoulders had been changed.
+   * Appended, so no saved character's mouth changes colour.
+   */
+  '#b8756e', '#a86a63', '#c98a80', '#8f5a55',
 ];
 
 export const EYE_COLORS = [
@@ -91,6 +111,20 @@ export const BUILDS = [
   { id: 'tall', shoulder: 28, waist: 19, hip: 28, leg: 148, arm: 13 },
   { id: 'curvy', shoulder: 30, waist: 22, hip: 35, leg: 126, arm: 15 },
   { id: 'athletic', shoulder: 33, waist: 23, hip: 29, leg: 136, arm: 16 },
+  /*
+   * Square shoulders, a straight waist and narrow hips.
+   *
+   * Every build above is the same narrow-shouldered template at a different
+   * size, with the widest hips on the two that read most feminine — so no
+   * combination of them made a boy, whatever hair and clothes were chosen.
+   * These three cover the same short/average/tall range the others do.
+   *
+   * Appended, never inserted: a build is stored as an index, so moving one
+   * would silently redraw every character already saved.
+   */
+  { id: 'sprout', shoulder: 27, waist: 21, hip: 24, leg: 114, arm: 14 },
+  { id: 'sturdy', shoulder: 33, waist: 26, hip: 28, leg: 132, arm: 17 },
+  { id: 'lanky', shoulder: 31, waist: 22, hip: 25, leg: 152, arm: 15 },
 ];
 
 /**
@@ -102,7 +136,7 @@ export const PART_COUNTS = {
   build: BUILDS.length,
   face: FACE_SHAPES.length,
   skin: SKIN_TONES.length,
-  hair: 14,
+  hair: 19,
   hairColor: HAIR_COLORS.length,
   hairpin: 10, // index 0 is "nothing"
   hairpinColor: CLOTH_COLORS.length,
@@ -276,6 +310,51 @@ export const LOOKS = [
       shoes: 7, shoesColor: 9, held: 0, extra: 0, extraColor: 9,
     },
   },
+  /*
+   * Boys.
+   *
+   * The parts to make one were mostly there — trousers, shorts, a t-shirt, a
+   * field jacket, a school jumper, bushy brows, a level mouth — but no
+   * combination of the six looks above reached one, so in practice the
+   * creator made girls. These are the three from the design note: a boy
+   * dressed for school, one who has been outside all day, and a small one.
+   *
+   * mouthColor points at the natural tones rather than the lipsticks, which
+   * is the single change that stops a face reading as made-up.
+   */
+  {
+    id: 'schoolboy',
+    label: 'School Boy',
+    spec: {
+      build: 7, face: 3, skin: 2, hair: 14, hairColor: 1, hairpin: 0,
+      brows: 6, eyes: 3, eyeColor: 1, nose: 2, mouth: 3, mouthColor: 9,
+      top: 11, topColor: 10, layer: 0, layerColor: 0,
+      bottom: 0, bottomColor: 13, socks: 1, socksColor: 9,
+      shoes: 2, shoesColor: 9, held: 1, extra: 0, extraColor: 0,
+    },
+  },
+  {
+    id: 'scruff',
+    label: 'Scruff',
+    spec: {
+      build: 6, face: 1, skin: 4, hair: 15, hairColor: 2, hairpin: 0,
+      brows: 2, eyes: 6, eyeColor: 2, nose: 5, mouth: 6, mouthColor: 8,
+      top: 0, topColor: 11, layer: 0, layerColor: 0,
+      bottom: 1, bottomColor: 12, socks: 1, socksColor: 8,
+      shoes: 5, shoesColor: 12, held: 0, extra: 0, extraColor: 0,
+    },
+  },
+  {
+    id: 'sprig',
+    label: 'Sprig',
+    spec: {
+      build: 6, face: 1, skin: 1, hair: 16, hairColor: 3, hairpin: 0,
+      brows: 0, eyes: 1, eyeColor: 4, nose: 5, mouth: 1, mouthColor: 10,
+      top: 0, topColor: 14, layer: 0, layerColor: 0,
+      bottom: 7, bottomColor: 5, socks: 1, socksColor: 8,
+      shoes: 1, shoesColor: 9, held: 5, extra: 0, extraColor: 0,
+    },
+  }
 ];
 
 /** Applies a look over a character, leaving anything it does not set alone. */

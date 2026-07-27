@@ -719,6 +719,38 @@ function drawBackHair(ctx, style, color) {
       tress(ctx, 56, -22, 104, 32, dark, 1.6);
       fillRR(ctx, -56, -38, 112, 96, 38, color);
       break;
+
+    /*
+     * Short cuts.
+     *
+     * Thirteen of the fourteen styles above are long or styled long, and the
+     * one short one is a pixie — so a figure could be given trousers and a
+     * crop and still read as a girl with short hair, because nothing else
+     * about the head said otherwise. These sit tight to the skull and stop at
+     * or above the nape, which is the part that actually carries the reading.
+     */
+    case 14: // short back and sides, tapered at the neck
+      fillRR(ctx, -54, -42, 108, 46, 22, color);
+      fillRR(ctx, -40, -8, 80, 12, 6, shade(color, -0.16));
+      break;
+    case 15: // a mop, thick and unbrushed
+      fillRR(ctx, -60, -44, 120, 62, 30, color);
+      for (let i = -2; i <= 2; i += 1) {
+        tress(ctx, i * 24, -34, 30, 20, dark, i * 0.5);
+      }
+      break;
+    case 16: // short curls, close to the head
+      fillRR(ctx, -56, -42, 112, 52, 26, color);
+      for (let i = -2; i <= 2; i += 1) {
+        fillCircle(ctx, i * 23, -40, 15, i % 2 ? color : shade(color, -0.1));
+      }
+      break;
+    case 17: // a crop with a straight fringe
+      fillRR(ctx, -56, -44, 112, 54, 20, color);
+      break;
+    case 18: // buzz, barely there
+      fillRR(ctx, -50, -44, 100, 40, 20, shade(color, -0.06));
+      break;
     default:
       break;
   }
@@ -727,8 +759,10 @@ function drawBackHair(ctx, style, color) {
 /** The crown and fringe, drawn after the face so it sits over the forehead. */
 function drawFrontHair(ctx, style, color, shape) {
   // Cropped styles show more forehead; heavy fringes come further down.
-  const heavy = style === 1 || style === 6 || style === 12;
-  const hairline = style === 8 ? -30 : heavy ? -4 : -16;
+  const heavy = style === 1 || style === 6 || style === 12 || style === 17;
+  // Short cuts show more forehead, which is most of what makes them read short.
+  const cropped = style === 8 || style === 14 || style === 18;
+  const hairline = cropped ? -30 : heavy ? -4 : -16;
 
   ctx.save();
   facePathScaled(ctx, shape, 1.07);
@@ -799,13 +833,36 @@ function drawFrontHair(ctx, style, color, shape) {
       fillEllipse(ctx, -22, -38, 40, 20, color);
       fillEllipse(ctx, 30, -34, 28, 16, color);
       break;
+    case 14: // swept to one side, short
+      fillEllipse(ctx, -20, -40, 40, 16, color);
+      fillEllipse(ctx, 26, -42, 26, 12, color);
+      break;
+    case 15: // a mop falling over the brow
+      for (let i = -2; i <= 2; i += 1) {
+        fillEllipse(ctx, i * 20, -32 + Math.abs(i) * 3, 17, 14, color);
+      }
+      break;
+    case 16: // curls over the forehead
+      for (let i = -1; i <= 1; i += 1) {
+        fillCircle(ctx, i * 26, -36, 15, i === 0 ? color : shade(color, -0.08));
+      }
+      break;
+    case 17: // a blunt fringe, straight across
+      fillRR(ctx, -50, -46, 100, 30, 8, color);
+      break;
+    case 18: // nothing to fall forward
+      break;
     default:
       fillEllipse(ctx, -18, -38, 38, 20, color);
       break;
   }
 
-  hairStrands(ctx, color);
-  hairSheen(ctx, color);
+  // A buzz has no strands or shine to speak of; drawing them made it look
+  // like a wig sitting on top of the head.
+  if (style !== 18) {
+    hairStrands(ctx, color);
+    hairSheen(ctx, color);
+  }
 }
 
 /** Fine lines radiating from the parting, so the crown is not a flat cap. */
