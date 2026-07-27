@@ -8,6 +8,8 @@
  */
 
 import { drawItem } from './catalog.js';
+import { drawBookFlat } from './book.js';
+import { resolveUse, carriedItems } from '../model/using.js';
 import { drawCharacter } from './character.js';
 import { drawOrder } from '../model/geometry.js';
 import { shade, deepen, fillRR, roundRect, strokeLine } from './shapes.js';
@@ -369,22 +371,92 @@ export function roomContents(room, characters, catalog) {
  * @param {object|null} selected highlighted with a halo
  */
 export function drawRoomContents(ctx, room, characters, catalog, time, selected = null) {
+  const carried = carriedItems(characters);
+
   for (const entry of roomContents(room, characters, catalog)) {
     if (entry.placed === selected) drawSelectionHalo(ctx, entry, catalog);
 
     if (entry.kind === 'item') {
+      // Something in somebody's hands is drawn there, not here as well.
+      if (carried.has(entry.placed.uid)) continue;
       const def = catalog.get(entry.placed.item);
       if (def) drawItem(ctx, entry.placed, def);
     } else {
+      const doing = resolveUse(entry.placed, room.items);
       ctx.save();
       ctx.translate(entry.placed.x, entry.placed.y);
       drawCharacter(ctx, entry.placed.spec, time, {
         walking: Boolean(entry.placed.walk),
         facing: entry.placed.facing ?? 1,
       });
+      if (doing?.action === 'read') drawReading(ctx, doing.item, time);
       ctx.restore();
+      if (doing?.action === 'shower') drawShowerRunning(ctx, doing.item, time);
     }
   }
+}
+
+/**
+ * The book she is reading, held up in front of her.
+ *
+ * Her own design is drawn, not a generic one, so the book she made is the
+ * book she is reading. Small and tilted, at about the height a person holds
+ * something they are looking at.
+ */
+function drawReading(ctx, item, time) {
+  const sway = Math.sin(time * 1.2) * 0.03;
+  ctx.save();
+  ctx.translate(0, -156);
+  ctx.rotate(-0.22 + sway);
+  drawBookFlat(ctx, item.design ?? {}, 96, 74);
+  ctx.restore();
+}
+
+/**
+ * The curtain pulled across the shower, with the water running.
+ *
+ * Drawn after she is, so she is behind it: a shower you can see straight
+ * through is not a shower, and hiding her is the joke a child is after.
+ */
+function drawShowerRunning(ctx, item, time) {
+  const w = (item.w ?? 180) * item.scale;
+  const h = (item.h ?? 330) * item.scale;
+  const left = item.x - w / 2;
+  const top = item.y - h;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left, top, w, h);
+  ctx.clip();
+
+  // The curtain, closed, with folds.
+  const curtain = 'rgba(214, 232, 240, 0.9)';
+  fillRR(ctx, left + w * 0.1, top + h * 0.16, w * 0.86, h * 0.66, 4, curtain);
+  ctx.strokeStyle = 'rgba(150, 180, 196, 0.55)';
+  ctx.lineWidth = 2;
+  for (let i = 1; i < 6; i += 1) {
+    const x = left + w * 0.1 + (w * 0.86 * i) / 6;
+    ctx.beginPath();
+    ctx.moveTo(x, top + h * 0.16);
+    ctx.lineTo(x, top + h * 0.82);
+    ctx.stroke();
+  }
+
+  // Water last, so it runs down the front of the curtain. Behind it the
+  // curtain hid it completely, which left a shower that was plainly not on.
+  ctx.strokeStyle = 'rgba(150, 205, 226, 0.75)';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 9; i += 1) {
+    const x = left + w * (0.2 + (i / 9) * 0.62);
+    const drop = (time * 260 + i * 53) % (h * 0.62);
+    ctx.beginPath();
+    ctx.moveTo(x, top + h * 0.2 + drop);
+    ctx.lineTo(x, top + h * 0.2 + drop + 18);
+    ctx.stroke();
+  }
+
+  ctx.restore();
 }
 
 function drawSelectionHalo(ctx, entry, catalog) {

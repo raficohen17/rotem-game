@@ -5,7 +5,41 @@
  * the game should *require* reading to be understood.
  */
 
-import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine } from '../render/shapes.js';
+import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, roundRect } from '../render/shapes.js';
+
+/** A line with a head on the end, drawn thick enough to survive downscaling. */
+function arrow(ctx, color, x1, y1, x2, y2, width = 3.6) {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const head = width * 2.2;
+  stroke(ctx, color, width);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - Math.cos(angle - 0.5) * head, y2 - Math.sin(angle - 0.5) * head);
+  ctx.lineTo(x2 - Math.cos(angle + 0.5) * head, y2 - Math.sin(angle + 0.5) * head);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** The outline the size controls share, so they read as a pair. */
+function sizeBox(ctx, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  roundRect(ctx, -17, -17, 34, 34, 6);
+  ctx.stroke();
+}
+
+/** The pile an object is being moved through, drawn as two cards edge on. */
+function stack(ctx, color) {
+  fillRR(ctx, -19, 6, 38, 6, 3, color);
+  fillRR(ctx, -13, 15, 26, 6, 3, color);
+}
 
 function stroke(ctx, color, width = 5) {
   ctx.strokeStyle = color;
@@ -74,66 +108,43 @@ export const ICONS = {
     ctx.setLineDash([]);
   },
 
+  /*
+   * Bigger and smaller.
+   *
+   * A plus and a minus in a box. Mirrored arrow pairs were tried twice and
+   * fail the same way: at phone size the heads are a few pixels and "pointing
+   * out" and "pointing in" collapse into the same pair of dashes. A cross and
+   * a single bar stay different however small they get, and a child already
+   * knows what they mean. The box is what says the pair is about the object
+   * rather than about adding another one.
+   */
   grow(ctx, c) {
-    // A small shape with arrows pushing outward from it.
-    fillRR(ctx, -7, -7, 14, 14, 3, c);
-    stroke(ctx, c, 3.2);
-    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      ctx.beginPath();
-      ctx.moveTo(sx * 11, sy * 11);
-      ctx.lineTo(sx * 18, sy * 18);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(sx * 18, sy * 18);
-      ctx.lineTo(sx * 18, sy * 11);
-      ctx.moveTo(sx * 18, sy * 18);
-      ctx.lineTo(sx * 11, sy * 18);
-      ctx.stroke();
-    }
+    sizeBox(ctx, c);
+    strokeLine(ctx, -8, 0, 8, 0, c, 4.6);
+    strokeLine(ctx, 0, -8, 0, 8, c, 4.6);
   },
 
   shrink(ctx, c) {
-    // A large outlined shape with arrows pulling inward.
-    stroke(ctx, c, 2.6);
-    ctx.strokeRect(-17, -17, 34, 34);
-    fillRR(ctx, -6, -6, 12, 12, 3, c);
-    stroke(ctx, c, 3.2);
-    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      ctx.beginPath();
-      ctx.moveTo(sx * 14, sy * 14);
-      ctx.lineTo(sx * 9, sy * 9);
-      ctx.stroke();
-    }
+    sizeBox(ctx, c);
+    strokeLine(ctx, -8, 0, 8, 0, c, 4.6);
   },
 
+  /*
+   * In front of and behind.
+   *
+   * These used to be the same two overlapping cards with the fill swapped and
+   * a 7px arrow to tell them apart, which at phone size made them identical.
+   * The difference is now the direction of a big arrow, which is the one thing
+   * that survives being drawn small.
+   */
   layerUp(ctx, c) {
-    // Two cards; the near one is solid and lifted, so "bring to the front".
-    ctx.strokeStyle = c;
-    ctx.lineWidth = 2.6;
-    ctx.strokeRect(-2, -14, 18, 18);
-    fillRR(ctx, -16, -2, 20, 20, 3, c);
-    ctx.beginPath();
-    ctx.moveTo(12, 12);
-    ctx.lineTo(19, 5);
-    ctx.lineTo(19, 12);
-    ctx.closePath();
-    ctx.fillStyle = c;
-    ctx.fill();
+    stack(ctx, c);
+    arrow(ctx, c, 0, 2, 0, -19, 4.4);
   },
 
   layerDown(ctx, c) {
-    // The same two cards with the far one solid: "send to the back".
-    fillRR(ctx, -2, -16, 20, 20, 3, c);
-    ctx.strokeStyle = c;
-    ctx.lineWidth = 2.6;
-    ctx.strokeRect(-16, -2, 18, 18);
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.moveTo(-19, 12);
-    ctx.lineTo(-12, 5);
-    ctx.lineTo(-12, 12);
-    ctx.closePath();
-    ctx.fill();
+    stack(ctx, c);
+    arrow(ctx, c, 0, -19, 0, 2, 4.4);
   },
 
   paint(ctx, c) {
@@ -177,6 +188,35 @@ export const ICONS = {
       fillCircle(ctx, x, y, r, c);
     }
     ctx.restore();
+  },
+
+  /* An open book, for "read this". */
+  book(ctx, c) {
+    ctx.fillStyle = c;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * 2, -11);
+      ctx.quadraticCurveTo(side * 12, -16, side * 20, -12);
+      ctx.lineTo(side * 20, 12);
+      ctx.quadraticCurveTo(side * 12, 8, side * 2, 13);
+      ctx.closePath();
+      ctx.fill();
+    }
+    strokeLine(ctx, 0, -12, 0, 13, c, 3);
+  },
+
+  /* A shower head with the water on. */
+  shower(ctx, c) {
+    strokeLine(ctx, 0, -21, 0, -14, c, 3.4);
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-15, -8);
+    ctx.quadraticCurveTo(0, -18, 15, -8);
+    ctx.closePath();
+    ctx.fill();
+    for (const [x, y] of [[-10, 0], [-3.5, 3], [3.5, 0], [10, 3], [-7, 11], [7, 11], [0, 14]]) {
+      fillCircle(ctx, x, y, 2.6, c);
+    }
   },
 
   check(ctx, c) {

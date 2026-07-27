@@ -186,10 +186,21 @@ export function repairWorld(world) {
         x: Number.isFinite(c.x) ? c.x : SPAWN.x,
         y: Number.isFinite(c.y) ? c.y : SPAWN.y,
         z: Number.isFinite(c.z) ? c.z : 0,
+        // What she is in the middle of doing. Rebuilding the character from a
+        // fixed list of fields is what keeps a corrupt save from crashing the
+        // game, and it also silently dropped this the first time — she was
+        // showering until the world was reopened, and then she was not.
+        ...(isUsingRecord(c.using) ? { using: { uid: c.using.uid, action: c.using.action } } : {}),
       }));
   }
 
   return safe;
+}
+
+/** A saved "she is using something" record, before it is trusted. */
+function isUsingRecord(using) {
+  return Boolean(using) && typeof using === 'object'
+    && typeof using.uid === 'string' && typeof using.action === 'string';
 }
 
 /** Guarantees every optional field exists, so nothing downstream checks. */

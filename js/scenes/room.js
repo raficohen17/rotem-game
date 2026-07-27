@@ -19,6 +19,9 @@ import { fillRR, fillCircle, roundRect, shade } from '../render/shapes.js';
 import { drawItemArt } from '../render/catalog.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import {
+  ACTIONS, canUse, useFor, beginUse, stopUsing, isUsing,
+} from '../model/using.js';
+import {
   drawRoomShell, drawRoomContents, roomContents, drawFloorSample,
   ROOM_W, ROOM_H, FLOOR_Y, FLOOR_BAND,
 } from '../render/room.js';
@@ -43,6 +46,9 @@ const CELL = { y: 548, w: 100, h: 152, step: 106, x: 46 };
  * taps most.
  */
 const PIP = 72;
+
+/** How close she has to stand to something before she can use it. */
+const USE_REACH = 110;
 
 /**
  * Tabs that are not furniture categories.
@@ -198,19 +204,34 @@ export function createRoomScene(game, roomId) {
   }
 
   /** Frontmost thing under a room-space point, so what looks on top is picked. */
+  /**
+   * The thing under a point in the room. People win ties.
+   *
+   * Depth order alone put the furniture first, and the moment a character
+   * stood at something she could use — the whole point of standing there —
+   * the item covered her and she could not be tapped at all. The buttons that
+   * appear on her were unreachable exactly when they were wanted. She is
+   * narrower than the shower she is standing in, so the item is still easy to
+   * tap on either side of her.
+   */
   function pick(rx, ry) {
     const entries = roomContents(room, cast(), catalog);
+
     for (let i = entries.length - 1; i >= 0; i -= 1) {
       const entry = entries[i];
-      if (entry.kind === 'item') {
-        const def = catalog.get(entry.placed.item);
-        if (def && boundsContain(itemBounds(entry.placed, def), rx, ry)) return entry.placed;
-      } else {
-        const c = entry.placed;
-        if (rx >= c.x - CHAR_W / 2 && rx <= c.x + CHAR_W / 2
-          && ry >= c.y - CHAR_H && ry <= c.y) return c;
-      }
+      if (entry.kind === 'item') continue;
+      const c = entry.placed;
+      if (rx >= c.x - CHAR_W / 2 && rx <= c.x + CHAR_W / 2
+        && ry >= c.y - CHAR_H && ry <= c.y) return c;
     }
+
+    for (let i = entries.length - 1; i >= 0; i -= 1) {
+      const entry = entries[i];
+      if (entry.kind !== 'item') continue;
+      const def = catalog.get(entry.placed.item);
+      if (def && boundsContain(itemBounds(entry.placed, def), rx, ry)) return entry.placed;
+    }
+
     return null;
   }
 
@@ -315,6 +336,25 @@ export function createRoomScene(game, roomId) {
   }
 
   /**
+   * The usable thing a character is standing at, if any.
+   *
+   * Standing near it is the whole gesture: she is walked or dragged to the
+   * shower and a shower button appears on her. Asking a child to pick the
+   * character, then pick a verb, then pick the target is three steps where
+   * one will do.
+   */
+  function nearestUsable(character) {
+    if (isItem(character) || isUsing(character)) return null;
+    return room.items.find((item) => canUse(item)
+      && Math.abs(item.x - character.x) <= USE_REACH) ?? null;
+  }
+
+  function useIcon(character) {
+    const item = nearestUsable(character);
+    return ACTIONS[useFor(item.item)].icon;
+  }
+
+  /**
    * Controls for the selected object, floating just above it rather than
    * pinned to the top of the screen — so they are next to what they act on,
    * and gone entirely when nothing is selected.
@@ -329,7 +369,11 @@ export function createRoomScene(game, roomId) {
         ['shrink', 'shrink'], ['grow', 'grow'], ['flip', 'flip'],
         ['sendBack', 'layerDown'], ['bringFront', 'layerUp'], ['delete', 'trash'],
       ]
-      : [['edit', 'person'], ['delete', 'trash']];
+      : [
+        ...(nearestUsable(selected) ? [['use', useIcon(selected)]] : []),
+        ...(isUsing(selected) ? [['stop', 'cross']] : []),
+        ['edit', 'person'], ['delete', 'trash'],
+      ];
 
     const t = transform();
     const width = ids.length * PIP + (ids.length - 1) * 6;
@@ -366,6 +410,12 @@ export function createRoomScene(game, roomId) {
       case 'drawer': open = !open; return true;
       case 'addPerson': openCreator(null); return true;
       case 'edit': openCreator(selected); return true;
+      case 'use': {
+        const item = nearestUsable(selected);
+        if (item) { beginUse(selected, item); game.persist(); }
+        return true;
+      }
+      case 'stop': stopUsing(selected); game.persist(); return true;
       case 'design': openBookDesigner(selected); return true;
       case 'delete': removeSelected(); return true;
       default: break;
