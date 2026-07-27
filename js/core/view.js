@@ -25,6 +25,10 @@ export class View {
     const cssW = window.innerWidth;
     const cssH = window.innerHeight;
 
+    this.dpr = dpr;
+    this.cssW = cssW;
+    this.cssH = cssH;
+
     this.canvas.width = Math.round(cssW * dpr);
     this.canvas.height = Math.round(cssH * dpr);
     this.canvas.style.width = `${cssW}px`;
@@ -37,6 +41,36 @@ export class View {
     this.scale = this.cssScale * dpr;
     this.offsetX = this.cssOffsetX * dpr;
     this.offsetY = this.cssOffsetY * dpr;
+  }
+
+  /**
+   * True when the screen is taller than it is wide.
+   *
+   * The game is landscape by design — a cutaway of a whole house is a wide
+   * picture, and there is no arrangement of four rooms that is not. Held
+   * upright, a phone letterboxes it into a strip across the middle at under a
+   * third scale, with two thirds of the screen black and every control half
+   * the size it was drawn to be. So portrait is not a layout to support, it
+   * is a state to ask her out of.
+   */
+  isPortrait() {
+    return this.cssH > this.cssW;
+  }
+
+  /**
+   * Clears the frame and puts the context into CSS pixels.
+   *
+   * For the one thing that has to be drawn to the screen itself rather than
+   * into the letterboxed design space: in portrait that box is the strip we
+   * are asking her to get out of, so a message drawn inside it would be as
+   * small and as off-centre as everything else.
+   */
+  beginScreen() {
+    const { ctx } = this;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#1a161c';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
   }
 
   /** Clears the frame and puts the context into design coordinates. */

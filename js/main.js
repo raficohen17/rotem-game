@@ -11,6 +11,7 @@ import { createHouse } from './scenes/house.js';
 import { createArtSheet } from './scenes/artsheet.js';
 import { stepWalk } from './model/travel.js';
 import { renderHouseThumbnail } from './render/room.js';
+import { drawRotatePrompt } from './ui/rotate.js';
 import { HOUSE_LAYOUT } from './model/world.js';
 import { ROOM_W } from './render/room.js';
 
@@ -110,7 +111,10 @@ const game = {
   },
 };
 
-new Input(canvas, view, () => scene);
+// No scene while the phone is upright, so nothing can be tapped behind the
+// rotate prompt — a stray tap on a control she cannot see would act on the
+// house she cannot see either.
+new Input(canvas, view, () => (view.isPortrait() ? null : scene));
 window.addEventListener('resize', () => view.resize());
 window.addEventListener('orientationchange', () => view.resize());
 
@@ -124,6 +128,16 @@ function frame(now) {
     game.pendingSave = false;
     game.saveTimer = 0;
     game.persist();
+  }
+
+  // Held upright, the game is asked for rather than drawn. Everything above
+  // this line still runs — a save in flight is not stranded by a rotation —
+  // but the world stops where it is until the phone comes back round.
+  if (view.isPortrait()) {
+    view.beginScreen();
+    drawRotatePrompt(view.ctx, view.cssW, view.cssH, game.time);
+    requestAnimationFrame(frame);
+    return;
   }
 
   // Keep the menu's picture of the house roughly current, so closing the app
