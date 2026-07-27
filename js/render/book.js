@@ -238,9 +238,9 @@ function drawTitle(ctx, design, x, y, w, h) {
   const top = y + h * (arch ? 0.16 : 0.19);
   const cx = x + w / 2;
 
-  const plate = plateColour(ink);
   const padX = size * 0.55;
   const padY = size * 0.36;
+  let boxFill = null;
 
   // Banner and boxed are deliberate designs and keep their backing. Plain and
   // arched get a halo round the letters instead: it buys the same legibility
@@ -254,8 +254,9 @@ function drawTitle(ctx, design, x, y, w, h) {
     // label sits on the cover, where a translucent panel let the pattern show
     // through it as a smear.
     const bg = effectiveBackground(design);
+    boxFill = blend(bg, contrastTo(bg), 0.86);
     fillRR(ctx, cx - widest / 2 - padX, top - padY, widest + padX * 2,
-      blockH + padY * 2, 5, blend(bg, contrastTo(bg), 0.86));
+      blockH + padY * 2, 5, boxFill);
     ctx.strokeStyle = ink;
     ctx.lineWidth = 2.5;
     roundRect(ctx, cx - widest / 2 - padX + 4, top - padY + 4,
@@ -263,8 +264,24 @@ function drawTitle(ctx, design, x, y, w, h) {
     ctx.stroke();
   }
 
-  const textInk = style === 'banner' ? contrastTo(ink) : ink;
-  const halo = (style === 'plain' || arch) && needsHalo(design) ? plate : null;
+  /*
+   * What the letters are actually set in.
+   *
+   * Each style puts the words on something different, so each asks the same
+   * question of a different background: a banner is a solid bar of her colour,
+   * a box is a near-solid label, and plain and arched sit straight on the
+   * cover. The dark title colour on a boxed cover was the case that made this
+   * worth separating — the box goes dark over a light cover, and her charcoal
+   * ink disappeared into the label meant to be carrying it.
+   */
+  let textInk;
+  if (style === 'banner') textInk = contrastTo(ink);
+  else if (style === 'boxed') textInk = readableOn(ink, boxFill);
+  else textInk = readableInk(design);
+
+  const halo = (style === 'plain' || arch) && needsHalo(design)
+    ? plateColour(textInk)
+    : null;
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
@@ -306,6 +323,79 @@ function haloedText(ctx, text, x, y, size, ink, halo, draw = null) {
 /** A backing tone that the ink will always read against. */
 function plateColour(ink) {
   return luminance(ink) > 0.55 ? '#2e2a30' : '#f7f2e8';
+}
+
+/** Near-black and near-white, warmed so they sit on a paper cover. */
+const DARKEST = '#17121c';
+const LIGHTEST = '#fdf7ec';
+
+/**
+ * Every background a letter has to hold up against.
+ *
+ * Three of them on a patterned cover, not two: the cover, the pattern, and
+ * their average. Which one the eye actually sees depends on how fine the
+ * pattern is — a letter crossing a big star sits on the star, while stripes at
+ * shelf size blur into a single tone — and the ink has no way to know which,
+ * so it clears all three.
+ */
+function coverTones(design) {
+  const cover = COVER_COLORS[design.cover];
+  if (COVER_PATTERNS[design.pattern] === 'plain') return [cover];
+  return [cover, COVER_COLORS[design.patternColor], effectiveBackground(design)];
+}
+
+/** How far apart two colours read. */
+function gap(a, b) {
+  return Math.abs(luminance(a) - luminance(b));
+}
+
+/**
+ * An ink moved only as far as it has to be to be read on a given background.
+ *
+ * The ten cover colours are a set of tinted paper stocks, and eight of them
+ * sit inside a luminance band narrower than the contrast floor itself — so
+ * almost any colour she picks for a title is close to almost any colour she
+ * picks for the cover. Measured across every combination, 89% of them landed
+ * below the floor, which meant the halo that was written as insurance was
+ * carrying the whole palette, and carrying it thinly.
+ *
+ * Her choice is kept: only the lightness moves, and only until it separates.
+ * Blue on purple stays blue — it becomes a navy or a powder blue rather than
+ * a different colour.
+ */
+export function readableOn(ink, ...backgrounds) {
+  const worst = (color) => Math.min(...backgrounds.map((bg) => gap(color, bg)));
+  if (worst(ink) >= CONTRAST_FLOOR) return ink;
+
+  // Both directions are tried rather than picking one from the average,
+  // because a cover and its pattern can sit on opposite sides of it: cream
+  // stars on a charcoal cover average to a mid grey that points nowhere.
+  let best = ink;
+  let bestGap = worst(ink);
+  for (const target of [DARKEST, LIGHTEST]) {
+    for (let t = 0.1; t <= 1.0001; t += 0.05) {
+      const candidate = blend(ink, target, Math.min(t, 1));
+      const separation = worst(candidate);
+      if (separation >= CONTRAST_FLOOR) return candidate;
+      if (separation > bestGap) {
+        bestGap = separation;
+        best = candidate;
+      }
+    }
+  }
+  // Nothing clears every tone — the cover has light and dark on it at once.
+  // The best available ink goes out and the halo carries the rest.
+  return best;
+}
+
+/**
+ * Her title colour, as it has to be to be read on the cover she chose.
+ *
+ * Measured against the tones actually printed on the cover rather than their
+ * average, because those are what a letter crosses.
+ */
+export function readableInk(design) {
+  return readableOn(COVER_COLORS[design.titleColor], ...coverTones(design));
 }
 
 /** Black or white, whichever the given colour can carry. */
@@ -356,11 +446,17 @@ export const CONTRAST_FLOOR = 0.34;
  * The glow is insurance, not decoration. Cream lettering on a charcoal cover
  * already separates perfectly, and adding a dark glow underneath it only
  * smudged the area — which is what made dark covers look murky. So the glow
- * appears exactly when the ink and its background are too close.
+ * appears exactly when the ink cannot be read against one of the tones on the
+ * cover, whatever its lightness.
  */
 export function needsHalo(design) {
-  const ink = COVER_COLORS[design.titleColor];
-  return Math.abs(luminance(ink) - luminance(effectiveBackground(design))) < CONTRAST_FLOOR;
+  // Against the real tones rather than their average: a cream star on a
+  // charcoal cover averages to a mid grey that no single ink can be read on,
+  // and it is the star the letter actually crosses. Checked against the ink
+  // after adjustment, so the halo is back to being the exception it was
+  // written as — the case where no one colour works anywhere on the cover.
+  const ink = readableInk(design);
+  return coverTones(design).some((tone) => gap(ink, tone) < CONTRAST_FLOOR);
 }
 
 /**

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   needsHalo, effectiveBackground, luminance, contrastTo, CONTRAST_FLOOR,
+  readableInk, readableOn,
 } from '../js/render/book.js';
 import { COVER_COLORS, COVER_PATTERNS, createBook } from '../js/model/book.js';
 
@@ -50,39 +51,106 @@ test('cream lettering on a charcoal cover needs no glow', () => {
   assert.equal(needsHalo(design), false);
 });
 
-test('ink close to its background does get a glow', () => {
+test('an ink the same colour as its cover is moved until it can be read', () => {
+  // It used to be left alone and given a glow. Moving the ink is the better
+  // answer: the letters separate by themselves and the cover stays clean.
   const design = {
     ...createBook(), cover: CHARCOAL, pattern: PLAIN, titleColor: CHARCOAL,
   };
-  assert.equal(needsHalo(design), true);
+  const ink = readableInk(design);
+
+  assert.notEqual(ink, COVER_COLORS[CHARCOAL], 'it did not stay as it was');
+  assert.ok(
+    Math.abs(luminance(ink) - luminance(COVER_COLORS[CHARCOAL])) >= CONTRAST_FLOOR,
+    'and it now separates from the cover',
+  );
 });
 
-test('the glow decision follows the contrast floor exactly', () => {
-  for (let cover = 0; cover < COVER_COLORS.length; cover += 1) {
-    for (let ink = 0; ink < COVER_COLORS.length; ink += 1) {
-      const design = { ...createBook(), cover, pattern: PLAIN, titleColor: ink };
-      const gap = Math.abs(luminance(COVER_COLORS[ink]) - luminance(COVER_COLORS[cover]));
-      assert.equal(needsHalo(design), gap < CONTRAST_FLOOR,
-        `cover ${cover} with ink ${ink} (gap ${gap.toFixed(2)})`);
-    }
-  }
+test('an ink that already separates is left exactly as she chose it', () => {
+  const design = {
+    ...createBook(), cover: CHARCOAL, pattern: PLAIN, titleColor: CREAM,
+  };
+  assert.equal(readableInk(design), COVER_COLORS[CREAM]);
 });
 
-test('every cover and ink pairing is legible one way or the other', () => {
-  // Either the ink already separates, or a glow is applied. There is no
-  // combination she can pick that leaves the title unreadable.
+test('a moved ink keeps the colour she picked', () => {
+  // The point of moving only the lightness: blue on purple was the case that
+  // started this, and it has to still look like blue.
+  const purple = indexOf(COVER_COLORS, '#8a6d9e');
+  const blue = indexOf(COVER_COLORS, '#5c8fae');
+  const design = { ...createBook(), cover: purple, pattern: PLAIN, titleColor: blue };
+  const ink = readableInk(design);
+
+  const channels = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const [r, g, b] = channels(ink);
+  assert.ok(b >= g && g >= r, `${ink} is still a blue, not a grey or a brown`);
+});
+
+test('no colour she can pick leaves a title unreadable', () => {
+  // The whole space: ten covers, eight patterns, ten pattern colours, ten
+  // title colours. Before the ink was adjusted, 89% of these sat below the
+  // floor and leaned on a glow that was written for the rare case.
+  let checked = 0;
+  let leaning = 0;
+
   for (let cover = 0; cover < COVER_COLORS.length; cover += 1) {
-    for (let ink = 0; ink < COVER_COLORS.length; ink += 1) {
-      for (let pattern = 0; pattern < COVER_PATTERNS.length; pattern += 1) {
-        const design = { ...createBook(), cover, pattern, patternColor: ink, titleColor: ink };
-        const gap = Math.abs(
-          luminance(COVER_COLORS[ink]) - luminance(effectiveBackground(design)),
-        );
-        assert.ok(gap >= CONTRAST_FLOOR || needsHalo(design),
-          `cover ${cover} / pattern ${pattern} / ink ${ink} is readable`);
+    for (let pattern = 0; pattern < COVER_PATTERNS.length; pattern += 1) {
+      for (let patternColor = 0; patternColor < COVER_COLORS.length; patternColor += 1) {
+        for (let titleColor = 0; titleColor < COVER_COLORS.length; titleColor += 1) {
+          const design = {
+            ...createBook(), cover, pattern, patternColor, titleColor,
+          };
+          const separation = Math.abs(
+            luminance(readableInk(design)) - luminance(effectiveBackground(design)),
+          );
+          checked += 1;
+          if (separation < CONTRAST_FLOOR) {
+            leaning += 1;
+            assert.ok(needsHalo(design),
+              `cover ${cover} / pattern ${pattern} / ink ${titleColor} has neither contrast nor a glow`);
+          }
+        }
       }
     }
   }
+
+  assert.equal(checked, 8000, 'the whole space was covered');
+  // Some covers carry a light tone and a dark one at once, and no single ink
+  // reads on both — those are the ones the glow exists for. If this climbs
+  // back toward the old 89%, the ink adjustment has stopped working.
+  assert.ok(leaning / checked < 0.05,
+    `${((leaning / checked) * 100).toFixed(1)}% of covers still depend on a glow`);
+});
+
+test('a glow is now the exception rather than the rule', () => {
+  let halos = 0;
+  let total = 0;
+  for (let cover = 0; cover < COVER_COLORS.length; cover += 1) {
+    for (let pattern = 0; pattern < COVER_PATTERNS.length; pattern += 1) {
+      for (let titleColor = 0; titleColor < COVER_COLORS.length; titleColor += 1) {
+        total += 1;
+        if (needsHalo({ ...createBook(), cover, pattern, titleColor })) halos += 1;
+      }
+    }
+  }
+  assert.ok(halos / total < 0.2, `${((halos / total) * 100).toFixed(1)}% of covers get a glow`);
+});
+
+test('readableOn satisfies every background it is given at once', () => {
+  // The boxed style asks it about a label; a patterned cover asks it about two
+  // tones that can sit either side of the average.
+  const cream = COVER_COLORS[CREAM];
+  const charcoal = COVER_COLORS[CHARCOAL];
+
+  const one = readableOn(cream, cream);
+  assert.ok(Math.abs(luminance(one) - luminance(cream)) >= CONTRAST_FLOOR,
+    'it separates from a single background');
+
+  // Cream and charcoal together is the impossible case: it returns the best
+  // available ink rather than failing, and needsHalo covers the rest.
+  const both = readableOn(cream, cream, charcoal);
+  assert.equal(typeof both, 'string');
+  assert.match(both, /^#[0-9a-f]{6}$/i);
 });
 
 test('a book laid flat keeps its orientation through a save', async () => {
