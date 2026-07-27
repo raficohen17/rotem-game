@@ -124,3 +124,116 @@ function creatorTabCount() {
   assert.ok(parts, 'found EDITABLE_PARTS');
   return 1 + (parts[1].match(/key:/g) ?? []).length;
 }
+
+/* ------------------------------------------------------- the other scenes */
+
+const menuSource = readFileSync(join(ROOT, 'js/scenes/menu.js'), 'utf8');
+const designerSource = readFileSync(join(ROOT, 'js/scenes/bookdesigner.js'), 'utf8');
+const houseSource = readFileSync(join(ROOT, 'js/scenes/house.js'), 'utf8');
+
+test('the delete button on a house is big enough to hit', () => {
+  const trash = number(menuSource, /const TRASH = (\d+)/, 'TRASH');
+  assert.ok(onScreen(trash) >= MIN_TAP, `${onScreen(trash).toFixed(1)}px`);
+});
+
+test('the delete button does not spill into the next house along', () => {
+  // It straddles the corner to stay off the slot, so the gap is what stops it
+  // landing on a neighbour — deleting the wrong house is the worst misfire in
+  // the game, and it is the one action that cannot be undone.
+  const slotW = number(menuSource, /const SLOT_W = (\d+)/, 'SLOT_W');
+  const gap = number(menuSource, /const GAP_X = (\d+)/, 'GAP_X');
+  const trash = number(menuSource, /const TRASH = (\d+)/, 'TRASH');
+  const inset = number(menuSource, /box\.x \+ box\.w - (\d+), box\.y/, 'the trash inset');
+
+  const overhang = trash - inset;
+  assert.ok(overhang <= gap, `it reaches ${overhang}px past the slot into a ${gap}px gap`);
+  assert.ok(inset < slotW, 'and still starts inside its own slot');
+});
+
+test('the house names stay clear of the row below', () => {
+  const rows = menuSource.match(/const ROW_Y = \[(\d+), (\d+)\]/);
+  assert.ok(rows, 'found the row positions');
+  const slotH = number(menuSource, /const SLOT_H = (\d+)/, 'SLOT_H');
+  const trash = number(menuSource, /const TRASH = (\d+)/, 'TRASH');
+  const lift = number(menuSource, /box\.y - (\d+), TRASH/, 'the trash lift');
+
+  const firstRowBottom = Number(rows[1]) + slotH;
+  assert.ok(Number(rows[2]) - lift >= firstRowBottom,
+    `the second row's delete buttons start at ${Number(rows[2]) - lift}, the first row ends at ${firstRowBottom}`);
+});
+
+test('every book-designer control is big enough to hit', () => {
+  const row = designerRow();
+  assert.ok(onScreen(row.size) >= MIN_TAP, `a colour swatch is ${onScreen(row.size).toFixed(1)}px`);
+
+  for (const [what, size] of Object.entries(designerControls())) {
+    assert.ok(onScreen(size) >= MIN_TAP, `${what} is ${onScreen(size).toFixed(1)}px`);
+  }
+});
+
+test('the book-designer section labels are big enough to read', () => {
+  const font = number(designerSource, /ctx\.font = '600 (\d+)px system-ui[^']*';\n\s*ctx\.textAlign = 'left'/, 'the label font');
+  assert.ok(onScreen(font) >= MIN_TEXT, `${onScreen(font).toFixed(1)}px`);
+});
+
+test('the book designer fits inside its panel', () => {
+  // Five rows of controls in a fixed panel: one row growing without the rest
+  // moving down is how they end up overlapping.
+  const panel = designerPanel();
+  const row = designerRow();
+  const rows = [...designerSource.matchAll(/PANEL\.y \+ (\d+), (?:ROW\.size|\d+), (?:ROW\.size|\d+)/g)]
+    .map((m) => Number(m[1]));
+  assert.ok(rows.length >= 5, `found ${rows.length} control rows`);
+
+  const lowest = Math.max(...rows);
+  assert.ok(lowest + row.size <= panel.h,
+    `the last row ends at ${lowest + row.size} inside a panel ${panel.h} tall`);
+  assert.ok(panel.x + panel.w <= SCREEN.w, 'the panel is on the screen');
+});
+
+test('the book-designer swatch rows fit across the panel', () => {
+  const row = designerRow();
+  const panel = designerPanel();
+  const colors = 10; // COVER_COLORS
+  const right = row.x + (colors - 1) * row.step + row.size;
+  assert.ok(right <= panel.x + panel.w, `the row ends at ${right} of ${panel.x + panel.w}`);
+  assert.ok(row.step >= row.size, 'swatches do not overlap each other');
+});
+
+test('the house view needs no small targets at all', () => {
+  // Four rooms and a home button. If a control ever appears here that is not
+  // one of those, it has to clear the bar like everything else.
+  const sized = [...houseSource.matchAll(/button\('[^']+',\s*[\d.]+,\s*[\d.]+,\s*(TOUCH|\d+),\s*(TOUCH|\d+)/g)];
+  assert.ok(sized.length > 0, 'found the house buttons');
+  for (const [, w, h] of sized) {
+    for (const dimension of [w, h]) {
+      const size = dimension === 'TOUCH' ? TOUCH : Number(dimension);
+      assert.ok(onScreen(size) >= MIN_TAP, `a house button is ${onScreen(size).toFixed(1)}px`);
+    }
+  }
+});
+
+function designerRow() {
+  const match = designerSource.match(/const ROW = \{ x: (\d+), step: (\d+), size: (\d+) \}/);
+  assert.ok(match, 'found the designer row');
+  return { x: Number(match[1]), step: Number(match[2]), size: Number(match[3]) };
+}
+
+function designerPanel() {
+  const match = designerSource.match(/const PANEL = \{ x: (\d+), y: (\d+), w: (\d+), h: (\d+) \}/);
+  assert.ok(match, 'found the designer panel');
+  return {
+    x: Number(match[1]), y: Number(match[2]), w: Number(match[3]), h: Number(match[4]),
+  };
+}
+
+/** The controls in the designer that are not plain colour swatches. */
+function designerControls() {
+  const pattern = designerSource.match(/`pattern:\$\{i\}`[^)]*?, (\d+), (\d+),/);
+  const style = designerSource.match(/`style:\$\{i\}`[^)]*?, (\d+), (ROW\.size|\d+),/);
+  assert.ok(pattern && style, 'found the pattern chips and title styles');
+  return {
+    'a pattern chip': Math.min(Number(pattern[1]), Number(pattern[2])),
+    'a title style button': style[2] === 'ROW.size' ? designerRow().size : Number(style[2]),
+  };
+}

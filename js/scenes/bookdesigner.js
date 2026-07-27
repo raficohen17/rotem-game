@@ -16,9 +16,18 @@ import {
   createBook, clampBook, cleanTitle,
 } from '../model/book.js';
 
-const PREVIEW = { x: 90, y: 120, w: 380, h: 500 };
-const PANEL = { x: 510, y: 96, w: 740, h: 576 };
-const ROW = { x: 546, step: 62, size: 54 };
+/*
+ * The preview gives up width so the panel can hold a finger-sized swatch.
+ *
+ * Ten colours in a row is what sets the size: at the old 62px step they came
+ * out 31px across on the phone, which is half what a child can reliably hit.
+ * A 80px step needs 780px of panel, and the panel only had 704 to give — so
+ * the book preview is narrower now, which costs nothing, because the book is
+ * drawn 250 wide inside it either way.
+ */
+const PREVIEW = { x: 60, y: 110, w: 320, h: 480 };
+const PANEL = { x: 400, y: 96, w: 856, h: 576 };
+const ROW = { x: 430, step: 80, size: 72 };
 
 /**
  * The input that brings up the keyboard.
@@ -64,27 +73,27 @@ export function createBookDesigner(game, initial, onDone, onCancel) {
   };
 
   const covers = () => COVER_COLORS.map((color, i) => button(
-    `cover:${i}`, ROW.x + i * ROW.step, PANEL.y + 40, ROW.size, ROW.size,
+    `cover:${i}`, ROW.x + i * ROW.step, PANEL.y + 36, ROW.size, ROW.size,
     { swatch: color, active: design.cover === i },
   ));
 
   const patterns = () => COVER_PATTERNS.map((name, i) => button(
-    `pattern:${i}`, ROW.x + i * 84, PANEL.y + 140, 76, 92,
+    `pattern:${i}`, ROW.x + i * 100, PANEL.y + 144, 92, 84,
     { patternIndex: i, active: design.pattern === i },
   ));
 
   const patternInks = () => COVER_COLORS.map((color, i) => button(
-    `ink:${i}`, ROW.x + i * ROW.step, PANEL.y + 282, ROW.size, ROW.size,
+    `ink:${i}`, ROW.x + i * ROW.step, PANEL.y + 264, ROW.size, ROW.size,
     { swatch: color, active: design.patternColor === i },
   ));
 
   const titleStyles = () => TITLE_STYLES.map((name, i) => button(
-    `style:${i}`, ROW.x + i * 130, PANEL.y + 380, 118, 60,
+    `style:${i}`, ROW.x + i * 190, PANEL.y + 372, 178, ROW.size,
     { label: name, active: design.titleStyle === i },
   ));
 
   const titleInks = () => COVER_COLORS.map((color, i) => button(
-    `titleInk:${i}`, ROW.x + i * ROW.step, PANEL.y + 490, ROW.size, ROW.size,
+    `titleInk:${i}`, ROW.x + i * ROW.step, PANEL.y + 480, ROW.size, ROW.size,
     { swatch: color, active: design.titleColor === i },
   ));
 
@@ -136,11 +145,14 @@ export function createBookDesigner(game, initial, onDone, onCancel) {
       drawTitleField(ctx, titleField(), design.title, typing, game.time);
 
       drawPanel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, COLORS.panel, 22);
-      label(ctx, 'Cover', ROW.x, PANEL.y + 28);
-      label(ctx, 'Pattern', ROW.x, PANEL.y + 128);
-      label(ctx, 'Pattern colour', ROW.x, PANEL.y + 270);
-      label(ctx, 'Title style', ROW.x, PANEL.y + 368);
-      label(ctx, 'Title colour', ROW.x, PANEL.y + 478);
+      // Each label sits twice as far below the row above it as it does above
+      // its own, so the five groups read as five groups. Set closer to even,
+      // "Pattern" looks like a caption on the cover swatches.
+      label(ctx, 'Cover', ROW.x, PANEL.y + 30);
+      label(ctx, 'Pattern', ROW.x, PANEL.y + 138);
+      label(ctx, 'Pattern colour', ROW.x, PANEL.y + 258);
+      label(ctx, 'Title style', ROW.x, PANEL.y + 366);
+      label(ctx, 'Title colour', ROW.x, PANEL.y + 474);
 
       for (const control of patterns()) drawPatternChip(ctx, control, design);
       drawButtons(ctx, [...covers(), ...patternInks(), ...titleStyles(), ...titleInks(),
@@ -151,7 +163,7 @@ export function createBookDesigner(game, initial, onDone, onCancel) {
 
 function label(ctx, text, x, y) {
   ctx.fillStyle = COLORS.inkDim;
-  ctx.font = '600 19px system-ui, sans-serif';
+  ctx.font = '600 22px system-ui, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(text, x, y);

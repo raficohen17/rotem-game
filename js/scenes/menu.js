@@ -20,6 +20,9 @@ const GAP_X = 20;
 const ORIGIN_X = 40;
 const ROW_Y = [126, 366];
 
+/** The delete button on a filled slot. Sized for a finger, not for a mouse. */
+const TRASH = 72;
+
 /** Decoded thumbnails, keyed by world id, so they are not re-parsed each frame. */
 const thumbCache = new Map();
 
@@ -55,7 +58,12 @@ export function createMenu(game) {
       const world = game.worlds[i];
       controls.push(button(world ? `open:${i}` : `new:${i}`, box.x, box.y, box.w, box.h, { world }));
       if (world) {
-        controls.push(button(`delete:${i}`, box.x + box.w - 56, box.y - 6, 56, 56, {
+        // Straddling the corner rather than sitting inside it: the target had
+        // to grow from 56 to be hittable on the phone, and putting that extra
+        // size on the slot would have made it easier to hit by accident than
+        // the house itself. It reaches into the gap between slots instead, and
+        // stops exactly where the next slot begins.
+        controls.push(button(`delete:${i}`, box.x + box.w - 52, box.y - 20, TRASH, TRASH, {
           icon: 'trash', tone: 'danger', iconScale: 0.8,
         }));
       }
