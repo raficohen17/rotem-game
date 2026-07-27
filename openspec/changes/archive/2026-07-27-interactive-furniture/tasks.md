@@ -27,15 +27,18 @@
 
 ## 4. The cutaway house
 
-- [ ] 4.1 Offer actions for what is in reach of a picked-up character
-- [ ] 4.2 Keep them clear of the walk buttons
-- [ ] 4.3 Test: neither set overlaps the other
+- [x] 4.1 Offer actions for what is in reach of a picked-up character
+- [x] 4.2 Keep them clear of the walk buttons
+- [x] 4.3 Test: neither set overlaps the other
 
 ## 5. Checks
+
+Known follow-up, not required by the spec: the dashed selection box around a
+character is still standing-shaped when she is lying down.
 
 - [x] 5.1 Every affording id is a real catalog item
 - [x] 5.2 Every sibling of a usable item affords the same action
 - [x] 5.3 Every action's icon exists
-- [ ] 5.4 The scene harness passes for each pose
-- [ ] 5.5 Screenshots at 915x412 of every new action
-- [ ] 5.6 `npm test`, bump both versions, commit, merge, push
+- [x] 5.4 The scene harness passes for each pose
+- [x] 5.5 Screenshots at 915x412 of every new action
+- [x] 5.6 `npm test`, bump both versions, commit, merge, push

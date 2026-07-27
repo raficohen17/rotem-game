@@ -586,11 +586,11 @@ function drawBathWater(ctx, item, def, time) {
   ctx.rect(left, top + h * 0.3, w, h * 0.7);
   ctx.clip();
   ctx.globalAlpha = 0.72;
-  fillRR(ctx, left + w * 0.06, top + h * 0.42, w * 0.88, h * 0.5, 8, '#a9d6e5');
+  fillRR(ctx, left + w * 0.06, top + h * 0.5, w * 0.88, h * 0.46, 8, '#a9d6e5');
   ctx.globalAlpha = 0.5;
   for (let i = 0; i < 4; i += 1) {
     const bob = Math.sin(time * 1.6 + i) * 3;
-    fillEllipse(ctx, left + w * (0.2 + i * 0.2), top + h * 0.44 + bob, 11, 5, '#e8f4f8');
+    fillEllipse(ctx, left + w * (0.2 + i * 0.2), top + h * 0.52 + bob, 11, 5, '#e8f4f8');
   }
   ctx.restore();
 }

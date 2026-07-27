@@ -22,6 +22,10 @@ import {
 import { HOUSE_LAYOUT } from '../model/world.js';
 import { beginWalk, routeBetween, STAIR_X, LINKS, HOUSE_GRID } from '../model/travel.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
+import {
+  ACTIONS, SWITCHES, canUse, canSwitch, useFor, switchFor,
+  beginUse, stopUsing, isUsing, toggleSwitch,
+} from '../model/using.js';
 import { createRoomScene } from './room.js';
 
 /** The painted carcass. Warm cream with a rose roof, to match the rooms. */
@@ -47,6 +51,12 @@ BODY.y = 168;
 
 /** How wide a character is to aim at in the cutaway, in screen pixels. */
 export const PICK_W = 78;
+
+/** How close she has to be to something to be offered it, in room pixels. */
+const USE_REACH = 110;
+
+/** The floating action buttons, the same size they are inside a room. */
+const PIP = 72;
 
 const ROOF_HEIGHT = 96;
 const ROOF_OVERHANG = 34;
@@ -126,6 +136,48 @@ export function createHouse(game) {
     });
   }
 
+  /**
+   * What the picked-up character can do right here, without leaving the view.
+   *
+   * The cutaway is the screen the game is actually played on — it shows all
+   * four rooms and everybody in them — so having to zoom into a room before
+   * anyone could be put to bed made the whole feature feel further away than
+   * it is.
+   *
+   * These sit in her own room, and walk buttons only ever appear in the rooms
+   * she is not in, so the two sets cannot collide.
+   */
+  function actionTargets() {
+    if (!traveller) return [];
+    const index = HOUSE_LAYOUT.indexOf(traveller.room);
+    if (index < 0) return [];
+    const room = game.world.rooms[traveller.room];
+    const box = cellBox(index);
+
+    const reachable = (room?.items ?? []).filter((item) => (
+      Math.abs(item.x - traveller.x) <= USE_REACH && (canUse(item) || canSwitch(item))
+    ));
+    if (!reachable.length) return [];
+
+    // A row above her head, inside her own room.
+    const width = reachable.length * PIP + (reachable.length - 1) * 6;
+    const left = Math.min(box.x + box.w - width - 8,
+      Math.max(box.x + 8, box.x + traveller.x * CELL_SCALE - width / 2));
+    const top = Math.max(box.y + 6,
+      box.y + (traveller.y - CHAR_H) * CELL_SCALE - PIP - 8);
+
+    return reachable.map((item, i) => {
+      const action = useFor(item.item) ?? switchFor(item.item);
+      // Already sitting in it, so the same button is now how she gets up.
+      // Offering "sit" to somebody who is sitting says nothing about what the
+      // tap will do.
+      const busy = traveller.using?.uid === item.uid;
+      const icon = busy ? 'cross' : (ACTIONS[action] ?? SWITCHES[action]).icon;
+      return button(`do:${item.uid}`, left + i * (PIP + 6), top, PIP, PIP,
+        { icon, round: true, tone: busy ? undefined : 'good', item });
+    });
+  }
+
   const rooms = HOUSE_LAYOUT.map((id, index) => {
     const box = cellBox(index);
     return button(`room:${id}`, box.x, box.y, box.w, box.h, { roomId: id });
@@ -135,7 +187,16 @@ export function createHouse(game) {
     controls: [...rooms, back],
 
     onTap(x, y) {
-      // The button she was offered wins over everything underneath it.
+      // Anything she was offered wins over what is underneath it.
+      const doing = hitTest(actionTargets(), x, y);
+      if (doing) {
+        if (canSwitch(doing.item)) toggleSwitch(doing.item);
+        else if (traveller.using?.uid === doing.item.uid) stopUsing(traveller);
+        else beginUse(traveller, doing.item);
+        game.persist();
+        return;
+      }
+
       const badge = hitTest(walkTargets(), x, y);
       if (badge) {
         beginWalk(traveller, badge.roomId, ROOM_W / 2, ROOM_W);
@@ -200,6 +261,7 @@ export function createHouse(game) {
       drawStructure(ctx);
       if (traveller) {
         drawButtons(ctx, walkTargets());
+        drawButtons(ctx, actionTargets());
         drawHint(ctx);
       }
       drawTitle(ctx, game.world.name, BODY.x + 6, BODY.y - ROOF_HEIGHT - 26, 30);

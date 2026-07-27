@@ -1149,39 +1149,58 @@ function trousers(ctx, color, hem, width) {
 }
 
 function drawBottom(ctx, style, color) {
+  // Sitting, every hem is measured from a hip that has dropped to seat height,
+  // so a long skirt that hung to mid-calf standing up reaches past the floor
+  // and hides the legs completely — which makes a seated figure read as
+  // somebody standing behind the furniture. Clamped, it drapes over the lap.
+  const hemFor = (hem) => (POSE === 'sit' ? Math.min(hem, B.hipY * 0.45) : hem);
+
+  // The knees, in whatever she is wearing. Drawn bare on the leg they were
+  // covered by the trousers that go on afterwards, which left a seated figure
+  // with nothing to say her thighs come toward the viewer — so on a sofa she
+  // read as somebody short standing in front of it.
+  const knees = () => {
+    if (POSE !== 'sit') return;
+    for (const side of [-1, 1]) {
+      fillRR(ctx, side * B.legX - B.legW * 0.66, B.hipY - 4,
+        B.legW * 1.32, 34, B.legW * 0.6, shade(color, -0.1));
+    }
+  };
+
   switch (style) {
     case 1: // shorts
-      trousers(ctx, color, B.hipY + 34, B.legW + 8);
+      trousers(ctx, color, hemFor(B.hipY + 34), B.legW + 8);
       break;
     case 2: // short skirt
-      skirt(ctx, color, B.hipY + 40, B.hipW + 26);
+      skirt(ctx, color, hemFor(B.hipY + 40), B.hipW + 26);
       break;
     case 3: // long skirt
-      skirt(ctx, color, B.hipY + 74, B.hipW + 34);
+      skirt(ctx, color, hemFor(B.hipY + 74), B.hipW + 34);
       break;
     case 5: // leggings
-      trousers(ctx, color, -12, B.legW + 2);
+      trousers(ctx, color, hemFor(-12), B.legW + 2);
       break;
     case 6: // pleated skirt
-      skirt(ctx, color, B.hipY + 52, B.hipW + 30);
+      skirt(ctx, color, hemFor(B.hipY + 52), B.hipW + 30);
       for (let i = -2; i <= 2; i += 1) {
         strokeLine(ctx, i * 12, B.hipY - 8, i * 20, B.hipY + 46, shade(color, -0.18), 3);
       }
       break;
     case 7: // dungaree trousers
-      trousers(ctx, color, -14, B.legW + 9);
+      trousers(ctx, color, hemFor(-14), B.legW + 9);
       break;
     case 8: // wide legged
-      trousers(ctx, color, -12, B.legW + 16);
+      trousers(ctx, color, hemFor(-12), B.legW + 16);
       break;
     case 9: // tutu, in three layers
-      skirt(ctx, shade(color, -0.12), B.hipY + 46, B.hipW + 42);
-      skirt(ctx, color, B.hipY + 34, B.hipW + 32);
-      skirt(ctx, shade(color, 0.22), B.hipY + 22, B.hipW + 20);
+      skirt(ctx, shade(color, -0.12), hemFor(B.hipY + 46), B.hipW + 42);
+      skirt(ctx, color, hemFor(B.hipY + 34), B.hipW + 32);
+      skirt(ctx, shade(color, 0.22), hemFor(B.hipY + 22), B.hipW + 20);
       break;
     default: // trousers
-      trousers(ctx, color, -14, B.legW + 6);
+      trousers(ctx, color, hemFor(-14), B.legW + 6);
   }
+  knees();
 }
 
 function drawDress(ctx, color) {

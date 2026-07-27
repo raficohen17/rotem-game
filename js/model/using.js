@@ -109,7 +109,9 @@ export const ACTIONS = {
     icon: 'bathe',
     carried: false,
     pose: 'sit',
-    seat: 0.34,
+    /* Low, because a bath is sat down *in*. At a third of the tub's height
+       her whole torso cleared the rim and she looked perched on the edge. */
+    seat: 0.15,
   },
 };
 

@@ -112,3 +112,32 @@ test('picking a character up does not swallow the room next door', () => {
   const box = cellBox(0);
   assert.ok(PICK_W < box.w / 2, `a ${PICK_W}px reach inside a ${box.w}px room`);
 });
+
+/* ------------------------------------------------ acting from the cutaway */
+
+test('action buttons and walk buttons cannot collide', () => {
+  // Actions appear in the room the character is standing in; walk buttons
+  // appear only in the rooms she is not in. The separation is structural
+  // rather than a matter of spacing, which is what makes it safe as more
+  // usable objects are added.
+  const source = readFileSync(join(ROOT, 'js/scenes/house.js'), 'utf8');
+  assert.match(source, /if \(id === traveller\.room\) return \[\];/,
+    'walk buttons skip her own room');
+  assert.match(source, /const index = HOUSE_LAYOUT\.indexOf\(traveller\.room\);/,
+    'action buttons are built in her own room');
+});
+
+test('a row of action buttons fits inside a room', () => {
+  // Clamped to the cell, so a character standing at the edge of a room does
+  // not push her own buttons out through the wall.
+  const box = cellBox(0);
+  const PIP = 72;
+  for (const count of [1, 2, 3, 4]) {
+    const width = count * PIP + (count - 1) * 6;
+    assert.ok(width <= box.w - 16, `${count} buttons fit across a ${box.w}px room`);
+  }
+});
+
+test('an action button is big enough to hit on the phone', () => {
+  assert.ok(onScreen(72) >= MIN_TAP, `${onScreen(72).toFixed(1)}px`);
+});
