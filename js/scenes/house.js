@@ -20,7 +20,7 @@ import {
   drawRoomShell, drawRoomContents, ROOM_W, ROOM_H, FLOOR_Y,
 } from '../render/room.js';
 import { HOUSE_LAYOUT } from '../model/world.js';
-import { beginWalk, STAIR_X, LINKS, HOUSE_GRID } from '../model/travel.js';
+import { beginWalk, routeBetween, STAIR_X, LINKS, HOUSE_GRID } from '../model/travel.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import { createRoomScene } from './room.js';
 
@@ -44,6 +44,9 @@ const BODY = {
 };
 BODY.x = Math.round((1280 - BODY.w) / 2);
 BODY.y = 168;
+
+/** How wide a character is to aim at in the cutaway, in screen pixels. */
+export const PICK_W = 78;
 
 const ROOF_HEIGHT = 96;
 const ROOF_OVERHANG = 34;
@@ -85,14 +88,42 @@ export function createHouse(game) {
     return null;
   }
 
-  /** The character under a screen point, if any. */
+  /**
+   * The character under a screen point, if any.
+   *
+   * Her own width is not enough to aim at here. Shrunk into a room cell she is
+   * 150 room-pixels wide, which is 65 on the screen and 37 on the phone — under
+   * what a child can reliably hit. The reach is widened to PICK_W screen pixels
+   * so picking her up is as easy as everything else in the game.
+   */
   function characterAt(x, y) {
     const spot = locate(x, y);
     if (!spot) return null;
+    const reach = Math.max(CHAR_W, PICK_W / CELL_SCALE) / 2;
     return game.charactersIn(spot.roomId).find((c) => (
-      spot.x >= c.x - CHAR_W / 2 && spot.x <= c.x + CHAR_W / 2
+      spot.x >= c.x - reach && spot.x <= c.x + reach
       && spot.y >= c.y - CHAR_H && spot.y <= c.y
     )) ?? null;
+  }
+
+  /**
+   * A button in each room she can reach, while somebody is picked up.
+   *
+   * The gesture used to be tap-her-then-tap-a-room with nothing drawn to say
+   * so: the only feedback was a hint line at y=726 on a 720-tall canvas — off
+   * the bottom of the screen — and a gold ring drawn inside the room cell, so
+   * scaled down to a 3px thread. Tapping a character appeared to do nothing at
+   * all, and the whole feature read as broken.
+   */
+  function walkTargets() {
+    if (!traveller) return [];
+    return HOUSE_LAYOUT.flatMap((id, index) => {
+      if (id === traveller.room) return [];
+      if (!routeBetween(traveller.room, id)?.length) return [];
+      const box = cellBox(index);
+      return [button(`walk:${id}`, box.x + box.w / 2 - TOUCH / 2, box.y + box.h / 2 - TOUCH / 2,
+        TOUCH, TOUCH, { icon: 'walk', round: true, tone: 'good', iconScale: 1.15, roomId: id })];
+    });
   }
 
   const rooms = HOUSE_LAYOUT.map((id, index) => {
@@ -104,6 +135,15 @@ export function createHouse(game) {
     controls: [...rooms, back],
 
     onTap(x, y) {
+      // The button she was offered wins over everything underneath it.
+      const badge = hitTest(walkTargets(), x, y);
+      if (badge) {
+        beginWalk(traveller, badge.roomId, ROOM_W / 2, ROOM_W);
+        game.persist();
+        traveller = null;
+        return;
+      }
+
       // Sending someone walking takes priority over zooming into a room.
       const tapped = characterAt(x, y);
       if (tapped) { traveller = traveller === tapped ? null : tapped; return; }
@@ -150,14 +190,18 @@ export function createHouse(game) {
         ctx.scale(CELL_SCALE, CELL_SCALE);
         drawRoomShell(ctx, room);
         drawRoomContents(ctx, room, game.charactersIn(id), game.catalog, game.time);
-        if (traveller && traveller.room === id) drawPickedUp(ctx, traveller);
         ctx.restore();
 
         drawRecess(ctx, box);
+        // Outside the cell transform, so the outline keeps its real weight.
+        if (traveller && traveller.room === id) drawPickedUp(ctx, box, traveller);
       });
 
       drawStructure(ctx);
-      if (traveller) drawHint(ctx);
+      if (traveller) {
+        drawButtons(ctx, walkTargets());
+        drawHint(ctx);
+      }
       drawTitle(ctx, game.world.name, BODY.x + 6, BODY.y - ROOF_HEIGHT - 26, 30);
       drawButtons(ctx, [back]);
     },
@@ -289,23 +333,45 @@ function drawStructure(ctx) {
 }
 
 /** A ring under whoever is waiting to be sent, drawn in room coordinates. */
-function drawPickedUp(ctx, character) {
+function drawPickedUp(ctx, box, character) {
+  // The same dashed outline the room uses for a selected thing, so "this one
+  // is picked" looks the same wherever she meets it.
+  const w = CHAR_W * CELL_SCALE;
+  const h = CHAR_H * CELL_SCALE;
+  const x = box.x + character.x * CELL_SCALE - w / 2;
+  const y = box.y + character.y * CELL_SCALE - h;
+
   ctx.save();
   ctx.strokeStyle = '#f0c86a';
-  ctx.lineWidth = 7;
-  ctx.beginPath();
-  ctx.ellipse(character.x, character.y - 4, CHAR_W * 0.42, 16, 0, 0, Math.PI * 2);
+  ctx.lineWidth = 4;
+  ctx.setLineDash([9, 7]);
+  roundRect(ctx, x - 7, y - 7, w + 14, h + 14, 12);
   ctx.stroke();
   ctx.restore();
 }
 
 /** Says what the picked-up character is waiting for. */
 function drawHint(ctx) {
-  ctx.fillStyle = COLORS.ink;
-  ctx.font = '600 22px system-ui, sans-serif';
+  // Above the roof. Below the house there are 40px between the carcass and the
+  // bottom of the screen, which is where this line used to be told to go — and
+  // it needs 52, so it went over the edge and was never seen.
+  const text = 'Tap a room to walk there';
+  ctx.font = '600 24px system-ui, sans-serif';
+  const w = ctx.measureText(text).width + 56;
+  const h = 52;
+  const x = 640 - w / 2;
+  const y = 12;
+
+  fillRR(ctx, x, y, w, h, h / 2, 'rgba(240, 200, 106, 0.15)');
+  ctx.strokeStyle = '#f0c86a';
+  ctx.lineWidth = 3;
+  roundRect(ctx, x, y, w, h, h / 2);
+  ctx.stroke();
+
+  ctx.fillStyle = '#f7e8c4';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('Tap a room to walk there', 640, BODY.y + BODY.h + 46);
+  ctx.fillText(text, 640, y + h / 2);
 }
 
 /**

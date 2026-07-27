@@ -147,6 +147,38 @@ export const ICONS = {
     fillPoly(ctx, [-12, 18, -9, 2, 9, 2, 12, 18], c);
   },
 
+  /*
+   * A footprint, for "send her walking to this room".
+   *
+   * One big print rather than a pair: at the size this is drawn, two prints
+   * shrink until they read as two blobs, and a child cannot tell what they
+   * are meant to be.
+   */
+  walk(ctx, c) {
+    ctx.save();
+    ctx.rotate(-0.16);
+
+    // Ball, arch and heel as one path. Drawn as three overlapping shapes the
+    // waist of the arch pinched to nothing and the heel read as a loose blob.
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-11, -8);
+    ctx.quadraticCurveTo(-13, 3, -7, 7);
+    ctx.quadraticCurveTo(-10, 15, -5, 18);
+    ctx.quadraticCurveTo(0, 21, 5, 18);
+    ctx.quadraticCurveTo(10, 15, 7, 7);
+    ctx.quadraticCurveTo(13, 3, 11, -8);
+    ctx.quadraticCurveTo(9, -16, 0, -16);
+    ctx.quadraticCurveTo(-9, -16, -11, -8);
+    ctx.closePath();
+    ctx.fill();
+
+    for (const [x, y, r] of [[-8, -19, 2.9], [-2.5, -21.5, 3], [3.5, -20.5, 2.8], [8.5, -17, 2.4]]) {
+      fillCircle(ctx, x, y, r, c);
+    }
+    ctx.restore();
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();
