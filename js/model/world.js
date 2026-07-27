@@ -224,6 +224,11 @@ function repairItem(entry) {
     ...(entry.lying === true && Number.isFinite(entry.w) && Number.isFinite(entry.h)
       ? { lying: true, w: entry.w, h: entry.h }
       : {}),
+    // A lamp she left on is still on tomorrow. Rebuilding an item from a fixed
+    // list of fields is what stops a corrupt save crashing the game, and it is
+    // also how the record of what a character was doing got silently dropped
+    // the first time — so anything worth keeping has to be named here.
+    ...(entry.on === true ? { on: true } : {}),
   };
 }
 

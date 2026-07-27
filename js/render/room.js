@@ -9,7 +9,7 @@
 
 import { drawItem } from './catalog.js';
 import { drawBookFlat } from './book.js';
-import { resolveUse, carriedItems } from '../model/using.js';
+import { resolveUse, carriedItems, isOn, switchFor } from '../model/using.js';
 import { drawCharacter } from './character.js';
 import { drawOrder } from '../model/geometry.js';
 import { shade, deepen, fillRR, roundRect, strokeLine } from './shapes.js';
@@ -381,6 +381,7 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
       if (carried.has(entry.placed.uid)) continue;
       const def = catalog.get(entry.placed.item);
       if (def) drawItem(ctx, entry.placed, def);
+      if (def && isOn(entry.placed)) drawSwitchedOn(ctx, entry.placed, def, time);
     } else {
       const doing = resolveUse(entry.placed, room.items);
       ctx.save();
@@ -457,6 +458,88 @@ function drawShowerRunning(ctx, item, time) {
   }
 
   ctx.restore();
+}
+
+/**
+ * What a switched-on object looks like.
+ *
+ * Drawn over the item rather than baked into its art, so one placeholder
+ * covers both states and Rotem's own drawing of a lamp would light up the same
+ * way without her having to draw it twice.
+ */
+function drawSwitchedOn(ctx, placed, def, time) {
+  const w = (placed.w ?? def.w) * placed.scale;
+  const h = (placed.h ?? def.h) * placed.scale;
+  const cx = placed.x;
+  const top = placed.y - h;
+
+  switch (switchFor(placed.item)) {
+    case 'light': {
+      // A pool of light on the floor and a glow at the shade. The radius has a
+      // floor of its own, or a small table lamp lights almost nothing.
+      const reach = Math.max(200, h * 1.1);
+      const glow = ctx.createRadialGradient(cx, top + h * 0.2, 4, cx, top + h * 0.2, reach);
+      glow.addColorStop(0, 'rgba(255, 226, 150, 0.55)');
+      glow.addColorStop(0.45, 'rgba(255, 220, 140, 0.16)');
+      glow.addColorStop(1, 'rgba(255, 214, 130, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(cx, top + h * 0.2, reach, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'watch': {
+      // Light added to the screen rather than laid over it. A pale rectangle
+      // on top washed the picture out, so a television that was on looked
+      // faded rather than lit.
+      const flicker = 0.28 + Math.sin(time * 7.3) * 0.07 + Math.sin(time * 3.1) * 0.05;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = Math.max(0.12, Math.min(0.45, flicker));
+      fillRR(ctx, cx - w * 0.36, top + h * 0.16, w * 0.72, h * 0.46, 4, '#9ec8e8');
+      ctx.restore();
+      const spill = ctx.createRadialGradient(cx, top + h * 0.4, 6, cx, top + h * 0.4, w * 1.1);
+      spill.addColorStop(0, 'rgba(180, 220, 245, 0.22)');
+      spill.addColorStop(1, 'rgba(180, 220, 245, 0)');
+      ctx.fillStyle = spill;
+      ctx.beginPath();
+      ctx.arc(cx, top + h * 0.4, w * 1.1, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'open': {
+      // The door swung wide, with the cold light inside it.
+      fillRR(ctx, cx - w * 0.3, top + h * 0.08, w * 0.58, h * 0.84, 6, '#e8f4f7');
+      ctx.strokeStyle = 'rgba(120, 150, 165, 0.5)';
+      ctx.lineWidth = 2;
+      for (let i = 1; i < 4; i += 1) {
+        const y = top + h * 0.08 + (h * 0.84 * i) / 4;
+        strokeLine(ctx, cx - w * 0.28, y, cx + w * 0.26, y, 'rgba(120, 150, 165, 0.5)', 2);
+      }
+      fillRR(ctx, cx + w * 0.3, top + h * 0.06, w * 0.16, h * 0.88, 5, '#cdd8dd');
+      break;
+    }
+    case 'cook': {
+      // A pot on the hob, steaming.
+      const potW = w * 0.34;
+      const potY = top - 6;
+      fillRR(ctx, cx - potW / 2, potY - 26, potW, 26, 4, '#6f6a74');
+      fillRR(ctx, cx - potW / 2 - 5, potY - 30, potW + 10, 6, 3, '#8a8490');
+      ctx.strokeStyle = 'rgba(236, 232, 226, 0.6)';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      for (let i = -1; i <= 1; i += 1) {
+        const drift = Math.sin(time * 1.7 + i) * 5;
+        ctx.beginPath();
+        ctx.moveTo(cx + i * 11, potY - 34);
+        ctx.quadraticCurveTo(cx + i * 11 + drift + 6, potY - 48, cx + i * 11 + drift, potY - 62);
+        ctx.stroke();
+      }
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 function drawSelectionHalo(ctx, entry, catalog) {

@@ -10,6 +10,49 @@
  * saved worlds. Pure and testable — no canvas, no DOM.
  */
 
+/**
+ * Things that happen to the object rather than to the character.
+ *
+ * A lamp she switched on should still be on after she leaves the room — the
+ * state belongs to the lamp, not to her. These are toggled rather than
+ * occupied, so several can be on at once and nobody is stuck holding them.
+ */
+export const SWITCHES = {
+  light: { icon: 'light', label: 'light' },
+  watch: { icon: 'tv', label: 'watch' },
+  open: { icon: 'open', label: 'open' },
+  cook: { icon: 'cook', label: 'cook' },
+};
+
+/** Items whose action is a switch on the object. */
+export const SWITCHED = {
+  lamp_floor: 'light',
+  lamp_table: 'light',
+  tv: 'watch',
+  fridge: 'open',
+  stove: 'cook',
+};
+
+export function switchFor(itemId) {
+  const action = SWITCHED[itemId];
+  return action && SWITCHES[action] ? action : null;
+}
+
+export function canSwitch(item) {
+  return Boolean(item && switchFor(item.item));
+}
+
+/** Flips a switchable object, and reports what it now is. */
+export function toggleSwitch(item) {
+  if (!canSwitch(item)) return false;
+  item.on = !item.on;
+  return item.on;
+}
+
+export function isOn(item) {
+  return Boolean(item?.on);
+}
+
 /** What a character can be doing. */
 export const ACTIONS = {
   read: {

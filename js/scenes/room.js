@@ -19,7 +19,8 @@ import { fillRR, fillCircle, roundRect, shade } from '../render/shapes.js';
 import { drawItemArt } from '../render/catalog.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import {
-  ACTIONS, canUse, useFor, beginUse, stopUsing, isUsing,
+  ACTIONS, SWITCHES, canUse, useFor, beginUse, stopUsing, isUsing,
+  switchFor, toggleSwitch,
 } from '../model/using.js';
 import {
   drawRoomShell, drawRoomContents, roomContents, drawFloorSample,
@@ -363,9 +364,11 @@ export function createRoomScene(game, roomId) {
     if (!selected) return [];
 
     const book = isItem(selected) && selected.item === 'book';
+    const flick = isItem(selected) ? switchFor(selected.item) : null;
     const ids = isItem(selected)
       ? [
         ...(book ? [['design', 'looks']] : []),
+        ...(flick ? [['flick', SWITCHES[flick].icon]] : []),
         ['shrink', 'shrink'], ['grow', 'grow'], ['flip', 'flip'],
         ['sendBack', 'layerDown'], ['bringFront', 'layerUp'], ['delete', 'trash'],
       ]
@@ -416,6 +419,7 @@ export function createRoomScene(game, roomId) {
         return true;
       }
       case 'stop': stopUsing(selected); game.persist(); return true;
+      case 'flick': toggleSwitch(selected); game.persist(); return true;
       case 'design': openBookDesigner(selected); return true;
       case 'delete': removeSelected(); return true;
       default: break;

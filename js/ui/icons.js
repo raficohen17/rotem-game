@@ -237,6 +237,59 @@ export const ICONS = {
     ctx.globalCompositeOperation = 'source-over';
   },
 
+  /* A bulb, for turning a lamp on. */
+  light(ctx, c) {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(0, -6, 11, Math.PI, 0);
+    ctx.quadraticCurveTo(11, 4, 5, 9);
+    ctx.lineTo(-5, 9);
+    ctx.quadraticCurveTo(-11, 4, -11, -6);
+    ctx.closePath();
+    ctx.fill();
+    fillRR(ctx, -6, 11, 12, 5, 2, c);
+    fillRR(ctx, -4, 17, 8, 4, 2, c);
+    // Rays kept inside the 44px box the icons are drawn in.
+    for (const a of [-2.5, -1.9, -1.25, -0.6, 0]) {
+      strokeLine(ctx, Math.cos(a) * 12, -6 + Math.sin(a) * 12,
+        Math.cos(a) * 16, -6 + Math.sin(a) * 16, c, 2.6);
+    }
+  },
+
+  /* A screen on a stand, for watching. */
+  tv(ctx, c) {
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    roundRect(ctx, -19, -16, 38, 26, 4);
+    ctx.stroke();
+    fillRR(ctx, -9, 14, 18, 4, 2, c);
+    strokeLine(ctx, 0, 10, 0, 15, c, 3);
+  },
+
+  /* A door swinging open. */
+  open(ctx, c) {
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-16, -18, 14, 36);
+    fillPoly(ctx, [2, -18, 18, -11, 18, 20, 2, 18], c);
+  },
+
+  /* A pot with steam coming off it. */
+  cook(ctx, c) {
+    fillRR(ctx, -15, 0, 30, 16, 4, c);
+    fillRR(ctx, -19, -4, 38, 5, 2, c);
+    for (const x of [-7, 0, 7]) {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = 2.6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, -10);
+      ctx.quadraticCurveTo(x + 4, -15, x, -20);
+      ctx.stroke();
+    }
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();
