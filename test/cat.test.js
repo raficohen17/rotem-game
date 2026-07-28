@@ -10,7 +10,7 @@ import {
 } from '../js/model/cat.js';
 import {
   PERCHES, SETTLE_MIN, SETTLE_MAX, STAY_CHANCE,
-  isDue, nextDecisionAt, chooseSpot, stepCat, isPerch, setDown,
+  isDue, nextDecisionAt, chooseSpot, stepCat, isPerch, setDown, perchLevel,
 } from '../js/model/catlife.js';
 import { createWorld, repairWorld, placeItem, placeCat } from '../js/model/world.js';
 import { ICONS } from '../js/ui/icons.js';
@@ -242,4 +242,36 @@ test('a cat is not something a character can be sent to or use', () => {
   for (const cat of cats) {
     assert.equal(items.includes(cat), false, 'a cat is not furniture');
   }
+});
+
+test('a cat rests on the seat, not on top of the backrest', () => {
+  // A sofa's box includes its back, so the top of it is thin air above the
+  // cushions — which is exactly where the cat first sat.
+  const sofa = placeItem('sofa', 300, 470);
+  const def = lookup('sofa');
+  const spot = chooseSpot([sofa], lookup, seq([0.9, 0]));
+
+  const boxTop = sofa.y - def.h;
+  assert.ok(spot.y > boxTop, 'below the top of the sofa');
+  assert.ok(spot.y < sofa.y, 'and above the floor');
+  assert.ok(perchLevel('sofa') < 0.6, 'about half way up, where the cushions are');
+});
+
+test('a cat on a table is on the table top', () => {
+  // The other way round: a table's top is its surface, so the cat goes on it.
+  const table = placeItem('table_dining', 300, 470);
+  const def = lookup('table_dining');
+  const spot = chooseSpot([table], lookup, seq([0.9, 0]));
+  assert.equal(Math.round(spot.y), Math.round(table.y - def.h));
+});
+
+test('every perch says how far up it a cat sits', () => {
+  for (const id of PERCHES) {
+    const level = perchLevel(id);
+    assert.ok(level >= 0 && level <= 1, `${id} rests a cat at ${level}`);
+  }
+});
+
+test('a cat on a rug is on the floor', () => {
+  assert.equal(perchLevel('rug_round'), 0, 'a rug is a place, not a climb');
 });

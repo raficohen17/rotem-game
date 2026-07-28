@@ -364,6 +364,24 @@ export function roomContents(room, characters, catalog, cats = []) {
   cast.forEach((entry, i) => rank.set(entry.placed, orderedItems.length + i));
   pets.forEach((entry, i) => rank.set(entry.placed, orderedItems.length + cast.length + i));
 
+  /*
+   * A cat sitting on something sorts with that thing, not with where its paws
+   * are.
+   *
+   * Settled on a sofa its baseline is halfway up the sofa, which is a smaller
+   * y than the sofa's own — so by the ordinary rule it drew behind the sofa
+   * and disappeared. Borrowing the host's baseline puts it level with what it
+   * is sitting on, and ranking after every item puts it in front.
+   */
+  const byUid = new Map(room.items.map((item) => [item.uid, item]));
+  const baseline = (entry) => {
+    if (entry.kind === 'cat' && entry.placed.on) {
+      const host = byUid.get(entry.placed.on);
+      if (host) return host.y;
+    }
+    return entry.placed.y;
+  };
+
   return [...items, ...cast, ...pets].sort((a, b) => {
     const aWall = a.kind === 'item' && lookup(a.placed.item)?.surface === 'wall';
     const bWall = b.kind === 'item' && lookup(b.placed.item)?.surface === 'wall';
@@ -371,7 +389,9 @@ export function roomContents(room, characters, catalog, cats = []) {
     const az = a.placed.z ?? 0;
     const bz = b.placed.z ?? 0;
     if (az !== bz) return az - bz;
-    if (a.placed.y !== b.placed.y) return a.placed.y - b.placed.y;
+    const ay = baseline(a);
+    const by = baseline(b);
+    if (ay !== by) return ay - by;
     return (rank.get(a.placed) ?? 0) - (rank.get(b.placed) ?? 0);
   });
 }

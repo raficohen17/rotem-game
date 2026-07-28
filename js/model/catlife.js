@@ -17,7 +17,6 @@
  * passes the time in, which is also what makes the intervals testable.
  */
 
-import { itemBounds } from './geometry.js';
 
 /** How long a cat stays put, in seconds. */
 export const SETTLE_MIN = 45;
@@ -43,6 +42,42 @@ export const PERCHES = new Set([
 
 /** How a cat sits on each kind of thing. A cat in its own bed curls up. */
 const CURL_ON = new Set(['cat_bed', 'cushion', 'bed_single', 'bed_double', 'crib', 'beanbag']);
+
+/**
+ * How far up each thing a cat actually rests, as a fraction of its height.
+ *
+ * Not the top of the box. A sofa's box includes its backrest, so a cat placed
+ * at the top of it sits in the air above the cushions rather than on them —
+ * which is exactly what it looked like. A table is the other way round: its
+ * top *is* the surface, so a cat goes on 1.
+ */
+const PERCH_LEVEL = {
+  sofa: 0.46,
+  armchair: 0.46,
+  chair: 0.44,
+  stool: 1,
+  beanbag: 0.66,
+  bed_single: 0.62,
+  bed_double: 0.62,
+  crib: 0.72,
+  cushion: 0.85,
+  table_dining: 1,
+  table_coffee: 1,
+  desk: 1,
+  nightstand: 1,
+  bookshelf: 1,
+  dresser: 1,
+  toybox: 1,
+  cat_bed: 0.75,
+  cat_tower: 1,
+  // A rug is a place on the floor, not a thing to climb.
+  rug_round: 0,
+};
+
+/** Where the top of a cat's paws goes when it settles on this item. */
+export function perchLevel(itemId) {
+  return PERCH_LEVEL[itemId] ?? 1;
+}
 
 export function isPerch(item) {
   return Boolean(item) && PERCHES.has(item.item);
@@ -81,11 +116,11 @@ export function chooseSpot(items, lookup, random = Math.random) {
     if (!isPerch(item)) continue;
     const def = lookup(item.item);
     if (!def) continue;
-    const bounds = itemBounds(item, def);
+    const height = (item.h ?? def.h) * (item.scale ?? 1);
     perches.push({
       item,
       x: item.x,
-      y: bounds.top,
+      y: item.y - height * perchLevel(item.item),
       pose: CURL_ON.has(item.item) ? 'curl' : 'sit',
     });
   }
