@@ -234,12 +234,41 @@ if ('serviceWorker' in navigator) {
       return;
     }
 
-    navigator.serviceWorker.register('sw.js').catch(() => { /* file:// */ });
+    navigator.serviceWorker.register('sw.js').then((registration) => {
+      if (!registration) return;
+
+      /*
+       * Ask whether there is a new build, rather than waiting to be told.
+       *
+       * Registering alone only checks on a fresh navigation. Rotem does not
+       * navigate — she opens the app from her home screen and Android resumes
+       * it from the app switcher, which is not a load, so a phone could sit on
+       * an old build for as long as she never fully closed it. Checking when
+       * the app comes back to the foreground is what makes an update arrive
+       * without her having to know what a cache is.
+       */
+      let lastCheck = 0;
+      const checkForUpdate = () => {
+        const now = Date.now();
+        // Not on every glance at the screen; a deploy takes longer than this.
+        if (now - lastCheck < 60000) return;
+        lastCheck = now;
+        registration.update().catch(() => { /* offline, which is fine */ });
+      };
+
+      checkForUpdate();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkForUpdate();
+      });
+    }).catch(() => { /* file:// */ });
 
     let reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (reloading) return;
       reloading = true;
+      // Whatever she has just done is worth more than the update. The throttled
+      // save can be up to a moment behind, and a reload would take that with it.
+      try { game.persist(); } catch { /* nothing open yet */ }
       location.reload();
     });
   });
