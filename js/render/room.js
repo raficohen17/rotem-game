@@ -420,7 +420,7 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
         seatY,
         asleep: doing?.asleep === true,
       });
-      if (doing?.action === 'read') drawReading(ctx, doing.item, time);
+      if (doing?.action === 'read') drawReading(ctx, doing.item, host, time);
       ctx.restore();
       if (doing?.action === 'shower') drawShowerRunning(ctx, doing.item, time);
       if (doing?.action === 'bathe') drawBathWater(ctx, doing.item, host, time);
@@ -435,17 +435,21 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
  * book she is reading. Small and tilted, at about the height a person holds
  * something they are looking at.
  */
-function drawReading(ctx, item, time) {
+function drawReading(ctx, item, def, time) {
   // Cover out, not the flat pile drawing that was here first — that shows the
   // spine and the page edges, so the cover Rotem designed was the one thing
   // you could not see while she was reading it.
   const sway = Math.sin(time * 1.2) * 0.025;
   ctx.save();
-  // Open, and small enough to leave her face and shoulders showing — a single
-  // cover at full size covered her from chin to hip and read as a shield.
-  ctx.translate(0, -118);
+  // Sized from the book itself: each panel is a third of the cover she made,
+  // so the open pair is about a third of the object she picked up. Drawn any
+  // larger it stops being something she is holding and becomes something she
+  // is hiding behind.
+  const w = (item.w ?? def?.w ?? 96) * item.scale;
+  const h = (item.h ?? def?.h ?? 136) * item.scale;
+  ctx.translate(0, -142);
   ctx.rotate(-0.04 + sway);
-  drawBookOpen(ctx, item.design ?? {}, 104, 68);
+  drawBookOpen(ctx, item.design ?? {}, w * 0.6, h * 0.3);
   ctx.restore();
 }
 
