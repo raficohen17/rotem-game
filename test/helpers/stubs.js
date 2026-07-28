@@ -10,8 +10,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { createWorld, placeItem, placeCharacter, HOUSE_LAYOUT } from '../../js/model/world.js';
+import {
+  createWorld, placeItem, placeCharacter, placeCat, HOUSE_LAYOUT,
+} from '../../js/model/world.js';
 import { createBook } from '../../js/model/book.js';
+import { createCatSpec } from '../../js/model/cat.js';
 import { recordingContext } from './recorder.js';
 
 /** Distinctive and one word, so it never wraps into lines a test cannot match. */
@@ -58,6 +61,13 @@ export function stubWorld(name = 'House 1') {
 
   world.characters.push(placeCharacter(undefined, HOUSE_LAYOUT[0], 320, 470));
   world.characters.push(placeCharacter(undefined, HOUSE_LAYOUT[3], 700, 470));
+
+  // A cat in each pose, so the scene harness covers all three drawings.
+  world.cats = [
+    { ...placeCat(createCatSpec(), HOUSE_LAYOUT[0], 500, 470), pose: 'stand' },
+    { ...placeCat(createCatSpec(), HOUSE_LAYOUT[1], 400, 400), pose: 'sit' },
+    { ...placeCat(createCatSpec(), HOUSE_LAYOUT[2], 800, 430), pose: 'curl' },
+  ];
   return world;
 }
 
@@ -76,6 +86,7 @@ export function stubGame(overrides = {}) {
     goMenu() {},
     openWorld() {},
     charactersIn: (roomId) => world.characters.filter((c) => c.room === roomId),
+    catsIn: (roomId) => (world.cats ?? []).filter((c) => c.room === roomId),
     ...overrides,
   };
   return game;

@@ -11,6 +11,7 @@ import { drawItem } from './catalog.js';
 import { drawBookOpen, drawBookFlat } from './book.js';
 import { resolveUse, carriedItems, isOn, switchFor } from '../model/using.js';
 import { drawCharacter, CHAR_H } from './character.js';
+import { drawCat } from './cat.js';
 import { drawOrder } from '../model/geometry.js';
 import { shade, deepen, fillRR, fillEllipse, roundRect, strokeLine } from './shapes.js';
 import { litFill } from './materials.js';
@@ -346,9 +347,12 @@ const PATTERNS = {
  * Characters and furniture share one ordering so a character can stand behind
  * a sofa or in front of it depending on where she is.
  */
-export function roomContents(room, characters, catalog) {
+export function roomContents(room, characters, catalog, cats = []) {
   const items = room.items.map((placed) => ({ kind: 'item', placed }));
   const cast = characters.map((character) => ({ kind: 'character', placed: character }));
+  // Cats sort by where they are standing like everything else, so one on a
+  // sofa draws in front of it and one behind a table draws behind it.
+  const pets = cats.map((cat) => ({ kind: 'cat', placed: cat }));
 
   const lookup = (id) => catalog.get(id);
   const orderedItems = drawOrder(room.items, lookup);
@@ -358,8 +362,9 @@ export function roomContents(room, characters, catalog) {
   // back to rank 0 and anything placed after the first item drew over them —
   // which is why sitting on a sofa put her behind its back.
   cast.forEach((entry, i) => rank.set(entry.placed, orderedItems.length + i));
+  pets.forEach((entry, i) => rank.set(entry.placed, orderedItems.length + cast.length + i));
 
-  return [...items, ...cast].sort((a, b) => {
+  return [...items, ...cast, ...pets].sort((a, b) => {
     const aWall = a.kind === 'item' && lookup(a.placed.item)?.surface === 'wall';
     const bWall = b.kind === 'item' && lookup(b.placed.item)?.surface === 'wall';
     if (aWall !== bWall) return aWall ? -1 : 1;
@@ -375,10 +380,18 @@ export function roomContents(room, characters, catalog) {
  * @param {object[]} characters those standing in this room
  * @param {object|null} selected highlighted with a halo
  */
-export function drawRoomContents(ctx, room, characters, catalog, time, selected = null) {
+export function drawRoomContents(ctx, room, characters, catalog, time, selected = null, cats = []) {
   const carried = carriedItems(characters);
 
-  for (const entry of roomContents(room, characters, catalog)) {
+  for (const entry of roomContents(room, characters, catalog, cats)) {
+    if (entry.kind === 'cat') {
+      ctx.save();
+      ctx.translate(entry.placed.x, entry.placed.y);
+      drawCat(ctx, entry.placed.spec, time, entry.placed.pose);
+      ctx.restore();
+      continue;
+    }
+
     if (entry.placed === selected) drawSelectionHalo(ctx, entry, catalog);
 
     if (entry.kind === 'item') {

@@ -28,10 +28,13 @@ import {
 } from '../render/room.js';
 import { itemBounds, boundsContain, clampScale, findSurface } from '../model/geometry.js';
 import {
-  placeItem, placeCharacter, frontZ, backZ, WALL_COLORS, FLOOR_COLORS, FLOOR_STYLES,
+  placeItem, placeCharacter, placeCat, frontZ, backZ, WALL_COLORS, FLOOR_COLORS, FLOOR_STYLES,
 } from '../model/world.js';
 import { createBook } from '../model/book.js';
 import { createCharacterCreator } from './charcreator.js';
+import { createCatCreator } from './catcreator.js';
+import { drawCat } from '../render/cat.js';
+import { createCatSpec } from '../model/cat.js';
 import { createBookDesigner } from './bookdesigner.js';
 import { createHouse } from './house.js';
 
@@ -97,6 +100,7 @@ export function createRoomScene(game, roomId) {
   }
 
   const cast = () => game.charactersIn(roomId);
+  const catsHere = () => game.catsIn(roomId);
   const isItem = (entry) => entry && entry.item !== undefined;
 
   function isWallItem(entry) {
@@ -257,6 +261,28 @@ export function createRoomScene(game, roomId) {
     }, back));
   }
 
+  /**
+   * Making a cat.
+   *
+   * It is dropped on the floor and left to itself — there is nothing to place
+   * and nothing to aim, because a cat decides where it goes. It will have
+   * chosen somewhere by the time she has looked away and back.
+   */
+  function openCatCreator() {
+    const back = () => game.setScene(createRoomScene(game, roomId));
+    game.setScene(createCatCreator(game, (spec) => {
+      game.world.cats = game.world.cats ?? [];
+      const already = game.world.cats.length;
+      game.world.cats.push(placeCat(
+        spec, roomId,
+        ROOM_W / 2 + ((already % 5) - 2) * 130,
+        FLOOR_BAND.bottom - 40,
+      ));
+      game.persist();
+      back();
+    }, back));
+  }
+
   function openCreator(existing) {
     const back = () => game.setScene(createRoomScene(game, roomId));
     game.setScene(createCharacterCreator(game, (spec) => {
@@ -323,9 +349,12 @@ export function createRoomScene(game, roomId) {
     }
 
     if (tab === 'people') {
-      const controls = [button('addPerson', CELL.x, CELL.y, CELL.w, CELL.h, { addPerson: true })];
+      const controls = [
+        button('addPerson', CELL.x, CELL.y, CELL.w, CELL.h, { addPerson: true }),
+        button('addCat', CELL.x + CELL.step, CELL.y, CELL.w, CELL.h, { addCat: true }),
+      ];
       cast().forEach((character, i) => {
-        controls.push(button(`person:${i}`, CELL.x + (i + 1) * CELL.step, CELL.y,
+        controls.push(button(`person:${i}`, CELL.x + (i + 2) * CELL.step, CELL.y,
           CELL.w, CELL.h, { character }));
       });
       return controls;
@@ -412,6 +441,7 @@ export function createRoomScene(game, roomId) {
       case 'back': game.setScene(createHouse(game)); return true;
       case 'drawer': open = !open; return true;
       case 'addPerson': openCreator(null); return true;
+      case 'addCat': openCatCreator(); return true;
       case 'edit': openCreator(selected); return true;
       case 'use': {
         const item = nearestUsable(selected);
@@ -522,7 +552,7 @@ export function createRoomScene(game, roomId) {
       ctx.translate(t.x, t.y);
       ctx.scale(t.s, t.s);
       drawRoomShell(ctx, room);
-      drawRoomContents(ctx, room, cast(), catalog, game.time, selected);
+      drawRoomContents(ctx, room, cast(), catalog, game.time, selected, catsHere());
       ctx.restore();
 
       // A bright line along the surface a drag will land on.
@@ -586,6 +616,17 @@ function drawDrawer(ctx, tabControls, contents, tab, time, floorColor) {
       fillCircle(ctx, control.x + control.w / 2, control.y + control.h / 2, 26,
         COLORS.buttonActive);
       drawPlus(ctx, control.x + control.w / 2, control.y + control.h / 2);
+    } else if (control.addCat) {
+      // A cat with a plus on it, so the two "add" cells are told apart by what
+      // they add rather than by their position in the row.
+      fillRR(ctx, control.x, control.y, control.w, control.h, 12, '#413945');
+      ctx.save();
+      ctx.translate(control.x + control.w / 2, control.y + control.h - 34);
+      ctx.scale(0.78, 0.78);
+      drawCat(ctx, createCatSpec(), game.time, 'sit');
+      ctx.restore();
+      fillCircle(ctx, control.x + control.w - 24, control.y + 24, 17, COLORS.buttonActive);
+      drawPlus(ctx, control.x + control.w - 24, control.y + 24, 0.6);
     } else if (control.character) {
       fillRR(ctx, control.x, control.y, control.w, control.h, 12, '#413945');
       ctx.save();
@@ -626,15 +667,15 @@ function drawFloorSwatch(ctx, control, color) {
   }
 }
 
-function drawPlus(ctx, cx, cy) {
+function drawPlus(ctx, cx, cy, scale = 1) {
   ctx.strokeStyle = COLORS.ink;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = 6 * scale;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(cx - 12, cy);
-  ctx.lineTo(cx + 12, cy);
-  ctx.moveTo(cx, cy - 12);
-  ctx.lineTo(cx, cy + 12);
+  ctx.moveTo(cx - 12 * scale, cy);
+  ctx.lineTo(cx + 12 * scale, cy);
+  ctx.moveTo(cx, cy - 12 * scale);
+  ctx.lineTo(cx, cy + 12 * scale);
   ctx.stroke();
 }
 

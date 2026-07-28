@@ -6,12 +6,14 @@ import { recordingContext, SCREEN, onScreen, MIN_TEXT } from './helpers/recorder
 import { stubGame, withDocument, BOOK_TITLE } from './helpers/stubs.js';
 import { HOUSE_LAYOUT } from '../js/model/world.js';
 import { EDITABLE_PARTS } from '../js/model/character.js';
+import { CAT_PARTS } from '../js/model/cat.js';
 
 import { createMenu } from '../js/scenes/menu.js';
 import { createHouse } from '../js/scenes/house.js';
 import { createRoomScene } from '../js/scenes/room.js';
 import { createCharacterCreator } from '../js/scenes/charcreator.js';
 import { createBookDesigner } from '../js/scenes/bookdesigner.js';
+import { createCatCreator } from '../js/scenes/catcreator.js';
 
 /**
  * Every scene, in the states it is actually seen in.
@@ -83,6 +85,16 @@ function scenes() {
       return scene;
     });
   });
+  add('the cat designer', () => createCatCreator(stubGame(), () => {}, () => {}));
+  ['looks', ...CAT_PARTS.map((p) => p.key)].forEach((key, index) => {
+    add(`the cat designer's ${key} tab`, () => {
+      const scene = createCatCreator(stubGame(), () => {}, () => {});
+      const tab = scene.allControls().find((c) => c.id === `tab:${index}`);
+      scene.onTap(tab.x + tab.w / 2, tab.y + tab.h / 2);
+      return scene;
+    });
+  });
+
   add('the book designer', () => withDocument(
     () => createBookDesigner(stubGame(), null, () => {}, () => {}),
   ));

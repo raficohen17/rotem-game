@@ -341,6 +341,63 @@ export const ICONS = {
     fillCircle(ctx, 8, -15, 2.2, c);
   },
 
+  /* A cat's head, for the cat parts. */
+  catFace(ctx, c) {
+    fillPoly(ctx, [-16, -6, -8, -20, -3, -7], c);
+    fillPoly(ctx, [16, -6, 8, -20, 3, -7], c);
+    fillEllipse(ctx, 0, 0, 17, 15, c);
+    ctx.globalCompositeOperation = 'destination-out';
+    fillEllipse(ctx, -6, -2, 3, 4, '#000');
+    fillEllipse(ctx, 6, -2, 3, 4, '#000');
+    ctx.globalCompositeOperation = 'source-over';
+  },
+
+  /* A swatch of coat. */
+  catCoat(ctx, c) {
+    fillEllipse(ctx, 0, 2, 19, 13, c);
+    fillCircle(ctx, -14, -8, 8, c);
+  },
+
+  /* Stripes, for the markings. */
+  catMarking(ctx, c) {
+    fillEllipse(ctx, 0, 2, 19, 13, c);
+    ctx.globalCompositeOperation = 'destination-out';
+    for (const x of [-9, -1, 7]) fillRR(ctx, x, -12, 4, 28, 2, '#000');
+    ctx.globalCompositeOperation = 'source-over';
+  },
+
+  /* The same, as a colour. */
+  catMarkingColor(ctx, c) {
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 19, 13, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    for (const x of [-8, 0, 8]) fillRR(ctx, x, -6, 4, 16, 2, c);
+  },
+
+  catEars(ctx, c) {
+    fillPoly(ctx, [-18, 8, -8, -18, 0, 6], c);
+    fillPoly(ctx, [18, 8, 8, -18, 0, 6], c);
+  },
+
+  catTail(ctx, c) {
+    stroke(ctx, c, 7);
+    ctx.beginPath();
+    ctx.moveTo(-14, 16);
+    ctx.quadraticCurveTo(14, 8, 8, -16);
+    ctx.stroke();
+  },
+
+  catCollar(ctx, c) {
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, -3, 14, 0.25, Math.PI - 0.25);
+    ctx.stroke();
+    fillCircle(ctx, 0, 14, 5, c);
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

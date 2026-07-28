@@ -8,6 +8,7 @@
  */
 
 import { clampBook } from './book.js';
+import { clampCatSpec } from './cat.js';
 
 export const CURRENT_VERSION = 1;
 
@@ -82,6 +83,7 @@ export function createWorld(name = 'My House') {
     createdAt: 0, // stamped by the caller; keeps this function deterministic
     rooms,
     characters: [],
+    cats: [],
     thumb: null,
   };
 }
@@ -93,6 +95,16 @@ export function createWorld(name = 'My House') {
  */
 export function placeItem(catalogId, x, y) {
   return { uid: makeId(), item: catalogId, x, y, z: 0, scale: 1, flip: false, tint: 0 };
+}
+
+/**
+ * A cat, dropped into a room.
+ *
+ * No z: a cat sorts by where it is standing like everything else, and giving
+ * it one would only let it be pushed behind the sofa it is sitting on.
+ */
+export function placeCat(spec, room, x = SPAWN.x, y = SPAWN.y) {
+  return { uid: makeId(), spec, room, x, y, pose: 'stand' };
 }
 
 export function placeCharacter(spec, room, x = SPAWN.x, y = SPAWN.y) {
@@ -160,6 +172,7 @@ export function repairWorld(world) {
     createdAt: Number.isFinite(world.createdAt) ? world.createdAt : 0,
     rooms: {},
     characters: [],
+    cats: [],
     thumb: typeof world.thumb === 'string' ? world.thumb : null,
   };
 
@@ -191,6 +204,25 @@ export function repairWorld(world) {
         // game, and it also silently dropped this the first time — she was
         // showering until the world was reopened, and then she was not.
         ...(isUsingRecord(c.using) ? { using: { uid: c.using.uid, action: c.using.action } } : {}),
+      }));
+  }
+
+  // Cats. A world saved before there were any simply has none, which is what
+  // it had. Rebuilt from a fixed list of fields like everything else, so a
+  // corrupt one cannot crash the room it lives in.
+  if (Array.isArray(world.cats)) {
+    safe.cats = world.cats
+      .filter((c) => c && typeof c === 'object')
+      .map((c) => ({
+        uid: typeof c.uid === 'string' ? c.uid : makeId(),
+        spec: clampCatSpec(c.spec),
+        room: ROOM_IDS.includes(c.room) ? c.room : ROOM_IDS[0],
+        x: Number.isFinite(c.x) ? c.x : SPAWN.x,
+        y: Number.isFinite(c.y) ? c.y : SPAWN.y,
+        pose: ['stand', 'sit', 'curl'].includes(c.pose) ? c.pose : 'stand',
+        // When it next thinks. Absent is fine — it thinks on the next frame.
+        ...(Number.isFinite(c.dueAt) ? { dueAt: c.dueAt } : {}),
+        ...(typeof c.on === 'string' ? { on: c.on } : {}),
       }));
   }
 

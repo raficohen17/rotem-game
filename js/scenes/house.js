@@ -250,7 +250,8 @@ export function createHouse(game) {
         ctx.translate(box.x, box.y);
         ctx.scale(CELL_SCALE, CELL_SCALE);
         drawRoomShell(ctx, room);
-        drawRoomContents(ctx, room, game.charactersIn(id), game.catalog, game.time);
+        drawRoomContents(ctx, room, game.charactersIn(id), game.catalog, game.time,
+          null, game.catsIn(id));
         ctx.restore();
 
         drawRecess(ctx, box);

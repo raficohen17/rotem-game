@@ -10,6 +10,7 @@ import { createMenu } from './scenes/menu.js';
 import { createHouse } from './scenes/house.js';
 import { createArtSheet } from './scenes/artsheet.js';
 import { stepWalk } from './model/travel.js';
+import { stepCat, isDue } from './model/catlife.js';
 import { renderHouseThumbnail } from './render/room.js';
 import { drawRotatePrompt } from './ui/rotate.js';
 import { HOUSE_LAYOUT } from './model/world.js';
@@ -109,6 +110,10 @@ const game = {
   charactersIn(roomId) {
     return game.world ? game.world.characters.filter((c) => c.room === roomId) : [];
   },
+
+  catsIn(roomId) {
+    return game.world ? (game.world.cats ?? []).filter((c) => c.room === roomId) : [];
+  },
 };
 
 // No scene while the phone is upright, so nothing can be tapped behind the
@@ -158,6 +163,17 @@ function frame(now) {
         moved = true;
       }
     }
+    // Cats think for themselves, about once a minute. On every other frame
+    // this is one comparison each and an early return, which is the whole
+    // reason a house full of them costs nothing.
+    for (const cat of game.world.cats ?? []) {
+      if (!isDue(cat, game.time)) continue;
+      const room = game.world.rooms[cat.room];
+      if (stepCat(cat, room?.items ?? [], (id) => game.catalog?.get(id), game.time)) {
+        moved = true;
+      }
+    }
+
     if (moved) game.persistSoon();
   }
 
