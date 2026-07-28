@@ -8,7 +8,7 @@
  */
 
 import { drawItem } from './catalog.js';
-import { drawBookFlat } from './book.js';
+import { drawBookOpen, drawBookFlat } from './book.js';
 import { resolveUse, carriedItems, isOn, switchFor } from '../model/using.js';
 import { drawCharacter, CHAR_H } from './character.js';
 import { drawOrder } from '../model/geometry.js';
@@ -436,11 +436,16 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
  * something they are looking at.
  */
 function drawReading(ctx, item, time) {
-  const sway = Math.sin(time * 1.2) * 0.03;
+  // Cover out, not the flat pile drawing that was here first — that shows the
+  // spine and the page edges, so the cover Rotem designed was the one thing
+  // you could not see while she was reading it.
+  const sway = Math.sin(time * 1.2) * 0.025;
   ctx.save();
-  ctx.translate(0, -156);
-  ctx.rotate(-0.22 + sway);
-  drawBookFlat(ctx, item.design ?? {}, 96, 74);
+  // Open, and small enough to leave her face and shoulders showing — a single
+  // cover at full size covered her from chin to hip and read as a shield.
+  ctx.translate(0, -118);
+  ctx.rotate(-0.04 + sway);
+  drawBookOpen(ctx, item.design ?? {}, 104, 68);
   ctx.restore();
 }
 

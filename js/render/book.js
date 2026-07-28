@@ -100,6 +100,48 @@ export function drawBook(ctx, rawDesign, w, h) {
   ctx.restore();
 }
 
+/**
+ * The book held open, seen from outside: back cover, spine, front cover.
+ *
+ * This is what somebody reading looks like from across the room — you see the
+ * outside of the book, not the pages. Both panels carry the cover colour and
+ * the pattern; only the front carries the title, because a back cover with the
+ * title on it would read as two front covers rather than as one open book.
+ *
+ * @param {number} w the full span across both panels
+ */
+export function drawBookOpen(ctx, rawDesign, w, h) {
+  const design = clampBook(rawDesign);
+  const cover = COVER_COLORS[design.cover];
+  const panelW = (w - 6) / 2;
+
+  // The pages, showing between the two covers.
+  fillRR(ctx, -w / 2 + 3, -h + 4, w - 6, h - 7, 3, '#efe6d6');
+
+  for (const [i, side] of [-1, 1].entries()) {
+    const x = side < 0 ? -w / 2 : 3;
+    // The far panel is turned away from the light a little, which is what
+    // makes the pair read as an angle rather than as two flat cards.
+    const tone = side < 0 ? shade(cover, -0.1) : cover;
+    ctx.fillStyle = litFill(ctx, -h, h, tone, 0.12);
+    fillRR(ctx, x, -h, panelW, h, 4, ctx.fillStyle);
+    drawPattern(ctx, design, x, -h, panelW, h);
+    // Only the front, which is the right-hand panel. Clipped to it: a banner
+    // or a boxed title is drawn wider than the words it holds, and on a panel
+    // this narrow it ran across the spine and onto the back cover.
+    if (side > 0) within(ctx, x, -h, panelW, h, () => drawTitle(ctx, design, x, -h, panelW, h));
+    void i;
+  }
+
+  // The spine down the middle, and the shadow it casts into the gutter.
+  ctx.fillStyle = shade(cover, -0.28);
+  fillRR(ctx, -3, -h, 6, h, 2, ctx.fillStyle);
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  fillEllipse(ctx, 0, -1, w * 0.46, 4, '#000');
+  ctx.restore();
+}
+
 /** Cover patterns, clipped to the face so nothing spills onto the spine. */
 function drawPattern(ctx, design, x, y, w, h) {
   const style = COVER_PATTERNS[design.pattern];
