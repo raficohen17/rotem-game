@@ -1,12 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { hitTest } from '../js/ui/widgets.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+import { hitTest, tabRow } from '../js/ui/widgets.js';
 import { recordingContext, SCREEN, onScreen, MIN_TEXT } from './helpers/recorder.js';
 import { stubGame, withDocument, BOOK_TITLE } from './helpers/stubs.js';
 import { HOUSE_LAYOUT } from '../js/model/world.js';
 import { EDITABLE_PARTS } from '../js/model/character.js';
+import { EXTRA_TABS } from '../js/scenes/room.js';
 import { CAT_PARTS } from '../js/model/cat.js';
+import { createBook } from '../js/model/book.js';
 
 import { createMenu } from '../js/scenes/menu.js';
 import { createHouse } from '../js/scenes/house.js';
@@ -54,6 +60,20 @@ function scenes() {
     const scene = createRoomScene(stubGame(), HOUSE_LAYOUT[0]);
     scene.onTap?.(1240, 676);
     return scene;
+  });
+  // Every drawer tab, not just the one it opens on. The people tab draws an
+  // "add a cat" cell that reached for a variable it could not see, and the
+  // whole room scene threw on every frame — but no test ever selected that
+  // tab, so the suite stayed green while the game was unusable.
+  DRAWER_TABS.forEach((id) => {
+    add(`a room with the ${id} drawer open`, () => {
+      const scene = createRoomScene(stubGame(), HOUSE_LAYOUT[0]);
+      scene.onTap(1240, 676);
+      const row = tabRow(DRAWER_TABS.length);
+      const i = DRAWER_TABS.indexOf(id);
+      scene.onTap(row.at(i) + row.w / 2, row.y + row.h / 2);
+      return scene;
+    });
   });
   add('a room with an item selected', () => {
     const game = stubGame();
@@ -110,6 +130,23 @@ function scenes() {
  * in a dolls' house — she taps the room to go in, and reads it there.
  */
 const IN_WORLD_TEXT = 8;
+
+/**
+ * Titles that are painted on a book rather than written on the interface.
+ *
+ * The drawer draws a little book in its cell, so the catalogue's own default
+ * title turns up as scene text at thumbnail size — art, like the cover of a
+ * book standing in a room, not a label anybody is asked to read.
+ */
+const COVER_TITLES = new Set([BOOK_TITLE, createBook().title]);
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+/** Every tab in the room drawer: people, wall, floor, then the categories. */
+const DRAWER_TABS = [
+  ...EXTRA_TABS.map((t) => t.id),
+  ...JSON.parse(readFileSync(join(ROOT, 'assets/catalog.json'), 'utf8')).categories.map((c) => c.id),
+];
 const IN_WORLD_TEXT_IN_PREVIEW = 0;
 
 /** Where a character stands, in house-view screen coordinates. */
@@ -148,7 +185,7 @@ for (const { name, build, preview } of scenes()) {
     // by the book, and Rotem reads it full-size in the designer. It still has
     // to be legible enough to tell one book from another on a shelf.
     const inWorld = preview ? IN_WORLD_TEXT_IN_PREVIEW : IN_WORLD_TEXT;
-    const floorFor = (t) => (t.text === BOOK_TITLE ? inWorld : MIN_TEXT);
+    const floorFor = (t) => (COVER_TITLES.has(t.text) ? inWorld : MIN_TEXT);
     const tiny = recorder.texts
       .filter((t) => onScreen(t.drawn) < floorFor(t))
       .map((t) => `"${t.text}" at ${t.drawn.toFixed(1)}px (${onScreen(t.drawn).toFixed(1)}px on the phone)`);

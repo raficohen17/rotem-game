@@ -623,7 +623,7 @@ function drawDrawer(ctx, tabControls, contents, tab, time, floorColor) {
       ctx.save();
       ctx.translate(control.x + control.w / 2, control.y + control.h - 34);
       ctx.scale(0.78, 0.78);
-      drawCat(ctx, createCatSpec(), game.time, 'sit');
+      drawCat(ctx, createCatSpec(), time, 'sit');
       ctx.restore();
       fillCircle(ctx, control.x + control.w - 24, control.y + 24, 17, COLORS.buttonActive);
       drawPlus(ctx, control.x + control.w - 24, control.y + 24, 0.6);
