@@ -18,12 +18,23 @@
  */
 
 
-/** How long a cat stays put, in seconds. */
-export const SETTLE_MIN = 45;
-export const SETTLE_MAX = 95;
+/**
+ * How long between one cat's decisions, in seconds.
+ *
+ * A few seconds either side of twenty rather than exactly twenty, so that two
+ * cats made at the same moment do not check on the same frame for ever after —
+ * which reads as one scripted event rather than as two animals.
+ */
+export const SETTLE_MIN = 18;
+export const SETTLE_MAX = 22;
 
-/** How likely it is to simply stay where it is when the time comes. */
-export const STAY_CHANCE = 0.3;
+/**
+ * How likely it is to simply stay where it is when the time comes.
+ *
+ * Half. So it moves every forty seconds on average, and the gaps are uneven,
+ * which is what stops it looking like a metronome.
+ */
+export const STAY_CHANCE = 0.5;
 
 /**
  * What a cat will get onto.

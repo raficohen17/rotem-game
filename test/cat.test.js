@@ -105,8 +105,8 @@ test('a cat with no plan thinks on the next frame', () => {
   assert.equal(isDue({ dueAt: 10 }, 10), true);
 });
 
-test('a cat settles for about a minute', () => {
-  assert.ok(SETTLE_MIN >= 30, `${SETTLE_MIN}s is not pacing`);
+test('a cat considers moving every twenty seconds or so', () => {
+  assert.ok(SETTLE_MIN >= 15 && SETTLE_MAX <= 25, `${SETTLE_MIN}-${SETTLE_MAX}s`);
   assert.equal(nextDecisionAt(0, 0), SETTLE_MIN);
   assert.equal(nextDecisionAt(0, 1), SETTLE_MAX);
   assert.equal(nextDecisionAt(100, 0.5), 100 + (SETTLE_MIN + SETTLE_MAX) / 2);
@@ -115,6 +115,14 @@ test('a cat settles for about a minute', () => {
 test('cats do not all move at the same instant', () => {
   // A fixed interval reads as a scripted event rather than as animals.
   assert.notEqual(nextDecisionAt(0, 0.1), nextDecisionAt(0, 0.9));
+});
+
+test('it moves about half the times it thinks about it', () => {
+  // Twenty seconds between decisions and an even chance each time, so it
+  // actually moves every forty seconds on average and the gaps are uneven.
+  assert.equal(STAY_CHANCE, 0.5);
+  const average = (SETTLE_MIN + SETTLE_MAX) / 2 / (1 - STAY_CHANCE);
+  assert.ok(average > 30 && average < 50, `it moves every ${average}s on average`);
 });
 
 test('staying put is a real answer', () => {
