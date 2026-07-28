@@ -220,8 +220,16 @@ export function repairWorld(world) {
         x: Number.isFinite(c.x) ? c.x : SPAWN.x,
         y: Number.isFinite(c.y) ? c.y : SPAWN.y,
         pose: ['stand', 'sit', 'curl'].includes(c.pose) ? c.pose : 'stand',
-        // When it next thinks. Absent is fine — it thinks on the next frame.
-        ...(Number.isFinite(c.dueAt) ? { dueAt: c.dueAt } : {}),
+        /*
+         * When it next thinks is deliberately not kept.
+         *
+         * It counts seconds of play, and the clock restarts at zero each time
+         * the app is opened — so a saved one is a debt from the last session
+         * that has to be paid off before the cat moves again, and it grows
+         * every time she plays. Dropping it means a cat decides on the first
+         * frame of a new session, which is the right behaviour anyway: you
+         * come back and it has moved.
+         */
         ...(typeof c.on === 'string' ? { on: c.on } : {}),
       }));
   }

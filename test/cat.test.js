@@ -182,7 +182,6 @@ test('a cat survives being closed and reopened', () => {
   const world = createWorld('House 1');
   const cat = placeCat({ ...createCatSpec(), coat: 5, collar: 2 }, 'kitchen', 640, 400);
   cat.pose = 'curl';
-  cat.dueAt = 123;
   world.cats.push(cat);
 
   const loaded = repairWorld(JSON.parse(JSON.stringify(world)));
@@ -190,8 +189,7 @@ test('a cat survives being closed and reopened', () => {
   assert.equal(back.room, 'kitchen');
   assert.equal(back.spec.coat, 5);
   assert.equal(back.spec.collar, 2);
-  assert.equal(back.pose, 'curl');
-  assert.equal(back.dueAt, 123);
+  assert.equal(back.pose, 'curl', 'still curled up where she left it');
 });
 
 test('a corrupt cat is repaired rather than trusted', () => {
@@ -274,4 +272,19 @@ test('every perch says how far up it a cat sits', () => {
 
 test('a cat on a rug is on the floor', () => {
   assert.equal(perchLevel('rug_round'), 0, 'a rug is a place, not a climb');
+});
+
+test('a cat is not frozen by how long she played last time', () => {
+  // dueAt counts seconds of play and the clock restarts at zero each session,
+  // so a saved one is a debt from last time that has to be paid off before the
+  // cat moves — and it grows every session. A cat that has not moved all
+  // afternoon is indistinguishable from a broken one.
+  const world = createWorld('House 1');
+  const cat = placeCat(createCatSpec(), 'bedroom', 300, 470);
+  cat.dueAt = 600; // she played for ten minutes
+  world.cats.push(cat);
+
+  const back = repairWorld(JSON.parse(JSON.stringify(world))).cats[0];
+  assert.equal('dueAt' in back, false, 'the debt is not carried over');
+  assert.equal(isDue(back, 0), true, 'it decides on the first frame of the new session');
 });
