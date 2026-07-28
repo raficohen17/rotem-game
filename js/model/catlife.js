@@ -16,6 +16,8 @@
  * Pure and testable — no canvas, no DOM, no clock of its own. The caller
  * passes the time in, which is also what makes the intervals testable.
  */
+import { beginWalk, routeBetween } from './travel.js';
+
 
 
 /**
@@ -35,6 +37,16 @@ export const SETTLE_MAX = 22;
  * which is what stops it looking like a metronome.
  */
 export const STAY_CHANCE = 0.5;
+
+/**
+ * How often a move is to a different room rather than across this one.
+ *
+ * A cat that never leaves the room it was born in is a piece of furniture
+ * with a tail. A quarter of its moves, so it turns up somewhere else every
+ * few minutes — often enough that she finds it in the kitchen, rarely enough
+ * that it is not permanently in a corridor.
+ */
+export const WANDER_CHANCE = 0.25;
 
 /**
  * What a cat will get onto.
@@ -119,8 +131,8 @@ export function isDue(cat, now) {
  * @param {object[]} items the items in the cat's room
  * @param {() => number} random injected, so a test can decide what it picks
  */
-export function chooseSpot(items, lookup, random = Math.random) {
-  if (random() < STAY_CHANCE) return null;
+export function chooseSpot(items, lookup, random = Math.random, alreadyDecided = false) {
+  if (!alreadyDecided && random() < STAY_CHANCE) return null;
 
   const perches = [];
   for (const item of items) {
@@ -141,18 +153,45 @@ export function chooseSpot(items, lookup, random = Math.random) {
 }
 
 /**
+ * Picks another room to wander off to, or null to stay on this floor plan.
+ *
+ * @param {string[]} rooms every room in the house
+ */
+export function chooseRoom(from, rooms, random = Math.random) {
+  const elsewhere = rooms.filter((id) => id !== from && routeBetween(from, id)?.length);
+  if (!elsewhere.length) return null;
+  return elsewhere[Math.min(elsewhere.length - 1, Math.floor(random() * elsewhere.length))];
+}
+
+/**
  * Moves a cat on by one decision, if one is due.
  *
  * Returns true when something changed, so the caller knows whether the world
  * is worth saving. On a frame where nothing is due this is one comparison and
  * an early return, which is the entire performance argument.
+ *
+ * @param {object} world optional — the rooms and the floor, so it can wander
  */
-export function stepCat(cat, items, lookup, now, random = Math.random) {
+export function stepCat(cat, items, lookup, now, random = Math.random, world = null) {
   if (!isDue(cat, now)) return false;
+  // Already on its way somewhere; let it get there before it thinks again.
+  if (cat.walk) return false;
 
   cat.dueAt = nextDecisionAt(now, random());
-  const spot = chooseSpot(items, lookup, random);
-  if (!spot) return true; // it thought about it and stayed
+  if (random() < STAY_CHANCE) return true; // it thought about it and stayed
+
+  // Off to another room, now and then.
+  if (world && random() < WANDER_CHANCE) {
+    const room = chooseRoom(cat.room, world.rooms, random);
+    if (room) {
+      setDown(cat, world.floorY);
+      beginWalk(cat, room, world.width / 2, world.width);
+      return true;
+    }
+  }
+
+  const spot = chooseSpot(items, lookup, random, true);
+  if (!spot) return true;
 
   cat.x = spot.x;
   cat.y = spot.y;

@@ -231,6 +231,11 @@ export function repairWorld(world) {
          * come back and it has moved.
          */
         ...(typeof c.on === 'string' ? { on: c.on } : {}),
+        // Mid-journey between rooms. Kept, so closing the app does not strand
+        // a cat halfway down the stairs.
+        ...(c.walk && Array.isArray(c.walk.legs) && Number.isInteger(c.walk.index)
+          ? { walk: c.walk }
+          : {}),
       }));
   }
 

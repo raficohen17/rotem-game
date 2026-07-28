@@ -14,7 +14,10 @@ import { stepCat, isDue } from './model/catlife.js';
 import { renderHouseThumbnail } from './render/room.js';
 import { drawRotatePrompt } from './ui/rotate.js';
 import { HOUSE_LAYOUT } from './model/world.js';
-import { ROOM_W } from './render/room.js';
+import { ROOM_W, FLOOR_BAND } from './render/room.js';
+
+/** Where a cat's paws go when it is walking rather than sitting on something. */
+const CAT_FLOOR_Y = FLOOR_BAND.bottom - 40;
 
 const canvas = document.getElementById('stage');
 const view = new View(canvas);
@@ -163,13 +166,23 @@ function frame(now) {
         moved = true;
       }
     }
-    // Cats think for themselves, about once a minute. On every other frame
-    // this is one comparison each and an early return, which is the whole
-    // reason a house full of them costs nothing.
+    // Cats think for themselves every twenty seconds or so. On every other
+    // frame this is one comparison each and an early return, which is the
+    // whole reason a house full of them costs nothing.
+    const house = { rooms: HOUSE_LAYOUT, width: ROOM_W, floorY: CAT_FLOOR_Y };
     for (const cat of game.world.cats ?? []) {
+      // On its way to another room: the same stepper the people use, since it
+      // only ever needed something with a room, an x and a walk.
+      if (cat.walk) {
+        stepWalk(cat, dt, ROOM_W);
+        if (!cat.walk) cat.dueAt = 0; // arrived — find somewhere to sit
+        moved = true;
+        continue;
+      }
       if (!isDue(cat, game.time)) continue;
       const room = game.world.rooms[cat.room];
-      if (stepCat(cat, room?.items ?? [], (id) => game.catalog?.get(id), game.time)) {
+      if (stepCat(cat, room?.items ?? [], (id) => game.catalog?.get(id),
+        game.time, Math.random, house)) {
         moved = true;
       }
     }

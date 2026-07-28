@@ -10,7 +10,7 @@ import {
 } from '../js/model/cat.js';
 import {
   PERCHES, SETTLE_MIN, SETTLE_MAX, STAY_CHANCE,
-  isDue, nextDecisionAt, chooseSpot, stepCat, isPerch, setDown, perchLevel,
+  isDue, nextDecisionAt, chooseSpot, stepCat, isPerch, setDown, perchLevel, chooseRoom,
 } from '../js/model/catlife.js';
 import { createWorld, repairWorld, placeItem, placeCat } from '../js/model/world.js';
 import { ICONS } from '../js/ui/icons.js';
@@ -295,4 +295,70 @@ test('a cat is not frozen by how long she played last time', () => {
   const back = repairWorld(JSON.parse(JSON.stringify(world))).cats[0];
   assert.equal('dueAt' in back, false, 'the debt is not carried over');
   assert.equal(isDue(back, 0), true, 'it decides on the first frame of the new session');
+});
+
+/* ------------------------------------------------------- around the house */
+
+test('a cat goes to other rooms', () => {
+  // A cat that never leaves the room it was born in is a piece of furniture
+  // with a tail.
+  const rooms = ['bedroom', 'bath', 'living', 'kitchen'];
+  const picked = new Set();
+  for (let i = 0; i < 40; i += 1) {
+    const room = chooseRoom('bedroom', rooms, () => i / 40);
+    if (room) picked.add(room);
+  }
+  assert.equal(picked.has('bedroom'), false, 'never the one it is already in');
+  assert.ok(picked.size >= 2, `it will go to ${[...picked].join(', ')}`);
+});
+
+test('a cat only goes where there is a way through', () => {
+  assert.equal(chooseRoom('bedroom', ['bedroom'], () => 0), null, 'nowhere else to go');
+  assert.equal(chooseRoom('bedroom', ['bedroom', 'nowhere'], () => 0), null,
+    'and not to a room that is not part of the house');
+});
+
+test('setting off to another room puts it on the floor first', () => {
+  // It cannot walk out of the room while still sitting on the sofa.
+  const cat = placeCat(createCatSpec(), 'bedroom', 300, 340);
+  cat.pose = 'curl';
+  cat.on = 'sofa-uid';
+  const house = { rooms: ['bedroom', 'bath', 'living', 'kitchen'], width: 1200, floorY: 470 };
+
+  // rolls: dueAt, move (>= STAY_CHANCE), wander (< WANDER_CHANCE), which room
+  stepCat(cat, [], () => null, 0, seq([0.5, 0.9, 0.01, 0]), house);
+
+  assert.ok(cat.walk, 'it is on its way');
+  assert.equal(cat.pose, 'stand', 'on its feet');
+  assert.equal(cat.y, 470, 'and on the floor');
+  assert.equal('on' in cat, false, 'no longer sitting on anything');
+});
+
+test('a cat on its way somewhere is left to get there', () => {
+  // Deciding again mid-journey would have it turn round in a doorway.
+  const cat = placeCat(createCatSpec(), 'bedroom', 300, 470);
+  cat.walk = { legs: [{ room: 'bedroom', x: 600, exit: null }], index: 0 };
+  assert.equal(stepCat(cat, [], () => null, 1e6), false, 'it did not re-decide');
+  assert.ok(cat.walk, 'still walking');
+});
+
+test('a cat halfway down the stairs is still there tomorrow', () => {
+  const world = createWorld('House 1');
+  const cat = placeCat(createCatSpec(), 'bedroom', 300, 470);
+  cat.walk = { legs: [{ room: 'bath', x: 600, exit: 'door' }], index: 0 };
+  world.cats.push(cat);
+
+  const back = repairWorld(JSON.parse(JSON.stringify(world))).cats[0];
+  assert.deepEqual(back.walk, cat.walk);
+});
+
+test('a nonsense journey is discarded', () => {
+  const world = createWorld('House 1');
+  const cat = placeCat(createCatSpec(), 'bedroom', 300, 470);
+  world.cats.push(cat);
+  for (const junk of [{ legs: 'north' }, { index: 0 }, true, { legs: [], index: 'x' }]) {
+    cat.walk = junk;
+    const back = repairWorld(JSON.parse(JSON.stringify(world))).cats[0];
+    assert.equal('walk' in back, false, `${JSON.stringify(junk)} is dropped`);
+  }
 });
