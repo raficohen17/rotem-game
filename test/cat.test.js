@@ -9,7 +9,7 @@ import {
   createCatSpec, clampCatSpec, applyCatLook, countCats,
 } from '../js/model/cat.js';
 import {
-  PERCHES, SETTLE_MIN, SETTLE_MAX, STAY_CHANCE,
+  PERCHES, SETTLE_MIN, SETTLE_MAX, STAY_CHANCE, WANDER_CHANCE,
   isDue, nextDecisionAt, chooseSpot, stepCat, isPerch, setDown, perchLevel, chooseRoom,
 } from '../js/model/catlife.js';
 import { createWorld, repairWorld, placeItem, placeCat } from '../js/model/world.js';
@@ -361,4 +361,14 @@ test('a nonsense journey is discarded', () => {
     const back = repairWorld(JSON.parse(JSON.stringify(world))).cats[0];
     assert.equal('walk' in back, false, `${JSON.stringify(junk)} is dropped`);
   }
+});
+
+test('a room change is likely enough to be noticed', () => {
+  // Three things had to line up — due, and moving, and wandering — which came
+  // to one decision in eight. Whole five-minute stretches passed with the cat
+  // exactly where it was, and to somebody watching that is a broken cat.
+  const perDecision = (1 - STAY_CHANCE) * WANDER_CHANCE;
+  const perFiveMinutes = 300 / ((SETTLE_MIN + SETTLE_MAX) / 2);
+  const silent = (1 - perDecision) ** perFiveMinutes;
+  assert.ok(silent < 0.05, `a silent five minutes is ${(silent * 100).toFixed(1)}% likely`);
 });

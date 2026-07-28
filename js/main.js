@@ -19,6 +19,9 @@ import { ROOM_W, FLOOR_BAND } from './render/room.js';
 /** Where a cat's paws go when it is walking rather than sitting on something. */
 const CAT_FLOOR_Y = FLOOR_BAND.bottom - 40;
 
+/** What the cats' clock counts from. Wall time, so it runs while the app does not. */
+const catEpoch = Date.now();
+
 const canvas = document.getElementById('stage');
 const view = new View(canvas);
 
@@ -170,6 +173,17 @@ function frame(now) {
     // frame this is one comparison each and an early return, which is the
     // whole reason a house full of them costs nothing.
     const house = { rooms: HOUSE_LAYOUT, width: ROOM_W, floorY: CAT_FLOOR_Y };
+    /*
+     * Cats keep their own clock, off the wall rather than off the frames.
+     *
+     * game.time only advances while the game is drawing, so a phone in a
+     * pocket freezes it — and Rotem's phone spends most of its life in a
+     * pocket. Measured that way the cat had barely aged a minute between one
+     * look and the next, which is why it appeared to sit in the same room for
+     * hours. Off the wall clock it carries on living while she is away, and
+     * has moved by the time she looks again, which is the whole idea of it.
+     */
+    const catNow = (Date.now() - catEpoch) / 1000;
     for (const cat of game.world.cats ?? []) {
       // On its way to another room: the same stepper the people use, since it
       // only ever needed something with a room, an x and a walk.
@@ -179,10 +193,10 @@ function frame(now) {
         moved = true;
         continue;
       }
-      if (!isDue(cat, game.time)) continue;
+      if (!isDue(cat, catNow)) continue;
       const room = game.world.rooms[cat.room];
       if (stepCat(cat, room?.items ?? [], (id) => game.catalog?.get(id),
-        game.time, Math.random, house)) {
+        catNow, Math.random, house)) {
         moved = true;
       }
     }

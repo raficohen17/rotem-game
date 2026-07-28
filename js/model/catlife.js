@@ -41,12 +41,12 @@ export const STAY_CHANCE = 0.5;
 /**
  * How often a move is to a different room rather than across this one.
  *
- * A cat that never leaves the room it was born in is a piece of furniture
- * with a tail. A quarter of its moves, so it turns up somewhere else every
- * few minutes — often enough that she finds it in the kitchen, rarely enough
- * that it is not permanently in a corridor.
+ * Half. At a quarter, a room change needed three things to line up — due, and
+ * moving, and wandering — which came to one decision in eight, and whole
+ * five-minute stretches passed with the cat sitting exactly where it was. That
+ * is indistinguishable from a broken cat to somebody watching it.
  */
-export const WANDER_CHANCE = 0.25;
+export const WANDER_CHANCE = 0.5;
 
 /**
  * What a cat will get onto.
