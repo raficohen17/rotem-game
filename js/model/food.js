@@ -31,6 +31,10 @@ export const FOODS = {
    */
   egg: { portions: 1, catEats: false, raw: true },
   steak_raw: { portions: 3, catEats: true, raw: true },
+  veg: { portions: 2, catEats: false, raw: true },
+
+  soup: { portions: 3, catEats: false },
+  egg_boiled: { portions: 1, catEats: false },
 };
 
 /** Whether this needs cooking before anybody will eat it. */

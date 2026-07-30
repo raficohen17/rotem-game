@@ -165,6 +165,8 @@ export const AFFORDS = {
   cake: 'eat',
   steak: 'eat',
   omelette: 'eat',
+  soup: 'eat',
+  egg_boiled: 'eat',
 };
 
 /** The action an item offers, or null if it is only furniture. */

@@ -2,27 +2,27 @@
 
 ## 1. Ingredients and utensils
 
-- [ ] 1.1 Ingredients in the food drawer: egg, raw steak, and a couple more
-- [ ] 1.2 A `raw` flag — an ingredient is food that cannot be eaten yet
-- [ ] 1.3 Pan and pot in the kitchen drawer, with art
-- [ ] 1.4 A utensil holds one ingredient; the ingredient travels with it
-- [ ] 1.5 Test: a character is not offered raw steak, but a cat still takes it
+- [x] 1.1 Ingredients in the food drawer: egg, raw steak, and a couple more
+- [x] 1.2 A `raw` flag — an ingredient is food that cannot be eaten yet
+- [x] 1.3 Pan and pot in the kitchen drawer, with art
+- [x] 1.4 A utensil holds one ingredient; the ingredient travels with it
+- [x] 1.5 Test: a character is not offered raw steak, but a cat still takes it
 
 ## 2. Recipes
 
-- [ ] 2.1 `js/model/recipes.js` — what goes in what, and what comes out
-- [ ] 2.2 Cooking needs ingredient + utensil + a lit stove; any missing does
+- [x] 2.1 `js/model/recipes.js` — what goes in what, and what comes out
+- [x] 2.2 Cooking needs ingredient + utensil + a lit stove; any missing does
       nothing
-- [ ] 2.3 Progress that pauses when the stove goes off and resumes when it
+- [x] 2.3 Progress that pauses when the stove goes off and resumes when it
       comes back on
-- [ ] 2.4 Nothing burns, nothing is wasted, anything can be taken off
-- [ ] 2.5 Test: every recipe's ingredients, utensils and results are real items
+- [x] 2.4 Nothing burns, nothing is wasted, anything can be taken off
+- [x] 2.5 Test: every recipe's ingredients, utensils and results are real items
 
 ## 3. Watching it cook
 
-- [ ] 3.1 A pan that is cooking looks like it, without words
-- [ ] 3.2 The result plainly replaces the ingredient when it is done
-- [ ] 3.3 Cooking runs on the same cheap tick as the cats — no per-frame work
+- [x] 3.1 A pan that is cooking looks like it, without words
+- [x] 3.2 The result plainly replaces the ingredient when it is done
+- [x] 3.3 Cooking runs on the same cheap tick as the cats — no per-frame work
 
 ## 4. The rule book
 
@@ -40,7 +40,7 @@
 
 ## 6. Checks
 
-- [ ] 6.1 `npm test`
-- [ ] 6.2 Cook an omelette end to end in the running game at 915x412
+- [x] 6.1 `npm test`
+- [x] 6.2 Cook an omelette end to end in the running game at 915x412
 - [ ] 6.3 Screenshots: a stocked fridge, a pan cooking, the rule book
 - [ ] 6.4 Bump both versions, commit, merge, push

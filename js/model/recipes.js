@@ -24,6 +24,10 @@
 export const RECIPES = [
   { needs: 'egg', in: 'pan', makes: 'omelette', takes: 12 },
   { needs: 'steak_raw', in: 'pan', makes: 'steak', takes: 18 },
+  // The pot is for the wet things. A utensil that cooks nothing is a tool that
+  // is really a decoration, which is worse than not having it.
+  { needs: 'veg', in: 'pot', makes: 'soup', takes: 20 },
+  { needs: 'egg', in: 'pot', makes: 'egg_boiled', takes: 15 },
 ];
 
 /** How hot a thing has to be standing on for anything to happen. */

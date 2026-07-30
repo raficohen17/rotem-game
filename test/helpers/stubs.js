@@ -57,6 +57,28 @@ export function stubWorld(name = 'House 1') {
     const book = placeItem('book', 620, 470);
     book.design = { ...createBook(), title: BOOK_TITLE };
     room.items.push(book);
+
+    /*
+     * A kitchen mid-cook, in every room.
+     *
+     * The branch that draws a pan's contents and its steam was never once
+     * exercised by a test, so a missing function in it took the whole room
+     * down and the suite stayed green. Anything with a state the harness never
+     * puts it in is a branch nobody is checking.
+     */
+    const stove = placeItem('stove', 900, 470);
+    stove.on = true;
+    const pan = placeItem('pan', 900, 470 - 170);
+    const egg = placeItem('egg', pan.x, pan.y - 20);
+    egg.inside = pan.uid;
+    pan.cooked = 5;
+    room.items.push(stove, pan, egg);
+
+    // And a fridge with something shut inside it.
+    const fridge = placeItem('fridge', 1050, 470);
+    const stored = placeItem('cake', 1050, 470 - 160);
+    stored.inside = fridge.uid;
+    room.items.push(fridge, stored);
   });
 
   world.characters.push(placeCharacter(undefined, HOUSE_LAYOUT[0], 320, 470));

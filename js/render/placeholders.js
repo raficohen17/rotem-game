@@ -638,6 +638,54 @@ export const PLACEHOLDERS = {
     fillEllipse(ctx, -w * 0.12, -h * 0.56, w * 0.07, h * 0.09, shade(c, 0.36));
   },
 
+  /* Vegetables, waiting to be soup. */
+  veg(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.8, 0.38);
+    // A carrot, lying down.
+    ctx.fillStyle = '#d9803c';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.42, -h * 0.34);
+    ctx.lineTo(w * 0.12, -h * 0.46);
+    ctx.lineTo(w * 0.12, -h * 0.22);
+    ctx.closePath();
+    ctx.fill();
+    for (let i = 0; i < 3; i += 1) {
+      strokeLine(ctx, w * 0.12, -h * 0.34, w * 0.34, -h * (0.5 - i * 0.12), shade(c, -0.1), 3);
+    }
+    // And something round and green behind it.
+    ctx.fillStyle = litFill(ctx, -h * 0.9, h * 0.5, c, 0.2);
+    fillEllipse(ctx, -w * 0.06, -h * 0.66, w * 0.26, h * 0.28, ctx.fillStyle);
+    fillEllipse(ctx, -w * 0.14, -h * 0.74, w * 0.08, h * 0.08, shade(c, 0.4));
+  },
+
+  /* Soup, in a bowl. */
+  soup(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.8, 0.4);
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.2);
+    fillEllipse(ctx, 0, -h * 0.5, w * 0.34, h * 0.16, ctx.fillStyle);
+    // The bowl, over the soup so it holds it.
+    ctx.fillStyle = '#f2ece0';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.4, -h * 0.52);
+    ctx.quadraticCurveTo(-w * 0.34, -h * 0.04, 0, -h * 0.04);
+    ctx.quadraticCurveTo(w * 0.34, -h * 0.04, w * 0.4, -h * 0.52);
+    ctx.closePath();
+    ctx.fill();
+    fillEllipse(ctx, 0, -h * 0.52, w * 0.4, h * 0.1, '#fbf7f0');
+    fillEllipse(ctx, 0, -h * 0.52, w * 0.33, h * 0.075, shade(c, 0.1));
+    fillEllipse(ctx, -w * 0.1, -h * 0.55, w * 0.06, h * 0.03, shade(c, 0.5));
+  },
+
+  /* A boiled egg, cut in half so it is plainly not a raw one. */
+  egg_boiled(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.7, 0.34);
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.2);
+    fillEllipse(ctx, 0, -h * 0.5, w * 0.36, h * 0.5, ctx.fillStyle);
+    // The yolk, which is the whole difference.
+    fillEllipse(ctx, 0, -h * 0.5, w * 0.17, h * 0.2, '#f0c04a');
+    fillEllipse(ctx, -w * 0.04, -h * 0.56, w * 0.06, h * 0.07, '#f7dc8e');
+  },
+
   /* A frying pan, seen from the side with its handle out. */
   pan(ctx, w, h, c) {
     groundShadow(ctx, w * 0.7, 0.5);

@@ -637,20 +637,26 @@ function drawSwitchedOn(ctx, placed, def, time) {
       break;
     }
     case 'cook': {
-      // A pot on the hob, steaming.
-      const potW = w * 0.34;
-      const potY = top - 6;
-      fillRR(ctx, cx - potW / 2, potY - 26, potW, 26, 4, '#6f6a74');
-      fillRR(ctx, cx - potW / 2 - 5, potY - 30, potW + 10, 6, 3, '#8a8490');
-      ctx.strokeStyle = 'rgba(236, 232, 226, 0.6)';
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      for (let i = -1; i <= 1; i += 1) {
-        const drift = Math.sin(time * 1.7 + i) * 5;
+      /*
+       * A lit hob, and nothing else.
+       *
+       * This drew a pot with steam coming off it, which was fine when turning
+       * the stove on was the whole of cooking. Now that pans are real objects
+       * it put an imaginary pot beside the real one — so it shows the heat and
+       * leaves the cooking to whatever is actually standing on it.
+       */
+      for (const side of [-1, 1]) {
+        const rx = cx + side * w * 0.2;
+        ctx.save();
+        ctx.globalAlpha = 0.55 + Math.sin(time * 5 + side) * 0.12;
+        const flame = ctx.createRadialGradient(rx, top + 8, 2, rx, top + 8, w * 0.22);
+        flame.addColorStop(0, 'rgba(255, 190, 90, 0.95)');
+        flame.addColorStop(1, 'rgba(255, 140, 60, 0)');
+        ctx.fillStyle = flame;
         ctx.beginPath();
-        ctx.moveTo(cx + i * 11, potY - 34);
-        ctx.quadraticCurveTo(cx + i * 11 + drift + 6, potY - 48, cx + i * 11 + drift, potY - 62);
-        ctx.stroke();
+        ctx.arc(rx, top + 8, w * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
       break;
     }
@@ -703,6 +709,41 @@ function drawBathWater(ctx, item, def, time) {
   for (let i = 0; i < 4; i += 1) {
     const bob = Math.sin(time * 1.6 + i) * 3;
     fillEllipse(ctx, left + w * (0.2 + i * 0.2), top + h * 0.52 + bob, 11, 5, '#e8f4f8');
+  }
+  ctx.restore();
+}
+
+/**
+ * That something is cooking, without a word of it written.
+ *
+ * A wait with nothing to watch is indistinguishable from a thing that is
+ * broken — which is exactly how the cat read before it moved often enough to
+ * be seen doing it.
+ */
+function drawCooking(ctx, utensil, contents, room, time) {
+  if (!isOverHeat(utensil, room.items, isOn)) return;
+  if (cookingProgress(utensil, contents) <= 0) return;
+
+  const top = contents.y - 26;
+
+  // A little heat under the pan, so the stove is plainly doing the work.
+  ctx.save();
+  ctx.globalAlpha = 0.3 + Math.sin(time * 6) * 0.07;
+  fillEllipse(ctx, utensil.x, utensil.y - 2, 34, 7, '#f0a03c');
+  ctx.restore();
+
+  // Steam.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(240, 236, 228, 0.62)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  for (let i = -1; i <= 1; i += 1) {
+    const drift = Math.sin(time * 2.4 + i * 1.7) * 6;
+    ctx.beginPath();
+    ctx.moveTo(contents.x + i * 15, top);
+    ctx.quadraticCurveTo(contents.x + i * 15 + drift + 5, top - 20,
+      contents.x + i * 15 + drift, top - 42);
+    ctx.stroke();
   }
   ctx.restore();
 }

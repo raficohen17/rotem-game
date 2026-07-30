@@ -57,7 +57,7 @@ test('raw steak in a pan makes a steak', () => {
 
 test('a pairing with no recipe makes nothing', () => {
   assert.equal(recipeFor('cake', 'pan'), null);
-  assert.equal(recipeFor('egg', 'pot'), null, 'the pot has no egg recipe yet');
+  assert.equal(recipeFor('cake', 'pot'), null, 'a pot does not cook cake');
   assert.equal(recipeFor(undefined, undefined), null);
 });
 

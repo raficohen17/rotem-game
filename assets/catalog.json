@@ -491,6 +491,36 @@
       ]
     },
     {
+      "id": "veg",
+      "cat": "food",
+      "w": 78,
+      "h": 56,
+      "colors": [
+        "#4f7a4a",
+        "#5f8a56"
+      ]
+    },
+    {
+      "id": "soup",
+      "cat": "food",
+      "w": 96,
+      "h": 52,
+      "colors": [
+        "#d98242",
+        "#c9723a"
+      ]
+    },
+    {
+      "id": "egg_boiled",
+      "cat": "food",
+      "w": 64,
+      "h": 50,
+      "colors": [
+        "#f6f1e8",
+        "#f0e6d2"
+      ]
+    },
+    {
       "id": "balloons",
       "cat": "decor",
       "w": 150,
