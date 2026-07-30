@@ -53,7 +53,7 @@ export function isOn(item) {
   return Boolean(item?.on);
 }
 
-import { isFood, hasFoodLeft, biteFrom } from './food.js';
+import { isFood, hasFoodLeft, biteFrom, isEdible } from './food.js';
 
 /** What a character can be doing. */
 export const ACTIONS = {
@@ -164,6 +164,7 @@ export const AFFORDS = {
 
   cake: 'eat',
   steak: 'eat',
+  omelette: 'eat',
 };
 
 /** The action an item offers, or null if it is only furniture. */
@@ -177,7 +178,8 @@ export function canUse(item) {
   const action = useFor(item.item);
   if (!action) return false;
   // An empty plate is not something to offer anybody.
-  if (ACTIONS[action].instant && isFood(item)) return hasFoodLeft(item);
+  // Raw food is not offered to anybody: cooking it is the point.
+  if (ACTIONS[action].instant && isFood(item)) return isEdible(item);
   return true;
 }
 
@@ -202,6 +204,9 @@ export function actOnce(character, item, now = 0) {
    * next second she is holding it, which is the part that was missing.
    */
   character.eating = { uid: item.uid, until: now + CHEW_TIME };
+  // The last mouthful clears the plate — but not until the bite has been seen,
+  // so the caller is told to take it away when the chewing stops rather than
+  // the instant the tap lands.
   return !hasFoodLeft(item);
 }
 

@@ -12,6 +12,7 @@ import { drawBookOpen, drawBookFlat } from './book.js';
 import {
   resolveUse, carriedItems, isOn, switchFor, isEating, CHEW_TIME,
 } from '../model/using.js';
+import { utensils, isOverHeat, cookingProgress } from '../model/recipes.js';
 import { drawCharacter, CHAR_H } from './character.js';
 import { drawCat } from './cat.js';
 import { drawOrder } from '../model/geometry.js';
@@ -442,19 +443,27 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
     if (entry.kind === 'item') {
       // Something in somebody's hands is drawn there, not here as well.
       if (carried.has(entry.placed.uid)) continue;
-      // In somebody's hands for a moment while she eats it.
-      if (eatenBy.has(entry.placed.uid)) continue;
-      // Shut in the fridge: drawn by the fridge when its door is open, so a
-      // closed door really does hide what is in it.
       if (entry.placed.inside) {
         const host = room.items.find((i) => i.uid === entry.placed.inside);
-        if (!host || !isOn(host)) continue;
+        if (!host) continue;
+        // In a pan it sits on top and is drawn plainly — watching it cook is
+        // the whole point. Shut in the fridge it is only drawn with the door
+        // open, so a closed door really does hide what is in it.
+        if (utensils().includes(host.item)) {
+          const def = catalog.get(entry.placed.item);
+          if (def) drawItem(ctx, entry.placed, def);
+          drawCooking(ctx, host, entry.placed, room, time);
+          continue;
+        }
+        if (!isOn(host)) continue;
         drawInside(ctx, entry.placed, host, catalog);
         continue;
       }
       const def = catalog.get(entry.placed.item);
       if (def) drawItem(ctx, entry.placed, def);
       if (def && isOn(entry.placed)) drawSwitchedOn(ctx, entry.placed, def, time);
+      const biter = eatenBy.get(entry.placed.uid);
+      if (def && biter) drawBiting(ctx, entry.placed, def, time, biter.eating.until);
     } else {
       const doing = resolveUse(entry.placed, room.items);
       const host = doing ? catalog.get(doing.item.item) : null;
@@ -489,9 +498,6 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
         asleep: doing?.asleep === true,
       });
       if (doing?.action === 'read') drawReading(ctx, doing.item, host, time);
-      if (isEating(entry.placed, time)) {
-        drawEating(ctx, entry.placed, room, catalog, time);
-      }
       ctx.restore();
       if (doing?.action === 'shower') drawShowerRunning(ctx, doing.item, time);
       if (doing?.action === 'bathe') drawBathWater(ctx, doing.item, host, time);
@@ -654,37 +660,27 @@ function drawSwitchedOn(ctx, placed, def, time) {
 }
 
 /**
- * The moment of eating: the food up at her mouth, and crumbs.
+ * The moment of eating: crumbs, over the food itself.
  *
- * Without this a bite was a number changing. The food got quietly smaller and
- * then was not there, which reads as things disappearing rather than as
- * somebody having a meal.
+ * Drawn where the food is, at the size the food is. Lifting it into her hands
+ * at a smaller scale to show her holding it made the cake appear to shrink and
+ * then grow back again when she finished, and a size that changes is read as
+ * the amount of cake — so it said the opposite of what happened.
  */
-function drawEating(ctx, character, room, catalog, time) {
-  const food = room.items.find((i) => i.uid === character.eating.uid);
-  if (!food) return;
-  const def = catalog.get(food.item);
-  if (!def) return;
-
-  const left = character.eating.until - time;
-  // A quick lift and settle, so it looks like a bite rather than a hover.
+function drawBiting(ctx, food, def, time, until) {
+  const left = until - time;
   const swing = Math.sin(Math.max(0, Math.min(1, 1 - left / CHEW_TIME)) * Math.PI);
-  const lift = -150 - swing * 26;
+  if (swing <= 0) return;
 
+  const h = (food.h ?? def.h) * food.scale;
   ctx.save();
-  ctx.translate(0, lift);
-  ctx.rotate(-0.12 - swing * 0.16);
-  ctx.scale(0.42, 0.42);
-  drawItemArt(ctx, def, food.tint, food.design, food);
-  ctx.restore();
-
-  // Crumbs, falling from where she is biting.
-  ctx.save();
-  ctx.globalAlpha = 0.75 * swing;
-  for (let i = 0; i < 5; i += 1) {
-    const drift = Math.sin(time * 9 + i * 2.2);
-    fillCircle(ctx, 8 + drift * 9 + i * 3, lift + 22 + swing * 30 + i * 7,
-      2.2 - i * 0.24, '#d8c8ad');
+  ctx.globalAlpha = 0.8 * swing;
+  for (let i = 0; i < 6; i += 1) {
+    const a = (i / 6) * Math.PI * 2;
+    const spread = 14 + swing * 22;
+    fillCircle(ctx, food.x + Math.cos(a) * spread,
+      food.y - h * 0.6 + Math.sin(a) * spread * 0.6 + swing * 14,
+      2.6 - i * 0.2, '#e2d3b6');
   }
   ctx.restore();
 }

@@ -11,6 +11,8 @@ import { createHouse } from './scenes/house.js';
 import { createArtSheet } from './scenes/artsheet.js';
 import { stepWalk } from './model/travel.js';
 import { stepCat, isDue } from './model/catlife.js';
+import { cookOn, isOverHeat, utensils, clearProgress } from './model/recipes.js';
+import { isOn } from './model/using.js';
 import { renderHouseThumbnail } from './render/room.js';
 import { drawRotatePrompt } from './ui/rotate.js';
 import { HOUSE_LAYOUT } from './model/world.js';
@@ -169,6 +171,27 @@ function frame(now) {
         moved = true;
       }
     }
+    /*
+     * Anything on the stove cooks. Cheap by the same argument as the cats: a
+     * pan with nothing in it or a cold stove is one lookup and a skip, and
+     * there are only ever a handful of pans in a house.
+     */
+    for (const room of Object.values(game.world.rooms)) {
+      for (const utensil of room.items) {
+        if (!utensils().includes(utensil.item)) continue;
+        const contents = room.items.find((i) => i.inside === utensil.uid);
+        if (!contents) { clearProgress(utensil); continue; }
+        const made = cookOn(utensil, contents, dt, isOverHeat(utensil, room.items, isOn));
+        if (made) {
+          // The ingredient becomes the thing it was cooked into, in place, so
+          // it stays in the pan she put it in.
+          contents.item = made;
+          delete contents.left;
+          moved = true;
+        }
+      }
+    }
+
     // Cats think for themselves every twenty seconds or so. On every other
     // frame this is one comparison each and an early return, which is the
     // whole reason a house full of them costs nothing.

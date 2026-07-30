@@ -16,8 +16,8 @@
 import { PLACEHOLDERS } from './placeholders.js';
 import { paperLayer } from './shapes.js';
 import { drawBook, drawBookFlat } from './book.js';
-import { fillEllipse, strokeLine, shade } from './shapes.js';
-import { isFood, eatenFraction } from '../model/food.js';
+import { fillEllipse, fillCircle, shade } from './shapes.js';
+import { isFood, portionsLeft, wholePortions } from '../model/food.js';
 
 const DRAWINGS_DIR = 'assets/drawings';
 
@@ -67,6 +67,59 @@ export async function loadCatalog() {
   };
 }
 
+/** The plate everything edible sits on, at the size it started. */
+function drawPlate(ctx, def) {
+  const w = def.w * 0.58;
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  fillEllipse(ctx, 0, -def.h * 0.02, w, def.h * 0.09, '#000');
+  ctx.restore();
+  fillEllipse(ctx, 0, -def.h * 0.04, w, def.h * 0.085, '#fbf7f0');
+  fillEllipse(ctx, 0, -def.h * 0.06, w * 0.86, def.h * 0.065, '#e2d8c6');
+}
+
+/**
+ * What is left of something, portion by portion.
+ *
+ * Each remaining portion is drawn as its own slice of the whole with a gap
+ * beside it, so how much is left can be counted rather than estimated.
+ */
+function drawPortions(ctx, def, color, placed, paint) {
+  const whole = wholePortions(placed.item);
+  const left = portionsLeft(placed);
+  drawPlate(ctx, def);
+
+  if (left <= 0) {
+    // Crumbs. The end of a meal, and plainly not a cake.
+    for (const [x, y, r] of [[-9, -5, 2.4], [-2, -8, 1.8], [5, -4, 2.2],
+      [11, -7, 1.6], [-14, -8, 1.5], [1, -3, 1.4]]) {
+      fillCircle(ctx, x * (def.w / 110), -def.h * 0.06 + y * 0.4, r, '#c9b48c');
+    }
+    return;
+  }
+
+  if (left >= whole) {
+    paint(ctx, def.w, def.h, color);
+    return;
+  }
+
+  // Each slice is a vertical band of the whole drawing, so whatever the food
+  // looks like, its slices look like slices of it.
+  const band = def.w / whole;
+  for (let i = 0; i < left; i += 1) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-def.w / 2 + i * band + 1, -def.h * 1.2, band - 2, def.h * 1.2);
+    ctx.clip();
+    paint(ctx, def.w, def.h, color);
+    ctx.restore();
+    // The cut face of each slice, pale sponge against dark icing.
+    const cut = -def.w / 2 + (i + 1) * band - 1;
+    ctx.fillStyle = shade(color, 0.5);
+    ctx.fillRect(cut - 2, -def.h * 0.74, 2, def.h * 0.66);
+  }
+}
+
 /**
  * Draws a placed item. The canvas is left as it was found.
  *
@@ -80,7 +133,10 @@ export function drawItem(ctx, placed, def) {
   if (placed.lying) {
     drawBookFlat(ctx, placed.design, placed.w ?? def.w, placed.h ?? def.h);
   } else {
-    drawItemArt(ctx, def, placed.tint, placed.design);
+    // `placed` matters: it carries how much of a cake is left. Without it
+    // every item in every room was drawn in its untouched state, so a cake
+    // with three slices gone looked exactly like a whole one.
+    drawItemArt(ctx, def, placed.tint, placed.design, placed);
   }
   ctx.restore();
 }
@@ -106,40 +162,18 @@ export function drawItemArt(ctx, def, tint = 0, design = null, placed = null) {
     }
     const paint = PLACEHOLDERS[def.id];
     if (!paint) return;
-    // Food is drawn with a share of it missing, so a cake she has been eating
-    // looks eaten rather than merely being a smaller number somewhere.
-    const eaten = placed && isFood(placed) ? eatenFraction(placed) : 0;
-    if (eaten > 0) {
+    /*
+     * Food is drawn as the portions it has left.
+     *
+     * A share clipped off the side was invisible: at the size a cake really is
+     * in a room, three of its four slices gone looked exactly like a whole one,
+     * because the difference was a dozen pixels of width and nothing else.
+     * Whole portions with gaps between them can be counted at a glance, and an
+     * empty plate with crumbs on it is unmistakably the end of a meal.
+     */
+    if (placed && isFood(placed)) {
       const color = def.colors[tint % def.colors.length];
-      const kept = def.w * (1 - eaten);
-
-      /*
-       * The plate first, at its full size and outside the clip.
-       *
-       * Clipping the food alone made a part-eaten cake read as a smaller cake
-       * rather than as a cake with slices taken out of it — nothing on screen
-       * said how big it had started. A plate that stays the same size while the
-       * cake on it shrinks is what carries that.
-       */
-      fillEllipse(ctx, 0, -def.h * 0.04, def.w * 0.52, def.h * 0.075, '#f2ece0');
-      fillEllipse(ctx, 0, -def.h * 0.06, def.w * 0.44, def.h * 0.055, '#e6dccd');
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(-def.w / 2, -def.h, kept, def.h);
-      ctx.clip();
-      paint(ctx, def.w, def.h, color);
-      ctx.restore();
-
-      // The cut face, so the straight edge reads as a knife rather than a crop.
-      // Not on an empty plate: the game clears food away when it is finished,
-      // but a drawer preview or a stray save should not show a knife mark
-      // hanging in the air over nothing.
-      if (eaten >= 1) return;
-      const cutX = -def.w / 2 + kept;
-      ctx.fillStyle = shade(color, 0.42);
-      ctx.fillRect(cutX - 3, -def.h * 0.72, 3, def.h * 0.66);
-      strokeLine(ctx, cutX, -def.h * 0.72, cutX, -def.h * 0.06, shade(color, -0.24), 1.6);
+      drawPortions(ctx, def, color, placed, paint);
       return;
     }
     paint(ctx, def.w, def.h, def.colors[tint % def.colors.length]);

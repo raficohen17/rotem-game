@@ -169,20 +169,24 @@ test('a cat goes back to the furniture once the food is gone', () => {
   assert.equal(cat.on, sofa.uid, 'it settled on the sofa instead');
 });
 
-test('an empty plate is drawn as an empty plate', () => {
-  // The game clears food away when it is finished, but a stray save should not
-  // leave a knife mark hanging in the air over nothing.
+test('a finished plate is drawn with crumbs on it', () => {
+  // The end of a meal, and plainly not a cake. Food that simply disappeared,
+  // and food that still looked whole, were both read as the game being broken.
   const source = readFileSync(join(ROOT, 'js/render/catalog.js'), 'utf8');
-  assert.match(source, /if \(eaten >= 1\) return;/, 'nothing is drawn on a bare plate');
+  const portions = source.slice(source.indexOf('function drawPortions'));
+  assert.match(portions.slice(0, 1200), /if \(left <= 0\)/, 'an empty plate is its own case');
+  assert.match(portions.slice(0, 1200), /Crumbs/, 'and it has crumbs on it');
 });
 
-test('the plate is drawn outside the clip, at full size', () => {
-  // Clipping the food alone made a part-eaten cake read as a smaller cake:
-  // nothing on screen said how big it had started.
+test('what is left is drawn as portions that can be counted', () => {
+  // A share clipped off the side was invisible at the size a cake really is in
+  // a room: three of four slices gone looked exactly like a whole one.
   const source = readFileSync(join(ROOT, 'js/render/catalog.js'), 'utf8');
-  const plateAt = source.indexOf("'#f2ece0'");
-  const clipAt = source.indexOf('ctx.clip();', plateAt);
-  assert.ok(plateAt > 0 && clipAt > plateAt, 'the plate goes down before the clip');
+  const portions = source.slice(source.indexOf('function drawPortions'));
+  assert.match(portions.slice(0, 1600), /for \(let i = 0; i < left; i \+= 1\)/,
+    'one slice drawn per portion left');
+  assert.match(portions.slice(0, 1600), /drawPlate\(ctx, def\)/,
+    'on a plate that stays the size it started');
 });
 
 /* ------------------------------------------------- getting it out again */
@@ -287,4 +291,14 @@ test('nobody is left frozen holding a cake', () => {
 
   const back = repairWorld(JSON.parse(JSON.stringify(world))).characters[0];
   assert.equal('eating' in back, false, 'she finishes the mouthful and moves on');
+});
+
+test('an item drawn in a room is drawn in the state it is in', () => {
+  // drawItem dropped the placed item on the floor of the call, so everything
+  // in every room was drawn untouched — a cake with three slices gone looked
+  // exactly like a whole one, and none of the eating could be seen at all.
+  const source = readFileSync(join(ROOT, 'js/render/catalog.js'), 'utf8');
+  const draw = source.slice(source.indexOf('export function drawItem('));
+  assert.match(draw.slice(0, 700), /drawItemArt\(ctx, def, placed\.tint, placed\.design, placed\)/,
+    'the item itself is handed to the art');
 });

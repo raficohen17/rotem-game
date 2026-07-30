@@ -20,7 +20,7 @@ import { drawItemArt } from '../render/catalog.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import {
   ACTIONS, SWITCHES, canUse, useFor, beginUse, stopUsing, isUsing,
-  switchFor, toggleSwitch, actOnce, isInstant, isOn,
+  switchFor, toggleSwitch, actOnce, isInstant, isOn, CHEW_TIME,
 } from '../model/using.js';
 import {
   drawRoomShell, drawRoomContents, roomContents, drawFloorSample,
@@ -35,7 +35,8 @@ import { createCharacterCreator } from './charcreator.js';
 import { createCatCreator } from './catcreator.js';
 import { drawCat } from '../render/cat.js';
 import { createCatSpec } from '../model/cat.js';
-import { isFood, putInside, takeOut, isPutAway } from '../model/food.js';
+import { isFood, putInside, takeOut, isPutAway, panSpot } from '../model/food.js';
+import { utensils, clearProgress } from '../model/recipes.js';
 import { createBookDesigner } from './bookdesigner.js';
 import { createHouse } from './house.js';
 
@@ -184,14 +185,36 @@ export function createRoomScene(game, roomId) {
     if (entry.item === 'book' && entry.lying) standUp(entry);
   }
 
-  /** Moves anything stored in this item along with it. */
+  /** Moves anything stored in or standing in this item along with it. */
   function carryContents(host) {
     if (!host?.uid) return;
     const def = catalog.get(host.item);
     if (!def) return;
+    const pan = utensils().includes(host.item);
     for (const item of room.items) {
-      if (item.inside === host.uid) putInside(item, host, def);
+      if (item.inside !== host.uid) continue;
+      if (pan) putInPan(item, host, def);
+      else putInside(item, host, def);
     }
+  }
+
+  /** Puts an ingredient into a pan, on top of it where it can be seen. */
+  function putInPan(item, vessel, def = catalog.get(vessel.item)) {
+    if (!def) return;
+    const spot = panSpot(vessel, def);
+    item.x = spot.x;
+    item.y = spot.y;
+    item.inside = vessel.uid;
+  }
+
+  /** A utensil under this point, if there is one. */
+  function utensilAt(rx, ry) {
+    return room.items.find((item) => {
+      if (!utensils().includes(item.item)) return false;
+      const def = catalog.get(item.item);
+      if (!def) return false;
+      return boundsContain(itemBounds(item, def), rx, ry);
+    }) ?? null;
   }
 
   /** Whatever a put-away item is inside, if it is still there. */
@@ -489,10 +512,13 @@ export function createRoomScene(game, roomId) {
         const item = nearestUsable(selected);
         if (!item) return true;
         if (isInstant(item.item)) {
-          // A bite rather than an occupation: she stays put, holding it for a
-          // moment. The empty plate is left behind rather than taken away —
-          // food that simply disappeared read as a bug rather than a meal, and
-          // a plate on the table is what actually happens when you finish.
+          // A bite rather than an occupation: she stays put and takes another
+          // if she wants one. The last mouthful clears the plate away, but only
+          // once the bite has been seen — taking it the instant the tap landed
+          // was what made food look like it simply vanished.
+          // The plate stays when it is finished — an empty one with crumbs on
+          // it is the end of a meal. Taking it away made food look like it had
+          // simply vanished.
           actOnce(selected, item, game.time);
         } else {
           beginUse(selected, item);
@@ -585,7 +611,9 @@ export function createRoomScene(game, roomId) {
           // and having to open it first is what makes the fridge feel like a
           // place rather than a decoration.
           const larder = openFridgeAt(p.x, p.y);
+          const vessel = utensilAt(p.x, p.y);
           if (larder && isFood(entry)) putInside(entry, larder, catalog.get(larder.item));
+          else if (vessel && isFood(entry)) putInPan(entry, vessel);
           else settle(entry, p.x, p.y);
           room.items.push(entry);
           selected = entry;
@@ -599,9 +627,18 @@ export function createRoomScene(game, roomId) {
         if (moved && isFood(moved)) {
           const p = toRoom(x, y);
           const larder = openFridgeAt(p.x, p.y);
+          const vessel = utensilAt(p.x, p.y);
           if (larder) putInside(moved, larder, catalog.get(larder.item));
-          else if (isPutAway(moved)) { takeOut(moved); settle(moved, p.x, p.y); }
+          else if (vessel) putInPan(moved, vessel);
+          else if (isPutAway(moved)) {
+            // Out of the pan it was in, so whatever it had cooked so far stops.
+            clearProgress(hostOf(moved));
+            takeOut(moved);
+            settle(moved, p.x, p.y);
+          }
         }
+        // A pan pushed along the counter takes its contents with it.
+        if (moved) carryContents(moved);
         game.persist();
       }
       drag = null;

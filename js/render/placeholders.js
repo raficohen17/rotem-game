@@ -589,6 +589,77 @@ export const PLACEHOLDERS = {
     strokeLine(ctx, 0, -h * 0.61, 0, -h * 0.57, DARK, 1.6);
   },
 
+  /* An egg, still in its shell. */
+  egg(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.7, 0.34);
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.2);
+    fillEllipse(ctx, 0, -h * 0.5, w * 0.36, h * 0.5, ctx.fillStyle);
+    fillEllipse(ctx, -w * 0.1, -h * 0.66, w * 0.12, h * 0.16, shade(c, 0.5));
+  },
+
+  /* Raw steak: paler, wetter, no griddle marks yet. */
+  steak_raw(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.9, 0.4);
+    fillEllipse(ctx, 0, -h * 0.12, w * 0.5, h * 0.2, '#f6f1e8');
+    ctx.fillStyle = litFill(ctx, -h * 0.6, h * 0.45, c, 0.2);
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.3, -h * 0.3);
+    ctx.quadraticCurveTo(-w * 0.34, -h * 0.62, -w * 0.02, -h * 0.6);
+    ctx.quadraticCurveTo(w * 0.3, -h * 0.58, w * 0.28, -h * 0.34);
+    ctx.quadraticCurveTo(w * 0.26, -h * 0.16, -w * 0.04, -h * 0.2);
+    ctx.quadraticCurveTo(-w * 0.28, -h * 0.2, -w * 0.3, -h * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    // Marbling rather than sear marks.
+    fillEllipse(ctx, -w * 0.1, -h * 0.44, w * 0.09, h * 0.07, shade(c, 0.34));
+    fillEllipse(ctx, w * 0.12, -h * 0.36, w * 0.07, h * 0.06, shade(c, 0.3));
+    fillEllipse(ctx, -w * 0.24, -h * 0.4, w * 0.05, h * 0.08, '#f0e6d2');
+  },
+
+  /* An omelette, folded, on a plate. */
+  omelette(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.9, 0.4);
+    fillEllipse(ctx, 0, -h * 0.12, w * 0.5, h * 0.2, '#f6f1e8');
+    ctx.fillStyle = litFill(ctx, -h * 0.7, h * 0.55, c, 0.18);
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.32, -h * 0.24);
+    ctx.quadraticCurveTo(-w * 0.3, -h * 0.72, 0, -h * 0.7);
+    ctx.quadraticCurveTo(w * 0.32, -h * 0.68, w * 0.3, -h * 0.26);
+    ctx.quadraticCurveTo(0, -h * 0.14, -w * 0.32, -h * 0.24);
+    ctx.closePath();
+    ctx.fill();
+    // The fold.
+    ctx.strokeStyle = shade(c, -0.2);
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.18, -h * 0.28);
+    ctx.quadraticCurveTo(0, -h * 0.5, w * 0.2, -h * 0.3);
+    ctx.stroke();
+    fillEllipse(ctx, -w * 0.12, -h * 0.56, w * 0.07, h * 0.09, shade(c, 0.36));
+  },
+
+  /* A frying pan, seen from the side with its handle out. */
+  pan(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.7, 0.5);
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.16);
+    fillRR(ctx, -w * 0.36, -h * 0.72, w * 0.72, h * 0.66, h * 0.24, ctx.fillStyle);
+    // The rim, and the handle.
+    fillRR(ctx, -w * 0.4, -h * 0.78, w * 0.8, h * 0.2, h * 0.1, shade(c, 0.26));
+    fillRR(ctx, w * 0.36, -h * 0.62, w * 0.16, h * 0.16, h * 0.08, shade(c, -0.22));
+  },
+
+  /* A pot, taller, with a lid. */
+  pot(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.7, 0.44);
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.16);
+    fillRR(ctx, -w * 0.34, -h * 0.72, w * 0.68, h * 0.7, 6, ctx.fillStyle);
+    fillRR(ctx, -w * 0.42, -h * 0.84, w * 0.84, h * 0.16, 5, shade(c, 0.24));
+    fillRR(ctx, -w * 0.06, -h * 0.96, w * 0.12, h * 0.14, 4, shade(c, -0.18));
+    for (const side of [-1, 1]) {
+      fillRR(ctx, side * w * 0.36, -h * 0.6, w * 0.1, h * 0.12, 4, shade(c, -0.2));
+    }
+  },
+
   /*
    * A steak on a plate.
    *

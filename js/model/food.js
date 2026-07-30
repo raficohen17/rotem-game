@@ -20,7 +20,28 @@
 export const FOODS = {
   cake: { portions: 4, catEats: false },
   steak: { portions: 3, catEats: true },
+  omelette: { portions: 3, catEats: false },
+
+  /*
+   * Raw things.
+   *
+   * Food nobody will eat as it is, which is the whole reason cooking is worth
+   * the trouble. A cat is the exception and takes raw steak happily — it does
+   * not wait for anybody to cook.
+   */
+  egg: { portions: 1, catEats: false, raw: true },
+  steak_raw: { portions: 3, catEats: true, raw: true },
 };
+
+/** Whether this needs cooking before anybody will eat it. */
+export function isRaw(itemId) {
+  return FOODS[itemId]?.raw === true;
+}
+
+/** Whether a person would eat this as it is. */
+export function isEdible(item) {
+  return isFood(item) && !isRaw(item.item) && hasFoodLeft(item);
+}
 
 export function isFood(item) {
   return Boolean(item) && item.item in FOODS;
@@ -83,6 +104,17 @@ export function eatenFraction(item) {
  * fridge behind it — and since nothing ever cleared the record, food put away
  * could never be got out again.
  */
+/**
+ * Where something sits when it is in a pan.
+ *
+ * On top of it rather than inside it — a fried egg is visible, which is the
+ * whole point of watching it cook.
+ */
+export function panSpot(host, hostDef) {
+  const h = (host.h ?? hostDef.h) * (host.scale ?? 1);
+  return { x: host.x, y: host.y - h * 0.62 };
+}
+
 export function shelfSpot(host, hostDef) {
   const w = (host.w ?? hostDef.w) * (host.scale ?? 1);
   const h = (host.h ?? hostDef.h) * (host.scale ?? 1);

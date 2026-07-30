@@ -280,6 +280,26 @@
       ]
     },
     {
+      "id": "pan",
+      "cat": "kitchen",
+      "w": 120,
+      "h": 34,
+      "colors": [
+        "#5a5560",
+        "#6f6a74"
+      ]
+    },
+    {
+      "id": "pot",
+      "cat": "kitchen",
+      "w": 104,
+      "h": 62,
+      "colors": [
+        "#6f6a74",
+        "#8a8490"
+      ]
+    },
+    {
       "id": "counter",
       "cat": "kitchen",
       "w": 260,
@@ -438,6 +458,36 @@
         "#a8443f",
         "#8f3a36",
         "#c25a4e"
+      ]
+    },
+    {
+      "id": "egg",
+      "cat": "food",
+      "w": 64,
+      "h": 50,
+      "colors": [
+        "#f6f1e8",
+        "#f0e6d2"
+      ]
+    },
+    {
+      "id": "steak_raw",
+      "cat": "food",
+      "w": 100,
+      "h": 46,
+      "colors": [
+        "#d4706a",
+        "#c2605c"
+      ]
+    },
+    {
+      "id": "omelette",
+      "cat": "food",
+      "w": 104,
+      "h": 44,
+      "colors": [
+        "#f0c86a",
+        "#e8b950"
       ]
     },
     {
