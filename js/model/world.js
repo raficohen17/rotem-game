@@ -204,6 +204,9 @@ export function repairWorld(world) {
         // game, and it also silently dropped this the first time — she was
         // showering until the world was reopened, and then she was not.
         ...(isUsingRecord(c.using) ? { using: { uid: c.using.uid, action: c.using.action } } : {}),
+        // Mid-mouthful is a moment, not a state worth carrying across a
+        // session: the clock it is measured against restarts, so a saved one
+        // would leave her frozen holding a cake. She simply finishes the bite.
       }));
   }
 

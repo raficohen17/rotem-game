@@ -188,12 +188,29 @@ export function canUse(item) {
  * and is immediately free again, and the caller has to know when to clear an
  * empty plate off the table.
  */
-export function actOnce(character, item) {
+export function actOnce(character, item, now = 0) {
   const action = useFor(item?.item);
   if (!action || !ACTIONS[action].instant) return false;
   if (!isFood(item) || !hasFoodLeft(item)) return false;
   biteFrom(item);
+  /*
+   * A moment of actually eating it.
+   *
+   * The bite itself lands at once, so tapping does something immediately —
+   * but with nothing drawn the food simply got smaller and then was not there,
+   * and it read as things vanishing rather than as anybody eating. For the
+   * next second she is holding it, which is the part that was missing.
+   */
+  character.eating = { uid: item.uid, until: now + CHEW_TIME };
   return !hasFoodLeft(item);
+}
+
+/** How long she is shown eating after a bite, in seconds. */
+export const CHEW_TIME = 0.9;
+
+/** Whether she is mid-mouthful right now. */
+export function isEating(character, now) {
+  return Boolean(character?.eating) && now < character.eating.until;
 }
 
 /** Whether this action happens in a moment rather than being settled into. */

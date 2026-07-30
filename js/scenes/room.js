@@ -489,9 +489,11 @@ export function createRoomScene(game, roomId) {
         const item = nearestUsable(selected);
         if (!item) return true;
         if (isInstant(item.item)) {
-          // A bite rather than an occupation: she stays put, and an empty
-          // plate is cleared away rather than left on the table.
-          if (actOnce(selected, item)) removeItem(item);
+          // A bite rather than an occupation: she stays put, holding it for a
+          // moment. The empty plate is left behind rather than taken away —
+          // food that simply disappeared read as a bug rather than a meal, and
+          // a plate on the table is what actually happens when you finish.
+          actOnce(selected, item, game.time);
         } else {
           beginUse(selected, item);
         }

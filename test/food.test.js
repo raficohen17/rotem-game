@@ -8,10 +8,11 @@ import {
   FOODS, isFood, wholePortions, portionsLeft, hasFoodLeft, biteFrom, catEats, eatenFraction,
   putInside, takeOut, shelfSpot, isPutAway,
 } from '../js/model/food.js';
-import { canUse, actOnce, isInstant, useFor } from '../js/model/using.js';
+import { canUse, actOnce, isInstant, useFor, isEating, CHEW_TIME } from '../js/model/using.js';
 import { foodWithinReach, stepCat } from '../js/model/catlife.js';
-import { createWorld, repairWorld, placeItem, placeCat } from '../js/model/world.js';
+import { createWorld, repairWorld, placeItem, placeCat, placeCharacter } from '../js/model/world.js';
 import { createCatSpec } from '../js/model/cat.js';
+import { createCharacterSpec } from '../js/model/character.js';
 import { ICONS } from '../js/ui/icons.js';
 import { PLACEHOLDERS } from '../js/render/placeholders.js';
 
@@ -245,4 +246,45 @@ test('what is in the fridge travels with the fridge', () => {
   const spot = shelfSpot(fridge, lookup('fridge'));
   assert.equal(cake.x, spot.x, 'the cake went with it');
   assert.equal(cake.inside, fridge.uid, 'and is still inside');
+});
+
+/* ------------------------------------------------------ eating, visibly */
+
+test('a bite lands at once and is shown for a moment', () => {
+  // The bite itself has to be immediate, or tapping feels dead. The moment
+  // afterwards is what was missing: with nothing drawn, food got quietly
+  // smaller and then was not there, which reads as things disappearing.
+  const her = { x: 300, y: 470 };
+  const cake = placeItem('cake', 300, 470);
+
+  actOnce(her, cake, 10);
+  assert.equal(portionsLeft(cake), wholePortions('cake') - 1, 'the bite is instant');
+  assert.equal(isEating(her, 10), true, 'and she is shown eating');
+  assert.equal(isEating(her, 10 + CHEW_TIME + 0.1), false, 'for a moment only');
+});
+
+test('an empty plate is left behind rather than vanishing', () => {
+  // Food that disappeared entirely read as a bug rather than as a meal, and a
+  // plate on the table is what actually happens when you finish.
+  const her = { x: 300, y: 470 };
+  const cake = placeItem('cake', 300, 470);
+  while (hasFoodLeft(cake)) actOnce(her, cake, 0);
+
+  assert.equal(portionsLeft(cake), 0, 'it is finished');
+  assert.equal(canUse(cake), false, 'and offered to nobody');
+  // The scene no longer takes it off the table.
+  const source = readFileSync(join(ROOT, 'js/scenes/room.js'), 'utf8');
+  const eating = source.slice(source.indexOf("if (isInstant(item.item))"), source.indexOf("} else {", source.indexOf("if (isInstant(item.item))")));
+  assert.equal(/removeItem/.test(eating), false, 'nothing is cleared away');
+});
+
+test('nobody is left frozen holding a cake', () => {
+  // The chew is measured against a clock that restarts each session.
+  const world = createWorld('House 1');
+  const her = placeCharacter(createCharacterSpec(), 'kitchen', 300, 470);
+  her.eating = { uid: 'something', until: 1e6 };
+  world.characters.push(her);
+
+  const back = repairWorld(JSON.parse(JSON.stringify(world))).characters[0];
+  assert.equal('eating' in back, false, 'she finishes the mouthful and moves on');
 });
