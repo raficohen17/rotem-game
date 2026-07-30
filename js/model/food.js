@@ -71,3 +71,43 @@ export function eatenFraction(item) {
   if (!whole) return 0;
   return 1 - portionsLeft(item) / whole;
 }
+
+/* ------------------------------------------------------------- the fridge */
+
+/**
+ * Where on the shelf something sits when it is put in the fridge.
+ *
+ * One function, used both to place the food and to draw it. When the two were
+ * worked out separately the cake was drawn on a shelf and picked up from
+ * wherever it had been dropped, so tapping the cake she could see got her the
+ * fridge behind it — and since nothing ever cleared the record, food put away
+ * could never be got out again.
+ */
+export function shelfSpot(host, hostDef) {
+  const w = (host.w ?? hostDef.w) * (host.scale ?? 1);
+  const h = (host.h ?? hostDef.h) * (host.scale ?? 1);
+  return {
+    x: host.x - w * 0.02,
+    y: host.y - h * 0.48,
+  };
+}
+
+/** Puts food away, moving it onto the shelf so it is drawn where it is. */
+export function putInside(item, host, hostDef) {
+  const spot = shelfSpot(host, hostDef);
+  item.x = spot.x;
+  item.y = spot.y;
+  item.inside = host.uid;
+  return item;
+}
+
+/** Takes it back out. Where it lands is the caller's business. */
+export function takeOut(item) {
+  delete item.inside;
+  return item;
+}
+
+/** Whether this is shut away rather than out where anyone can get at it. */
+export function isPutAway(item) {
+  return Boolean(item?.inside);
+}

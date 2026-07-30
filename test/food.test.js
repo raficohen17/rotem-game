@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 
 import {
   FOODS, isFood, wholePortions, portionsLeft, hasFoodLeft, biteFrom, catEats, eatenFraction,
+  putInside, takeOut, shelfSpot, isPutAway,
 } from '../js/model/food.js';
 import { canUse, actOnce, isInstant, useFor } from '../js/model/using.js';
 import { foodWithinReach, stepCat } from '../js/model/catlife.js';
@@ -181,4 +182,67 @@ test('the plate is drawn outside the clip, at full size', () => {
   const plateAt = source.indexOf("'#f2ece0'");
   const clipAt = source.indexOf('ctx.clip();', plateAt);
   assert.ok(plateAt > 0 && clipAt > plateAt, 'the plate goes down before the clip');
+});
+
+/* ------------------------------------------------- getting it out again */
+
+test('food in the fridge is drawn where it can be grabbed', () => {
+  // The drawing and the hit area have to agree, or she taps the cake she can
+  // see and gets the fridge behind it.
+  const fridge = placeItem('fridge', 640, 470);
+  const cake = placeItem('cake', 500, 400);
+  putInside(cake, fridge, lookup('fridge'));
+
+  const spot = shelfSpot(fridge, lookup('fridge'));
+  assert.equal(cake.x, spot.x, 'it is moved onto the shelf');
+  assert.equal(cake.y, spot.y);
+  assert.equal(cake.inside, fridge.uid);
+});
+
+test('taking it out clears the fridge from it', () => {
+  const fridge = placeItem('fridge', 640, 470);
+  const cake = placeItem('cake', 640, 470);
+  putInside(cake, fridge, lookup('fridge'));
+  takeOut(cake);
+  assert.equal('inside' in cake, false, 'it is out');
+});
+
+test('a shelf spot is inside the fridge it belongs to', () => {
+  const fridge = placeItem('fridge', 640, 470);
+  const def = lookup('fridge');
+  const spot = shelfSpot(fridge, def);
+  assert.ok(Math.abs(spot.x - fridge.x) < def.w / 2, 'across the fridge');
+  assert.ok(spot.y < fridge.y && spot.y > fridge.y - def.h, 'and up inside it');
+});
+
+test('a character cannot eat through a closed door', () => {
+  // Food in the fridge is put away. She has to take it out first, which is the
+  // whole reason the fridge is worth having.
+  const fridge = placeItem('fridge', 640, 470);
+  const cake = placeItem('cake', 640, 470);
+  putInside(cake, fridge, lookup('fridge'));
+  assert.equal(isPutAway(cake), true);
+  assert.equal(isPutAway(placeItem('cake', 100, 470)), false, 'one on the floor is fair game');
+});
+
+test('the drawn shelf and the grabbable spot are the same place', () => {
+  // They were worked out separately once, and drifted.
+  const source = readFileSync(join(ROOT, 'js/render/room.js'), 'utf8');
+  const inside = source.slice(source.indexOf('function drawInside'));
+  assert.match(inside.slice(0, 900), /ctx\.translate\(placed\.x, placed\.y\)/,
+    'the fridge draws food where the food says it is');
+});
+
+test('what is in the fridge travels with the fridge', () => {
+  // Pushed across the room, the fridge left the cake hanging in the air where
+  // it had been standing.
+  const fridge = placeItem('fridge', 640, 470);
+  const cake = placeItem('cake', 0, 0);
+  putInside(cake, fridge, lookup('fridge'));
+
+  fridge.x = 200;
+  putInside(cake, fridge, lookup('fridge'));   // what carryContents does
+  const spot = shelfSpot(fridge, lookup('fridge'));
+  assert.equal(cake.x, spot.x, 'the cake went with it');
+  assert.equal(cake.inside, fridge.uid, 'and is still inside');
 });

@@ -19,7 +19,7 @@
 - [x] 3.1 An item can be inside another; it survives a save
 - [x] 3.2 Dropping food on an open fridge puts it in
 - [x] 3.3 Drawn only when the door is open
-- [ ] 3.4 Draggable back out
+- [x] 3.4 Draggable back out
 
 ## 4. The cat
 
@@ -31,6 +31,6 @@
 ## 5. Checks
 
 - [x] 5.1 `npm test`
-- [ ] 5.2 Screenshots at 915x412: cake on a table, in the fridge, part-eaten,
+- [x] 5.2 Screenshots at 915x412: cake on a table, in the fridge, part-eaten,
       and a cat at a steak
-- [ ] 5.3 Bump both versions, commit, merge, push
+- [x] 5.3 Bump both versions, commit, merge, push

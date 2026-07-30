@@ -357,10 +357,19 @@ export function roomContents(room, characters, catalog, cats = []) {
   const lookup = (id) => catalog.get(id);
   const orderedItems = drawOrder(room.items, lookup);
   const rank = new Map(orderedItems.map((placed, index) => [placed, index]));
+  const byUidEarly = new Map(room.items.map((item) => [item.uid, item]));
   // Characters rank after every item, so a tie on the baseline puts her in
   // front of the furniture rather than behind it. Without this they all fell
   // back to rank 0 and anything placed after the first item drew over them —
   // which is why sitting on a sofa put her behind its back.
+  // Anything inside something ranks just after it, so it draws in the doorway
+  // rather than behind the door.
+  for (const entry of items) {
+    if (!entry.placed.inside) continue;
+    const host = byUidEarly.get(entry.placed.inside);
+    if (host) rank.set(entry.placed, (rank.get(host) ?? 0) + 0.5);
+  }
+
   cast.forEach((entry, i) => rank.set(entry.placed, orderedItems.length + i));
   pets.forEach((entry, i) => rank.set(entry.placed, orderedItems.length + cast.length + i));
 
@@ -377,6 +386,13 @@ export function roomContents(room, characters, catalog, cats = []) {
   const baseline = (entry) => {
     if (entry.kind === 'cat' && entry.placed.on) {
       const host = byUid.get(entry.placed.on);
+      if (host) return host.y;
+    }
+    // Something in the fridge sits high up its front, which is a smaller
+    // baseline than the fridge itself — so by the ordinary rule the cake drew
+    // behind the fridge and was invisible through its own open door.
+    if (entry.kind === 'item' && entry.placed.inside) {
+      const host = byUid.get(entry.placed.inside);
       if (host) return host.y;
     }
     return entry.placed.y;
@@ -645,7 +661,13 @@ function drawBathWater(ctx, item, def, time) {
   ctx.restore();
 }
 
-/** Something on a shelf in the fridge, seen through the open door. */
+/**
+ * Something on a shelf in the fridge, seen through the open door.
+ *
+ * Drawn at the item's own position rather than at a shelf worked out here.
+ * Computed in two places the two drifted apart, and she ended up tapping a
+ * cake that was not where it looked.
+ */
 function drawInside(ctx, placed, host, catalog) {
   const hostDef = catalog.get(host.item);
   const def = catalog.get(placed.item);
@@ -660,9 +682,7 @@ function drawInside(ctx, placed, host, catalog) {
   ctx.beginPath();
   ctx.rect(host.x - hw * 0.3, top + hh * 0.1, hw * 0.58, hh * 0.8);
   ctx.clip();
-  // Small, and on the middle shelf.
-  ctx.translate(host.x - hw * 0.02, top + hh * 0.52);
-  ctx.scale(0.62, 0.62);
+  ctx.translate(placed.x, placed.y);
   drawItemArt(ctx, def, placed.tint, placed.design, placed);
   ctx.restore();
 }

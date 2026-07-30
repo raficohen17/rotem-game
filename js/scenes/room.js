@@ -35,7 +35,7 @@ import { createCharacterCreator } from './charcreator.js';
 import { createCatCreator } from './catcreator.js';
 import { drawCat } from '../render/cat.js';
 import { createCatSpec } from '../model/cat.js';
-import { isFood } from '../model/food.js';
+import { isFood, putInside, takeOut, isPutAway } from '../model/food.js';
 import { createBookDesigner } from './bookdesigner.js';
 import { createHouse } from './house.js';
 
@@ -184,6 +184,21 @@ export function createRoomScene(game, roomId) {
     if (entry.item === 'book' && entry.lying) standUp(entry);
   }
 
+  /** Moves anything stored in this item along with it. */
+  function carryContents(host) {
+    if (!host?.uid) return;
+    const def = catalog.get(host.item);
+    if (!def) return;
+    for (const item of room.items) {
+      if (item.inside === host.uid) putInside(item, host, def);
+    }
+  }
+
+  /** Whatever a put-away item is inside, if it is still there. */
+  function hostOf(item) {
+    return room.items.find((entry) => entry.uid === item.inside) ?? null;
+  }
+
   /**
    * An open fridge under this point, if there is one.
    *
@@ -249,6 +264,8 @@ export function createRoomScene(game, roomId) {
     for (let i = entries.length - 1; i >= 0; i -= 1) {
       const entry = entries[i];
       if (entry.kind !== 'item') continue;
+      // Behind a closed door there is nothing to grab.
+      if (isPutAway(entry.placed) && !isOn(hostOf(entry.placed))) continue;
       const def = catalog.get(entry.placed.item);
       if (def && boundsContain(itemBounds(entry.placed, def), rx, ry)) return entry.placed;
     }
@@ -398,6 +415,9 @@ export function createRoomScene(game, roomId) {
   function nearestUsable(character) {
     if (isItem(character) || isUsing(character)) return null;
     return room.items.find((item) => canUse(item)
+      // Food in the fridge is put away. She takes it out first, which is the
+      // whole reason the fridge is worth having.
+      && !isPutAway(item)
       && Math.abs(item.x - character.x) <= USE_REACH) ?? null;
   }
 
@@ -544,6 +564,9 @@ export function createRoomScene(game, roomId) {
 
       const p = toRoom(x, y);
       settle(drag.target, p.x - drag.dx, p.y - drag.dy);
+      // Whatever is in it comes along. Moving the fridge across the room left
+      // the cake hanging in the air where the fridge used to be.
+      carryContents(drag.target);
     },
 
     onPointerUp(x, y) {
@@ -560,13 +583,23 @@ export function createRoomScene(game, roomId) {
           // and having to open it first is what makes the fridge feel like a
           // place rather than a decoration.
           const larder = openFridgeAt(p.x, p.y);
-          if (larder && isFood(entry)) entry.inside = larder.uid;
+          if (larder && isFood(entry)) putInside(entry, larder, catalog.get(larder.item));
           else settle(entry, p.x, p.y);
           room.items.push(entry);
           selected = entry;
           game.persist();
         }
       } else {
+        // Dragged clear of the fridge it was in, it comes out. Dropped back on
+        // an open one, it goes in — so the same gesture puts food away and
+        // fetches it out again.
+        const moved = drag.target;
+        if (moved && isFood(moved)) {
+          const p = toRoom(x, y);
+          const larder = openFridgeAt(p.x, p.y);
+          if (larder) putInside(moved, larder, catalog.get(larder.item));
+          else if (isPutAway(moved)) { takeOut(moved); settle(moved, p.x, p.y); }
+        }
         game.persist();
       }
       drag = null;
