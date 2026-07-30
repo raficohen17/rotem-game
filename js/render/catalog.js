@@ -16,6 +16,8 @@
 import { PLACEHOLDERS } from './placeholders.js';
 import { paperLayer } from './shapes.js';
 import { drawBook, drawBookFlat } from './book.js';
+import { fillEllipse, strokeLine, shade } from './shapes.js';
+import { isFood, eatenFraction } from '../model/food.js';
 
 const DRAWINGS_DIR = 'assets/drawings';
 
@@ -90,7 +92,7 @@ export function drawItem(ctx, placed, def) {
  * placeholders, which also means one of Rotem's scanned drawings picks up the
  * same treatment and sits in the room the same way the placeholders do.
  */
-export function drawItemArt(ctx, def, tint = 0, design = null) {
+export function drawItemArt(ctx, def, tint = 0, design = null, placed = null) {
   paperLayer(ctx, () => {
     // A book is the one item whose art comes from the player rather than from
     // a placeholder or a drawing.
@@ -104,6 +106,42 @@ export function drawItemArt(ctx, def, tint = 0, design = null) {
     }
     const paint = PLACEHOLDERS[def.id];
     if (!paint) return;
+    // Food is drawn with a share of it missing, so a cake she has been eating
+    // looks eaten rather than merely being a smaller number somewhere.
+    const eaten = placed && isFood(placed) ? eatenFraction(placed) : 0;
+    if (eaten > 0) {
+      const color = def.colors[tint % def.colors.length];
+      const kept = def.w * (1 - eaten);
+
+      /*
+       * The plate first, at its full size and outside the clip.
+       *
+       * Clipping the food alone made a part-eaten cake read as a smaller cake
+       * rather than as a cake with slices taken out of it — nothing on screen
+       * said how big it had started. A plate that stays the same size while the
+       * cake on it shrinks is what carries that.
+       */
+      fillEllipse(ctx, 0, -def.h * 0.04, def.w * 0.52, def.h * 0.075, '#f2ece0');
+      fillEllipse(ctx, 0, -def.h * 0.06, def.w * 0.44, def.h * 0.055, '#e6dccd');
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(-def.w / 2, -def.h, kept, def.h);
+      ctx.clip();
+      paint(ctx, def.w, def.h, color);
+      ctx.restore();
+
+      // The cut face, so the straight edge reads as a knife rather than a crop.
+      // Not on an empty plate: the game clears food away when it is finished,
+      // but a drawer preview or a stray save should not show a knife mark
+      // hanging in the air over nothing.
+      if (eaten >= 1) return;
+      const cutX = -def.w / 2 + kept;
+      ctx.fillStyle = shade(color, 0.42);
+      ctx.fillRect(cutX - 3, -def.h * 0.72, 3, def.h * 0.66);
+      strokeLine(ctx, cutX, -def.h * 0.72, cutX, -def.h * 0.06, shade(color, -0.24), 1.6);
+      return;
+    }
     paint(ctx, def.w, def.h, def.colors[tint % def.colors.length]);
   });
 }

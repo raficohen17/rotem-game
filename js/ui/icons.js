@@ -398,6 +398,23 @@ export const ICONS = {
     fillCircle(ctx, 0, 14, 5, c);
   },
 
+  /* A fork and knife, for eating. */
+  eat(ctx, c) {
+    // Fork.
+    strokeLine(ctx, -9, -4, -9, 19, c, 3.4);
+    for (const x of [-14, -9, -4]) strokeLine(ctx, x, -19, x, -8, c, 2.6);
+    strokeLine(ctx, -14, -8, -4, -8, c, 2.6);
+    // Knife.
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(8, -19);
+    ctx.quadraticCurveTo(15, -12, 13, 0);
+    ctx.lineTo(8, 0);
+    ctx.closePath();
+    ctx.fill();
+    strokeLine(ctx, 10.5, 0, 10.5, 19, c, 3.4);
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

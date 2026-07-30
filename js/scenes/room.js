@@ -20,7 +20,7 @@ import { drawItemArt } from '../render/catalog.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import {
   ACTIONS, SWITCHES, canUse, useFor, beginUse, stopUsing, isUsing,
-  switchFor, toggleSwitch,
+  switchFor, toggleSwitch, actOnce, isInstant, isOn,
 } from '../model/using.js';
 import {
   drawRoomShell, drawRoomContents, roomContents, drawFloorSample,
@@ -35,6 +35,7 @@ import { createCharacterCreator } from './charcreator.js';
 import { createCatCreator } from './catcreator.js';
 import { drawCat } from '../render/cat.js';
 import { createCatSpec } from '../model/cat.js';
+import { isFood } from '../model/food.js';
 import { createBookDesigner } from './bookdesigner.js';
 import { createHouse } from './house.js';
 
@@ -183,6 +184,21 @@ export function createRoomScene(game, roomId) {
     if (entry.item === 'book' && entry.lying) standUp(entry);
   }
 
+  /**
+   * An open fridge under this point, if there is one.
+   *
+   * Only when it is open: a cake going through a closed door is a conjuring
+   * trick, and having to open it first is what makes the fridge a place.
+   */
+  function openFridgeAt(rx, ry) {
+    return room.items.find((item) => {
+      if (!isOn(item) || switchFor(item.item) !== 'open') return false;
+      const def = catalog.get(item.item);
+      if (!def) return false;
+      return boundsContain(itemBounds(item, def), rx, ry);
+    }) ?? null;
+  }
+
   /** Keeps anything placed within reach of a finger. */
   function clampPlacement(entry, x, y) {
     const wall = isWallItem(entry);
@@ -238,6 +254,12 @@ export function createRoomScene(game, roomId) {
     }
 
     return null;
+  }
+
+  /** Takes one thing out of the room, whether or not it is selected. */
+  function removeItem(item) {
+    room.items = room.items.filter((entry) => entry !== item);
+    if (selected === item) selected = null;
   }
 
   function removeSelected() {
@@ -445,7 +467,15 @@ export function createRoomScene(game, roomId) {
       case 'edit': openCreator(selected); return true;
       case 'use': {
         const item = nearestUsable(selected);
-        if (item) { beginUse(selected, item); game.persist(); }
+        if (!item) return true;
+        if (isInstant(item.item)) {
+          // A bite rather than an occupation: she stays put, and an empty
+          // plate is cleared away rather than left on the table.
+          if (actOnce(selected, item)) removeItem(item);
+        } else {
+          beginUse(selected, item);
+        }
+        game.persist();
         return true;
       }
       case 'stop': stopUsing(selected); game.persist(); return true;
@@ -525,7 +555,13 @@ export function createRoomScene(game, roomId) {
           const p = toRoom(x, y);
           const entry = placeItem(drag.def.id, p.x, p.y);
           if (entry.item === 'book') entry.design = createBook();
-          settle(entry, p.x, p.y);
+          // Dropped on an open fridge, food goes in it. The door has to be open
+          // — putting a cake through a shut door would be a conjuring trick,
+          // and having to open it first is what makes the fridge feel like a
+          // place rather than a decoration.
+          const larder = openFridgeAt(p.x, p.y);
+          if (larder && isFood(entry)) entry.inside = larder.uid;
+          else settle(entry, p.x, p.y);
           room.items.push(entry);
           selected = entry;
           game.persist();

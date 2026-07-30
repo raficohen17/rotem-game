@@ -17,6 +17,7 @@
  * passes the time in, which is also what makes the intervals testable.
  */
 import { beginWalk, routeBetween } from './travel.js';
+import { catEats, hasFoodLeft, biteFrom } from './food.js';
 
 
 
@@ -96,6 +97,20 @@ const PERCH_LEVEL = {
   // A rug is a place on the floor, not a thing to climb.
   rug_round: 0,
 };
+
+/**
+ * Food a cat would rob, in its room and out in the open.
+ *
+ * Checked before furniture, because a cat that walks past a steak to sit on a
+ * stool is not a cat. Anything shut in the fridge is not out in the open and so
+ * is not on the list, which is what makes putting the cake away a decision
+ * worth making rather than a thing the game does for her.
+ */
+export function foodWithinReach(items) {
+  return items.filter((item) => (
+    item.inside === undefined && catEats(item.item) && hasFoodLeft(item)
+  ));
+}
 
 /** Where the top of a cat's paws goes when it settles on this item. */
 export function perchLevel(itemId) {
@@ -179,6 +194,21 @@ export function stepCat(cat, items, lookup, now, random = Math.random, world = n
 
   cat.dueAt = nextDecisionAt(now, random());
   if (random() < STAY_CHANCE) return true; // it thought about it and stayed
+
+  // Something to eat beats anything to sit on.
+  const meals = foodWithinReach(items);
+  if (meals.length) {
+    const meal = meals[Math.min(meals.length - 1, Math.floor(random() * meals.length))];
+    const def = lookup(meal.item);
+    const height = def ? (meal.h ?? def.h) * (meal.scale ?? 1) : 0;
+    cat.x = meal.x;
+    cat.y = meal.y - (meal.onSurface ?? 0);
+    cat.pose = 'stand';
+    delete cat.on;
+    biteFrom(meal);
+    void height;
+    return true;
+  }
 
   // Off to another room, now and then.
   if (world && random() < WANDER_CHANCE) {

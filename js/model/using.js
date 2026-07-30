@@ -53,6 +53,8 @@ export function isOn(item) {
   return Boolean(item?.on);
 }
 
+import { isFood, hasFoodLeft, biteFrom } from './food.js';
+
 /** What a character can be doing. */
 export const ACTIONS = {
   read: {
@@ -100,6 +102,23 @@ export const ACTIONS = {
     asleep: true,
     seat: 0.62,
   },
+  /*
+   * Eating is the one action that changes the thing it is done to.
+   *
+   * Everything else here is an occupation — she is in the shower until she is
+   * not. A bite is instant and leaves her standing where she was, free to take
+   * another, which is what makes finishing a cake feel like something she did
+   * rather than something she waited for.
+   */
+  eat: {
+    offset: 0,
+    facing: 1,
+    inFront: true,
+    label: 'eat',
+    icon: 'eat',
+    carried: false,
+    instant: true,
+  },
   bathe: {
     offset: 0,
     facing: 1,
@@ -142,6 +161,9 @@ export const AFFORDS = {
   toilet: 'sit',
 
   bathtub: 'bathe',
+
+  cake: 'eat',
+  steak: 'eat',
 };
 
 /** The action an item offers, or null if it is only furniture. */
@@ -151,7 +173,33 @@ export function useFor(itemId) {
 }
 
 export function canUse(item) {
-  return Boolean(item && useFor(item.item));
+  if (!item) return false;
+  const action = useFor(item.item);
+  if (!action) return false;
+  // An empty plate is not something to offer anybody.
+  if (ACTIONS[action].instant && isFood(item)) return hasFoodLeft(item);
+  return true;
+}
+
+/**
+ * Does an instant action, and says whether the thing it was done to is spent.
+ *
+ * Kept apart from beginUse because nothing is being occupied: she takes a bite
+ * and is immediately free again, and the caller has to know when to clear an
+ * empty plate off the table.
+ */
+export function actOnce(character, item) {
+  const action = useFor(item?.item);
+  if (!action || !ACTIONS[action].instant) return false;
+  if (!isFood(item) || !hasFoodLeft(item)) return false;
+  biteFrom(item);
+  return !hasFoodLeft(item);
+}
+
+/** Whether this action happens in a moment rather than being settled into. */
+export function isInstant(itemId) {
+  const action = useFor(itemId);
+  return Boolean(action) && ACTIONS[action].instant === true;
 }
 
 /**

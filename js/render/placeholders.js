@@ -589,6 +589,41 @@ export const PLACEHOLDERS = {
     strokeLine(ctx, 0, -h * 0.61, 0, -h * 0.57, DARK, 1.6);
   },
 
+  /*
+   * A steak on a plate.
+   *
+   * Drawn on its plate rather than bare, because a lump of meat on a table
+   * reads as a mess and a child putting dinner out means the plate as well.
+   */
+  steak(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.9, 0.4);
+    // The plate.
+    fillEllipse(ctx, 0, -h * 0.12, w * 0.5, h * 0.2, '#f6f1e8');
+    fillEllipse(ctx, 0, -h * 0.16, w * 0.4, h * 0.15, shade('#f6f1e8', -0.06));
+    // The steak, a fat kidney shape with a bone end.
+    ctx.fillStyle = litFill(ctx, -h * 0.6, h * 0.45, c, 0.16);
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.3, -h * 0.3);
+    ctx.quadraticCurveTo(-w * 0.34, -h * 0.62, -w * 0.02, -h * 0.6);
+    ctx.quadraticCurveTo(w * 0.3, -h * 0.58, w * 0.28, -h * 0.34);
+    ctx.quadraticCurveTo(w * 0.26, -h * 0.16, -w * 0.04, -h * 0.2);
+    ctx.quadraticCurveTo(-w * 0.28, -h * 0.2, -w * 0.3, -h * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    // A seared edge and the griddle marks.
+    ctx.strokeStyle = shade(c, -0.34);
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i += 1) {
+      const x = -w * 0.18 + i * w * 0.17;
+      ctx.beginPath();
+      ctx.moveTo(x, -h * 0.52);
+      ctx.lineTo(x + w * 0.06, -h * 0.26);
+      ctx.stroke();
+    }
+    fillEllipse(ctx, -w * 0.24, -h * 0.42, w * 0.06, h * 0.09, '#f0e6d2');
+  },
+
   cake(ctx, w, h, c) {
     groundShadow(ctx, w * 0.85, 0.42);
     fillEllipse(ctx, 0, -h * 0.06, w * 0.52, h * 0.06, WHITE);

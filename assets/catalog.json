@@ -15,11 +15,11 @@
     },
     {
       "id": "store",
-      "label": "Storage"
+      "label": "Store"
     },
     {
       "id": "kitchen",
-      "label": "Kitchen"
+      "label": "Cook"
     },
     {
       "id": "bath",
@@ -28,6 +28,10 @@
     {
       "id": "book",
       "label": "Books"
+    },
+    {
+      "id": "food",
+      "label": "Food"
     },
     {
       "id": "decor",
@@ -416,13 +420,24 @@
     },
     {
       "id": "cake",
-      "cat": "decor",
+      "cat": "food",
       "w": 110,
       "h": 90,
       "colors": [
         "#d9a8bc",
         "#dcb85c",
         "#8a6448"
+      ]
+    },
+    {
+      "id": "steak",
+      "cat": "food",
+      "w": 100,
+      "h": 46,
+      "colors": [
+        "#a8443f",
+        "#8f3a36",
+        "#c25a4e"
       ]
     },
     {

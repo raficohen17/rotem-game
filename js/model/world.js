@@ -274,6 +274,11 @@ function repairItem(entry) {
     // also how the record of what a character was doing got silently dropped
     // the first time — so anything worth keeping has to be named here.
     ...(entry.on === true ? { on: true } : {}),
+    // How much of a cake is left. Anything silly reads as whole rather than as
+    // broken, so a bad save is a full cake and not an invisible one.
+    ...(Number.isInteger(entry.left) && entry.left >= 0 ? { left: entry.left } : {}),
+    // Shut in the fridge. The first thing in the game that is inside another.
+    ...(typeof entry.inside === 'string' ? { inside: entry.inside } : {}),
   };
 }
 

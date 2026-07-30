@@ -7,7 +7,7 @@
  * caller supplies the transform; this module knows nothing about either view.
  */
 
-import { drawItem } from './catalog.js';
+import { drawItem, drawItemArt } from './catalog.js';
 import { drawBookOpen, drawBookFlat } from './book.js';
 import { resolveUse, carriedItems, isOn, switchFor } from '../model/using.js';
 import { drawCharacter, CHAR_H } from './character.js';
@@ -417,6 +417,14 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
     if (entry.kind === 'item') {
       // Something in somebody's hands is drawn there, not here as well.
       if (carried.has(entry.placed.uid)) continue;
+      // Shut in the fridge: drawn by the fridge when its door is open, so a
+      // closed door really does hide what is in it.
+      if (entry.placed.inside) {
+        const host = room.items.find((i) => i.uid === entry.placed.inside);
+        if (!host || !isOn(host)) continue;
+        drawInside(ctx, entry.placed, host, catalog);
+        continue;
+      }
       const def = catalog.get(entry.placed.item);
       if (def) drawItem(ctx, entry.placed, def);
       if (def && isOn(entry.placed)) drawSwitchedOn(ctx, entry.placed, def, time);
@@ -634,6 +642,28 @@ function drawBathWater(ctx, item, def, time) {
     const bob = Math.sin(time * 1.6 + i) * 3;
     fillEllipse(ctx, left + w * (0.2 + i * 0.2), top + h * 0.52 + bob, 11, 5, '#e8f4f8');
   }
+  ctx.restore();
+}
+
+/** Something on a shelf in the fridge, seen through the open door. */
+function drawInside(ctx, placed, host, catalog) {
+  const hostDef = catalog.get(host.item);
+  const def = catalog.get(placed.item);
+  if (!hostDef || !def) return;
+
+  const hw = (host.w ?? hostDef.w) * host.scale;
+  const hh = (host.h ?? hostDef.h) * host.scale;
+  const top = host.y - hh;
+
+  ctx.save();
+  // Clipped to the door opening, so nothing pokes out through the side.
+  ctx.beginPath();
+  ctx.rect(host.x - hw * 0.3, top + hh * 0.1, hw * 0.58, hh * 0.8);
+  ctx.clip();
+  // Small, and on the middle shelf.
+  ctx.translate(host.x - hw * 0.02, top + hh * 0.52);
+  ctx.scale(0.62, 0.62);
+  drawItemArt(ctx, def, placed.tint, placed.design, placed);
   ctx.restore();
 }
 
