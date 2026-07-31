@@ -18,6 +18,10 @@ import { cookOn } from '../js/model/recipes.js';
 import { createWorld, repairWorld, placeItem, placeCharacter, placeCat } from '../js/model/world.js';
 import { createCharacterSpec } from '../js/model/character.js';
 import { createCatSpec } from '../js/model/cat.js';
+import { beginUse } from '../js/model/using.js';
+import { createRoomScene } from '../js/scenes/room.js';
+import { stubGame } from './helpers/stubs.js';
+import { HOUSE_LAYOUT } from '../js/model/world.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const catalog = JSON.parse(readFileSync(join(ROOT, 'assets/catalog.json'), 'utf8'));
@@ -289,4 +293,77 @@ test('everything the game writes onto the world survives a save', () => {
       assert.deepEqual(after[field], value, `${item.item}.${field} was kept`);
     }
   }
+});
+
+/**
+ * Deleting a thing takes its references with it.
+ *
+ * Everything that holds another thing holds it by uid, and a uid outlives the
+ * object it named. A cake in a deleted fridge stayed in the room for ever —
+ * never drawn, because what it was inside had gone, and never usable, because
+ * it still counted as put away. Written against every container there is, so
+ * the next one is covered by having been added rather than by being remembered.
+ */
+function deleteInScene(game, roomId, doomed, offset = 0) {
+  // Aimed off centre where asked: what is in a container is drawn over the
+  // middle of it, and so is whoever is using it, and the tap picks the thing
+  // on top — which is the right behaviour and the wrong thing to delete here.
+  const scene = createRoomScene(game, roomId);
+  const x = doomed.x + offset;
+  scene.onPointerDown(20 + x * 1.033, 22 + (doomed.y - 12) * 1.033);
+  scene.onPointerUp(20 + x * 1.033, 22 + (doomed.y - 12) * 1.033);
+  const button = scene.allControls().find((c) => c.id === 'delete');
+  assert.ok(button, 'there is a delete button');
+  scene.onTap(button.x + button.w / 2, button.y + button.h / 2);
+}
+
+test('deleting a container leaves what was in it in the room', () => {
+  for (const c of containers()) {
+    const game = stubGame();
+    const roomId = HOUSE_LAYOUT[2];
+    const room = game.world.rooms[roomId];
+    room.items = [];
+    const host = placeItem(c.id, 400, 470);
+    const thing = placeItem('egg', 400, 400);
+    putInside(thing, host, lookup(c.id));
+    room.items.push(host, thing);
+
+    deleteInScene(game, roomId, host, -lookup(c.id).w * 0.36);
+    const after = game.world.rooms[roomId].items;
+    assert.equal(after.includes(host), false, `${c.id}: it is gone`);
+    assert.ok(after.includes(thing), `${c.id}: what was in it is still here`);
+    assert.equal('inside' in thing, false, `${c.id}: and is not inside a ghost`);
+    assert.ok(thing.y > 300, `${c.id}: it came down to the floor`);
+  }
+});
+
+test('deleting what somebody is using stops them using it', () => {
+  const game = stubGame();
+  const roomId = HOUSE_LAYOUT[2];
+  const room = game.world.rooms[roomId];
+  room.items = [];
+  const sofa = placeItem('sofa', 400, 470);
+  room.items.push(sofa);
+  const her = placeCharacter(createCharacterSpec(), roomId, 400, 470);
+  game.world.characters.push(her);
+  beginUse(her, sofa);
+  assert.ok(her.using, 'she sat down');
+
+  deleteInScene(game, roomId, sofa, lookup('sofa').w * 0.4);
+  assert.equal('using' in her, false, 'and stood up when it went');
+});
+
+test('deleting what a cat is on gets the cat off it', () => {
+  const game = stubGame();
+  const roomId = HOUSE_LAYOUT[2];
+  const room = game.world.rooms[roomId];
+  room.items = [];
+  const sofa = placeItem('sofa', 400, 470);
+  room.items.push(sofa);
+  const cat = placeCat(createCatSpec(), roomId, 400, 430);
+  cat.on = sofa.uid;
+  game.world.cats = [cat];
+
+  deleteInScene(game, roomId, sofa, lookup('sofa').w * 0.4);
+  assert.equal('on' in cat, false, 'it is not perched on nothing');
 });

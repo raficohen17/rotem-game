@@ -392,9 +392,35 @@ export function createRoomScene(game, roomId, start = {}) {
     if (selected === item) selected = null;
   }
 
+  /**
+   * Lets go of a thing about to be deleted.
+   *
+   * Everything that points at an item by its uid has to stop pointing at it,
+   * or the reference outlives the thing. A cake in a deleted fridge stayed in
+   * the room for ever: never drawn, because what it was inside was gone, and
+   * never usable, because it counted as put away. The markers in a deleted
+   * board were worse — they kept feeding colours to a palette nobody could
+   * see the pens for.
+   */
+  function releaseFrom(doomed) {
+    for (const item of room.items) {
+      if (item.inside !== doomed.uid) continue;
+      takeOut(item);
+      clearProgress(item);
+      settle(item, item.x, FLOOR_BAND.bottom);
+    }
+    for (const character of cast()) {
+      if (character.using?.uid === doomed.uid) stopUsing(character);
+    }
+    for (const cat of catsHere()) {
+      if (cat.on === doomed.uid) delete cat.on;
+    }
+  }
+
   function removeSelected() {
     if (!selected) return;
     if (isItem(selected)) {
+      releaseFrom(selected);
       room.items = room.items.filter((entry) => entry !== selected);
     } else {
       game.world.characters = game.world.characters.filter((entry) => entry !== selected);
