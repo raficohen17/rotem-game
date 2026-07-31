@@ -17,7 +17,7 @@ import { drawCharacter, CHAR_H } from './character.js';
 import { drawCat } from './cat.js';
 import { drawOrder } from '../model/geometry.js';
 import {
-  shade, deepen, fillRR, fillEllipse, fillCircle, roundRect, strokeLine,
+  shade, deepen, fillRR, fillEllipse, fillCircle, fillPoly, roundRect, strokeLine,
 } from './shapes.js';
 import { litFill } from './materials.js';
 import { partitionSide } from '../model/travel.js';
@@ -625,17 +625,65 @@ function drawSwitchedOn(ctx, placed, def, time) {
       break;
     }
     case 'open': {
-      // The door swung wide, with the cold light inside it.
-      fillRR(ctx, cx - w * 0.3, top + h * 0.08, w * 0.58, h * 0.84, 6, '#e8f4f7');
-      ctx.strokeStyle = 'rgba(120, 150, 165, 0.5)';
-      ctx.lineWidth = 2;
-      for (let i = 1; i < 4; i += 1) {
-        const y = top + h * 0.08 + (h * 0.84 * i) / 4;
-        strokeLine(ctx, cx - w * 0.28, y, cx + w * 0.26, y, 'rgba(120, 150, 165, 0.5)', 2);
+      /*
+       * The door swung open, and something behind it.
+       *
+       * This was a flat pale rectangle with three hairlines across it, which
+       * read as a white box rather than as a fridge standing open. What sells
+       * it is depth — a back wall further away than the sides, shelves with a
+       * thickness you can see, and cold light falling out onto the floor.
+       *
+       * The shelves are drawn at the heights food is actually put on, so a
+       * carton sits on a shelf rather than near one.
+       */
+      const left = cx - w * 0.3;
+      const right = cx + w * 0.28;
+      const inTop = top + h * 0.08;
+      const inBottom = top + h * 0.93;
+
+      // Light spilling out onto the floor in front of it.
+      const spill = ctx.createLinearGradient(0, inBottom, 0, placed.y + 26);
+      spill.addColorStop(0, 'rgba(206, 232, 240, 0.5)');
+      spill.addColorStop(1, 'rgba(206, 232, 240, 0)');
+      ctx.fillStyle = spill;
+      fillPoly(ctx, [left, inBottom, right, inBottom,
+        right + w * 0.16, placed.y + 26, left - w * 0.16, placed.y + 26]);
+
+      // The cavity: back wall, then side and top walls angled in to it.
+      const inset = w * 0.09;
+      fillRR(ctx, left, inTop, right - left, inBottom - inTop, 5, '#b9ccd4');
+      fillPoly(ctx, [left, inTop, right, inTop,
+        right - inset, inTop + inset * 0.7, left + inset, inTop + inset * 0.7], '#a8bcc6');
+      fillPoly(ctx, [left, inTop, left + inset, inTop + inset * 0.7,
+        left + inset, inBottom - inset * 0.4, left, inBottom], '#c6d8de');
+      fillPoly(ctx, [right, inTop, right - inset, inTop + inset * 0.7,
+        right - inset, inBottom - inset * 0.4, right, inBottom], '#9fb4bf');
+      // The back wall, lit.
+      fillRR(ctx, left + inset, inTop + inset * 0.7,
+        (right - left) - inset * 2, (inBottom - inTop) - inset * 1.1, 3, '#e4f2f6');
+
+      // Shelves, at the heights things are actually put on.
+      for (const at of [0.28, 0.5, 0.72]) {
+        const y = top + h * at;
+        fillRR(ctx, left + inset * 0.4, y - 3, (right - left) - inset * 0.8, 4, 2, '#f4fafc');
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        fillRR(ctx, left + inset * 0.6, y + 1, (right - left) - inset * 1.2, 5, 2, '#7f98a4');
+        ctx.restore();
       }
-      fillRR(ctx, cx + w * 0.3, top + h * 0.06, w * 0.16, h * 0.88, 5, '#cdd8dd');
+
+      // The door itself, swung wide to the right, seen edge on.
+      const hinge = right + 2;
+      const doorW = w * 0.2;
+      fillPoly(ctx, [hinge, top + h * 0.04, hinge + doorW, top + h * 0.1,
+        hinge + doorW, placed.y - h * 0.02, hinge, placed.y - h * 0.06], '#dfe8ec');
+      fillPoly(ctx, [hinge, top + h * 0.04, hinge + doorW * 0.24, top + h * 0.055,
+        hinge + doorW * 0.24, placed.y - h * 0.05, hinge, placed.y - h * 0.06], '#c2d0d6');
+      // Its handle, on the inside face.
+      fillRR(ctx, hinge + doorW * 0.55, top + h * 0.3, 5, h * 0.3, 2.5, '#9fb0b8');
       break;
     }
+
     case 'cook': {
       /*
        * A lit hob, and nothing else.
