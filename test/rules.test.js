@@ -20,7 +20,7 @@ import { createCharacterSpec } from '../js/model/character.js';
 import { createCatSpec } from '../js/model/cat.js';
 import { beginUse } from '../js/model/using.js';
 import { createRoomScene } from '../js/scenes/room.js';
-import { stubGame } from './helpers/stubs.js';
+import { stubGame, withDocument } from './helpers/stubs.js';
 import { HOUSE_LAYOUT } from '../js/model/world.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -369,4 +369,53 @@ test('deleting what a cat is on gets the cat off it', () => {
 
   deleteInScene(game, roomId, sofa, lookup('sofa').w * 0.4);
   assert.equal('on' in cat, false, 'it is not perched on nothing');
+});
+
+test('anybody she makes turns up in the room she made them in', () => {
+  // A character is only shown in her own building, and a new one was made
+  // without one — so making a character appeared to do nothing at all. This
+  // drives the creator the way she does and then looks in the room.
+  const game = stubGame();
+  const roomId = HOUSE_LAYOUT[1];
+  const before = game.charactersIn(roomId).length;
+
+  const scene = createRoomScene(game, roomId);
+  scene.onTap(1240, 676);                       // open the drawer
+  const people = scene.allControls().find((c) => c.id === 'tab:people');
+  scene.onTap(people.x + people.w / 2, people.y + people.h / 2);
+  const add = scene.allControls().find((c) => c.id === 'addPerson');
+  assert.ok(add, 'there is a way to make one');
+
+  let creator = null;
+  const spy = { ...game, setScene: (next) => { creator = next; } };
+  const spyScene = createRoomScene(spy, roomId);
+  spyScene.onTap(1240, 676);
+  spyScene.onTap(people.x + people.w / 2, people.y + people.h / 2);
+  spyScene.onTap(add.x + add.w / 2, add.y + add.h / 2);
+  assert.ok(creator, 'the creator opened');
+
+  withDocument(() => {
+    const done = creator.allControls().find((c) => c.id === 'done');
+    creator.onTap(done.x + done.w / 2, done.y + done.h / 2);
+  });
+
+  assert.equal(game.charactersIn(roomId).length, before + 1, 'she is in the room');
+});
+
+test('a cat she makes turns up too', () => {
+  const game = stubGame();
+  const roomId = HOUSE_LAYOUT[1];
+  const before = game.catsIn(roomId).length;
+
+  let creator = null;
+  const scene = createRoomScene({ ...game, setScene: (next) => { creator = next; } }, roomId);
+  scene.onTap(1240, 676);
+  const people = scene.allControls().find((c) => c.id === 'tab:people');
+  scene.onTap(people.x + people.w / 2, people.y + people.h / 2);
+  const add = scene.allControls().find((c) => c.id === 'addCat');
+  scene.onTap(add.x + add.w / 2, add.y + add.h / 2);
+
+  const done = creator.allControls().find((c) => c.id === 'done');
+  creator.onTap(done.x + done.w / 2, done.y + done.h / 2);
+  assert.equal(game.catsIn(roomId).length, before + 1, 'it is in the room');
 });

@@ -164,12 +164,21 @@ export function placeItem(catalogId, x, y) {
  * No z: a cat sorts by where it is standing like everything else, and giving
  * it one would only let it be pushed behind the sofa it is sitting on.
  */
-export function placeCat(spec, room, x = SPAWN.x, y = SPAWN.y) {
-  return { uid: makeId(), spec, room, x, y, pose: 'stand' };
+export function placeCat(spec, room, x = SPAWN.x, y = SPAWN.y, building = null) {
+  return { uid: makeId(), spec, room, building, x, y, pose: 'stand' };
 }
 
-export function placeCharacter(spec, room, x = SPAWN.x, y = SPAWN.y) {
-  return { uid: makeId(), spec, room, x, y, z: 0 };
+/**
+ * Somebody, in a room of a building.
+ *
+ * The building is part of being somewhere. Left off, a new character belonged
+ * to no building at all, and a room only shows the people in its own — so
+ * making one appeared to do nothing whatsoever. She is on the shelf until the
+ * world is next loaded, which puts her in the first building, which is not
+ * where she was made either.
+ */
+export function placeCharacter(spec, room, x = SPAWN.x, y = SPAWN.y, building = null) {
+  return { uid: makeId(), spec, room, building, x, y, z: 0 };
 }
 
 /**

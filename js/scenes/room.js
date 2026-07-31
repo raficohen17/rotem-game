@@ -470,6 +470,7 @@ export function createRoomScene(game, roomId, start = {}) {
         spec, roomId,
         ROOM_W / 2 + ((already % 5) - 2) * 130,
         FLOOR_BAND.bottom - 40,
+        game.building.id,
       ));
       game.persist();
       back();
@@ -487,6 +488,7 @@ export function createRoomScene(game, roomId, start = {}) {
           spec, roomId,
           ROOM_W / 2 + ((already % 5) - 2) * 140,
           FLOOR_BAND.bottom - 40,
+          game.building.id,
         ));
       }
       game.persist();
