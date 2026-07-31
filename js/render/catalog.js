@@ -16,6 +16,7 @@
 import { PLACEHOLDERS } from './placeholders.js';
 import { paperLayer } from './shapes.js';
 import { drawBook, drawBookFlat } from './book.js';
+import { drawStrokes, faceRect } from './board.js';
 import { fillEllipse, fillCircle, shade } from './shapes.js';
 import { isFood, portionsLeft, wholePortions } from '../model/food.js';
 import { isVessel, holds, fullness, drinkColor } from '../model/drink.js';
@@ -230,6 +231,13 @@ export function drawItemArt(ctx, def, tint = 0, design = null, placed = null) {
     }
     if (def.image) {
       ctx.drawImage(def.image, -def.w / 2, -def.h, def.w, def.h);
+      return;
+    }
+    // The board is drawn empty and then what she drew is painted onto it, so
+    // the drawing is on the board rather than being the board.
+    if (def.id === 'whiteboard') {
+      PLACEHOLDERS.whiteboard(ctx, def.w, def.h, def.colors[tint % def.colors.length]);
+      drawStrokes(ctx, design, faceRect(def.w, def.h));
       return;
     }
     const paint = PLACEHOLDERS[def.id];

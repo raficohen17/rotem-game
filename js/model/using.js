@@ -129,6 +129,23 @@ export const ACTIONS = {
     carried: false,
     instant: true,
   },
+  /*
+   * Writing at the board.
+   *
+   * The first action on something hanging on a wall. Everything else puts her
+   * where the item is; a board is at head height, so that would hang her off
+   * the wall by her feet. She keeps her own y — she is already standing on the
+   * floor, which is where somebody writing on a board stands.
+   */
+  write: {
+    offset: 0,
+    facing: 1,
+    inFront: true,
+    label: 'write',
+    icon: 'marker',
+    carried: false,
+    atWall: true,
+  },
   bathe: {
     offset: 0,
     facing: 1,
@@ -169,6 +186,7 @@ export const AFFORDS = {
   stool: 'sit',
   beanbag: 'sit',
   toilet: 'sit',
+  desk_school: 'sit',
 
   bathtub: 'bathe',
 
@@ -177,6 +195,8 @@ export const AFFORDS = {
   omelette: 'eat',
   soup: 'eat',
   egg_boiled: 'eat',
+
+  whiteboard: 'write',
 
   glass: 'drink',
   mug: 'drink',
@@ -263,7 +283,9 @@ export function beginUse(character, item) {
   if (!action) return false;
   character.using = { uid: item.uid, action };
   character.x = item.x + ACTIONS[action].offset;
-  character.y = item.y;
+  // Something on the wall is used from the floor in front of it, so she keeps
+  // the y she is already standing at rather than being lifted up the wall.
+  if (!ACTIONS[action].atWall) character.y = item.y;
   return true;
 }
 

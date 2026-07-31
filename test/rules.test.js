@@ -13,6 +13,7 @@ import {
   POURABLE, VESSELS, canPour, pourInto, sipFrom, sipsLeft,
 } from '../js/model/drink.js';
 import { SWITCHED, switchFor, toggleSwitch } from '../js/model/using.js';
+import { traySpot } from '../js/model/board.js';
 import { cookOn } from '../js/model/recipes.js';
 import { createWorld, repairWorld, placeItem, placeCharacter, placeCat } from '../js/model/world.js';
 import { createCharacterSpec } from '../js/model/character.js';
@@ -39,7 +40,10 @@ function containers() {
     .filter(([, action]) => action === 'open')
     .map(([id]) => ({ id, hides: true, place: shelfSpot }));
   const open = utensils().map((id) => ({ id, hides: false, place: panSpot }));
-  return [...withDoors, ...open];
+  // The pen tray on a whiteboard: a container with no door at all, which is
+  // what makes the markers on it part of the board.
+  const trays = [{ id: 'whiteboard', hides: false, place: traySpot }];
+  return [...withDoors, ...open, ...trays];
 }
 
 test('every container is a real item', () => {
@@ -179,6 +183,9 @@ test('a room in a test has the states that only happen sometimes', () => {
   assert.match(stubs, /inside = fridge\.uid/, 'and something shut in a fridge');
   assert.match(stubs, /\.left = \d/, 'a part-eaten meal');
   assert.match(stubs, /\.sips = \d/, 'and a part-drunk glass');
+  assert.match(stubs, /placeItem\('whiteboard'/, 'a whiteboard');
+  assert.match(stubs, /strokes:/, 'with something drawn on it');
+  assert.match(stubs, /marker\.inside = board\.uid/, 'and markers in its tray');
 });
 
 test('everything with a level shows that level', () => {

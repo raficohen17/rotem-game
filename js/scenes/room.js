@@ -43,6 +43,8 @@ import {
 } from '../model/food.js';
 import { utensils, clearProgress } from '../model/recipes.js';
 import { createBookDesigner } from './bookdesigner.js';
+import { createBoardScene } from './board.js';
+import { createBoard, traySpot, TRAY_STOCK } from '../model/board.js';
 import { createHouse } from './house.js';
 
 const PANEL_TOP = 456;
@@ -76,12 +78,17 @@ export const EXTRA_TABS = [
   { id: 'paintFloor', icon: 'floor' },
 ];
 
-export function createRoomScene(game, roomId) {
+/**
+ * @param {{open?: boolean, tab?: string}} [start] which drawer to come back to,
+ *   so a scene that sends her here for something can put it in front of her.
+ */
+export function createRoomScene(game, roomId, start = {}) {
   const room = game.world.rooms[roomId];
   const { catalog } = game;
 
-  let open = false;
-  let tab = catalog.categories[0].id;
+  let open = start.open === true;
+  let tab = catalog.categories.some((c) => c.id === start.tab)
+    ? start.tab : catalog.categories[0].id;
   let selected = null;
   let drag = null;
 
@@ -196,9 +203,12 @@ export function createRoomScene(game, roomId) {
     const def = catalog.get(host.item);
     if (!def) return;
     const pan = utensils().includes(host.item);
+    const tray = host.item === 'whiteboard';
+    let slot = 0;
     for (const item of room.items) {
       if (item.inside !== host.uid) continue;
       if (pan) putInPan(item, host, def);
+      else if (tray) { putInTray(item, host, def, slot); slot += 1; }
       else putInside(item, host, def, item.shelf ?? 0);
     }
   }
@@ -210,6 +220,48 @@ export function createRoomScene(game, roomId) {
     item.x = spot.x;
     item.y = spot.y;
     item.inside = vessel.uid;
+  }
+
+  /** Stands a marker in a whiteboard's tray. */
+  function putInTray(marker, board, def = catalog.get(board.item), slot = 0) {
+    if (!def) return;
+    const spot = traySpot(board, def, slot);
+    marker.x = spot.x;
+    marker.y = spot.y;
+    marker.inside = board.uid;
+  }
+
+  /** How many markers are already in this board's tray. */
+  function trayCount(board) {
+    return room.items.filter((item) => item.inside === board.uid).length;
+  }
+
+  /**
+   * A new board arrives with markers in it.
+   *
+   * The same reason a new fridge arrives with food in it: the colours on the
+   * board are the markers she owns, so a board with an empty tray is a board
+   * she cannot draw on, and that is a poor first thing to happen.
+   */
+  function stockBoard(board) {
+    const def = catalog.get(board.item);
+    if (!def) return;
+    TRAY_STOCK.forEach((tint, slot) => {
+      const marker = placeItem('marker', board.x, board.y);
+      marker.tint = tint;
+      putInTray(marker, board, def, slot);
+      room.items.push(marker);
+    });
+  }
+
+  /** A whiteboard under this point, if there is one. */
+  function boardAt(rx, ry) {
+    return room.items.find((item) => {
+      if (item.item !== 'whiteboard') return false;
+      const def = catalog.get(item.item);
+      if (!def) return false;
+      return boundsContain(itemBounds(item, def), rx, ry);
+    }) ?? null;
   }
 
   /** Fills a newly placed fridge with a few things. */
@@ -361,6 +413,17 @@ export function createRoomScene(game, roomId) {
     }, back));
   }
 
+  /** Opens the whiteboard full screen, where a finger can draw on it. */
+  function openBoard(board) {
+    const back = () => game.setScene(createRoomScene(game, roomId));
+    board.design = board.design ?? createBoard();
+    game.setScene(createBoardScene(game, board, room.items, back,
+      // No markers anywhere: she is put back in the room with the class
+      // drawer open, which is where the markers are. A palette with nothing
+      // in it and no way out of it is a dead end.
+      () => game.setScene(createRoomScene(game, roomId, { open: true, tab: 'class' }))));
+  }
+
   /**
    * Making a cat.
    *
@@ -485,11 +548,19 @@ export function createRoomScene(game, roomId) {
    */
   function nearestUsable(character) {
     if (isItem(character) || isUsing(character)) return null;
-    return room.items.find((item) => canUse(item)
+    let best = null;
+    let closest = Infinity;
+    for (const item of room.items) {
       // Food in the fridge is put away. She takes it out first, which is the
-      // whole reason the fridge is worth having.
-      && !isPutAway(item)
-      && Math.abs(item.x - character.x) <= USE_REACH) ?? null;
+      // whole reason the fridge is worth having. A marker in a tray is not
+      // put away — but nothing in a tray is usable, so it never gets here.
+      if (!canUse(item) || isPutAway(item)) continue;
+      const away = Math.abs(item.x - character.x);
+      if (away > USE_REACH || away >= closest) continue;
+      closest = away;
+      best = item;
+    }
+    return best;
   }
 
   function useIcon(character) {
@@ -506,10 +577,12 @@ export function createRoomScene(game, roomId) {
     if (!selected) return [];
 
     const book = isItem(selected) && selected.item === 'book';
+    const board = isItem(selected) && selected.item === 'whiteboard';
     const flick = isItem(selected) ? switchFor(selected.item) : null;
     const ids = isItem(selected)
       ? [
         ...(book ? [['design', 'looks']] : []),
+        ...(board ? [['draw', 'marker']] : []),
         ...(flick ? [['flick', SWITCHES[flick].icon]] : []),
         ['shrink', 'shrink'], ['grow', 'grow'], ['flip', 'flip'],
         ['sendBack', 'layerDown'], ['bringFront', 'layerUp'], ['delete', 'trash'],
@@ -580,6 +653,7 @@ export function createRoomScene(game, roomId) {
       case 'stop': stopUsing(selected); game.persist(); return true;
       case 'flick': toggleSwitch(selected); game.persist(); return true;
       case 'design': openBookDesigner(selected); return true;
+      case 'draw': openBoard(selected); return true;
       case 'delete': removeSelected(); return true;
       default: break;
     }
@@ -671,6 +745,10 @@ export function createRoomScene(game, roomId) {
             putInside(entry, larder, catalog.get(larder.item), freeShelf(larder, room.items));
           }
           else if (vessel && isFood(entry)) putInPan(entry, vessel);
+          else if (entry.item === 'marker' && boardAt(p.x, p.y)) {
+            const board = boardAt(p.x, p.y);
+            putInTray(entry, board, catalog.get(board.item), trayCount(board));
+          }
           else settle(entry, p.x, p.y);
           // A carton brought straight out of the drawer onto a glass fills it
           // on the way past, so pouring works the first time as well as later.
@@ -680,6 +758,9 @@ export function createRoomScene(game, roomId) {
           // A new fridge comes with something in it. An empty one is a
           // cupboard, and gives her no reason to cook.
           if (switchFor(entry.item) === 'open') stockFridge(entry);
+          // And a new board comes with markers in its tray, for the same
+          // reason: an empty one is a blank wall she cannot draw on.
+          if (entry.item === 'whiteboard') stockBoard(entry);
           selected = entry;
           game.persist();
         }
@@ -709,6 +790,19 @@ export function createRoomScene(game, roomId) {
             clearProgress(hostOf(moved));
             takeOut(moved);
             settle(moved, p.x, p.y);
+          }
+        }
+        // A marker goes in the tray of the board it is dropped on, and comes
+        // out again when it is dragged off — the same gesture both ways, which
+        // is the one the fridge already taught.
+        else if (moved?.item === 'marker') {
+          const board = boardAt(p0.x, p0.y);
+          if (board) {
+            const taken = room.items.filter((i) => i.inside === board.uid && i !== moved).length;
+            putInTray(moved, board, catalog.get(board.item), taken);
+          } else if (isPutAway(moved)) {
+            takeOut(moved);
+            settle(moved, p0.x, p0.y);
           }
         }
         // A pan pushed along the counter takes its contents with it.

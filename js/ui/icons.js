@@ -432,6 +432,39 @@ export const ICONS = {
     strokeLine(ctx, 4, -20, 13, -6, c, 3);
   },
 
+  /* A marker, held at the angle you write with. */
+  marker(ctx, c) {
+    ctx.save();
+    ctx.rotate(-0.5);
+    // Barrel, band, and the wedge nib that says marker rather than pencil.
+    fillRR(ctx, -6, -18, 12, 22, 3, c);
+    fillRR(ctx, -7, 3, 14, 4, 2, c);
+    fillPoly(ctx, [-5, 8, 5, 8, 3, 19, -3, 19], c);
+    ctx.restore();
+  },
+
+  /* A board rubber, felt side down. */
+  rubber(ctx, c) {
+    ctx.save();
+    ctx.rotate(-0.12);
+    fillRR(ctx, -18, -12, 36, 14, 4, c);
+    fillRR(ctx, -15, 3, 30, 8, 3, c);
+    ctx.globalCompositeOperation = 'destination-out';
+    fillRR(ctx, -12, 5.5, 24, 3, 1.5, '#000');
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  },
+
+  /* Wiping the board: a rubber, and the clean sweep behind it. */
+  wipe(ctx, c) {
+    fillRR(ctx, 0, -4, 20, 12, 4, c);
+    for (const [y, len] of [[-14, 18], [-8, 13], [-2, 9]]) {
+      strokeLine(ctx, -20, y, -20 + len, y, c, 3.4);
+    }
+    // The board edge it is being wiped along.
+    strokeLine(ctx, -21, 15, 21, 15, c, 3.4);
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

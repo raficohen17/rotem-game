@@ -20,6 +20,7 @@ import {
   litFill, sideLit, within, woodGrain, planks, folds, stitching, sheen, glass,
   knob, pull, panel,
 } from './materials.js';
+import { FACE } from '../model/board.js';
 
 const WHITE = '#f6f1e8';
 const GLASS = '#c2d9e2';
@@ -946,6 +947,79 @@ export const PLACEHOLDERS = {
     strokeLine(ctx, 0, -h + 9, 0, -9, c, 7);
     strokeLine(ctx, -w / 2 + 9, -h / 2, w / 2 - 9, -h / 2, c, 7);
     fillRR(ctx, -w / 2 - 5, -6, w + 10, 10, 3, litFill(ctx, -6, 10, c, 0.2));
+  },
+
+  /*
+   * A whiteboard, with a pen tray along the bottom.
+   *
+   * The face is left empty on purpose: what goes on it is whatever Rotem drew,
+   * painted over this by the room. The proportions come from FACE in
+   * model/board.js, so a line she puts in the corner is in the corner here.
+   */
+  whiteboard(ctx, w, h, c) {
+    // Frame first, then the face inset into it.
+    fillRR(ctx, -w / 2, -h, w, h * 0.86, 6, litFill(ctx, -h, h, c, 0.14));
+    const fx = -w / 2 + w * FACE.x;
+    const fy = -h + h * FACE.y;
+    fillRR(ctx, fx, fy, w * FACE.w, h * FACE.h, 3, '#fbfaf6');
+    // A wash across the top corner, which is what stops a white rectangle
+    // reading as a hole in the wall.
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    fillPoly(ctx, [fx, fy, fx + w * FACE.w * 0.5, fy, fx, fy + h * FACE.h * 0.45], '#eef2f4');
+    ctx.restore();
+
+    // The tray, sticking out far enough to hold a marker.
+    const ty = -h + h * 0.8;
+    fillRR(ctx, -w / 2 + w * 0.02, ty, w * 0.96, h * 0.07, 3, shade(c, -0.16));
+    fillRR(ctx, -w / 2 + w * 0.02, ty, w * 0.96, h * 0.025, 2, shade(c, 0.2));
+  },
+
+  /* A marker, cap on, standing up. */
+  marker(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.8, 0.5);
+    // Barrel in the ink colour, so the marker and its line match.
+    fillRR(ctx, -w * 0.34, -h * 0.72, w * 0.68, h * 0.72, 3, litFill(ctx, -h, h, c, 0.2));
+    // Cap, a shade darker, with a clip.
+    fillRR(ctx, -w * 0.4, -h, w * 0.8, h * 0.34, 3, shade(c, -0.22));
+    fillRR(ctx, w * 0.16, -h * 0.96, w * 0.16, h * 0.24, 2, shade(c, -0.4));
+    // The band where the cap meets the barrel.
+    fillRR(ctx, -w * 0.4, -h * 0.68, w * 0.8, h * 0.05, 2, '#efe9df');
+  },
+
+  /*
+   * A school desk with its chair, seen from the side.
+   *
+   * One object rather than two, because a classroom is rows of desks and a
+   * child laying out twelve separate chairs is a child doing furniture
+   * removals instead of playing.
+   */
+  desk_school(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.9, 0.42);
+    const wood = litFill(ctx, -h, h, c, 0.16);
+
+    // The chair, behind and to one side, so the desk reads in front of it.
+    fillRR(ctx, w * 0.12, -h * 0.46, w * 0.3, h * 0.08, 3, shade(c, -0.14));
+    fillRR(ctx, w * 0.34, -h * 0.86, w * 0.08, h * 0.44, 3, shade(c, -0.2));
+    leg(ctx, w * 0.16, -h * 0.42, 0, w * 0.05, shade(c, -0.26));
+    leg(ctx, w * 0.38, -h * 0.42, 0, w * 0.05, shade(c, -0.26));
+
+    // The desk top, with a lip along the front and a shelf for books under it.
+    fillRR(ctx, -w * 0.48, -h * 0.66, w * 0.66, h * 0.09, 3, wood);
+    fillRR(ctx, -w * 0.48, -h * 0.58, w * 0.66, h * 0.04, 2, shade(c, -0.24));
+    fillRR(ctx, -w * 0.42, -h * 0.4, w * 0.52, h * 0.05, 2, shade(c, -0.3));
+    leg(ctx, -w * 0.42, -h * 0.6, 0, w * 0.06, shade(c, -0.2));
+    leg(ctx, w * 0.1, -h * 0.6, 0, w * 0.06, shade(c, -0.2));
+    // Pencil groove, which is what makes it a desk rather than a table.
+    fillRR(ctx, -w * 0.44, -h * 0.68, w * 0.5, h * 0.02, 1, shade(c, 0.3));
+  },
+
+  /* A board rubber: a felt pad with a handle on top. */
+  rubber(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.8, 0.44);
+    fillRR(ctx, -w / 2, -h * 0.42, w, h * 0.42, 3, '#dcd6cc');
+    fillRR(ctx, -w * 0.44, -h, w * 0.88, h * 0.62, 4, litFill(ctx, -h, h, c, 0.18));
+    fillRR(ctx, -w * 0.2, -h * 1.02, w * 0.4, h * 0.16, 3, shade(c, 0.22));
   },
 
   picture(ctx, w, h, c) {

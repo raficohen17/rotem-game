@@ -8,6 +8,7 @@
  */
 
 import { drawItem, drawItemArt } from './catalog.js';
+import { MARKER_COLORS } from '../model/board.js';
 import { holds, drinkColor } from '../model/drink.js';
 import { drawBookOpen, drawBookFlat } from './book.js';
 import {
@@ -450,14 +451,22 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
         // In a pan it sits on top and is drawn plainly — watching it cook is
         // the whole point. Shut in the fridge it is only drawn with the door
         // open, so a closed door really does hide what is in it.
+        // A container with a door hides what is in it while the door is
+        // shut. A tray has no door and never hides anything, which is what
+        // makes the markers on a whiteboard part of the board.
+        if (switchFor(host.item) === 'open' && !isOn(host)) continue;
         if (utensils().includes(host.item)) {
           const def = catalog.get(entry.placed.item);
           if (def) drawItem(ctx, entry.placed, def);
           drawCooking(ctx, host, entry.placed, room, time);
           continue;
         }
-        if (!isOn(host)) continue;
-        drawInside(ctx, entry.placed, host, catalog);
+        if (switchFor(host.item)) {
+          drawInside(ctx, entry.placed, host, catalog);
+          continue;
+        }
+        const shelved = catalog.get(entry.placed.item);
+        if (shelved) drawItem(ctx, entry.placed, shelved);
         continue;
       }
       const def = catalog.get(entry.placed.item);
@@ -499,6 +508,7 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
         asleep: doing?.asleep === true,
       });
       if (doing?.action === 'read') drawReading(ctx, doing.item, host, time);
+      if (doing?.action === 'write') drawWriting(ctx, doing.item, room, time);
       ctx.restore();
       if (doing?.action === 'shower') drawShowerRunning(ctx, doing.item, time);
       if (doing?.action === 'bathe') drawBathWater(ctx, doing.item, host, time);
@@ -528,6 +538,36 @@ function drawReading(ctx, item, def, time) {
   ctx.translate(0, -142);
   ctx.rotate(-0.04 + sway);
   drawBookOpen(ctx, item.design ?? {}, w * 0.6, h * 0.3);
+  ctx.restore();
+}
+
+/**
+ * The marker in her hand while she is at the board.
+ *
+ * In the colour of a marker actually in the tray, so the pen she is holding is
+ * one of hers. It moves, because a hand at a board that never moves reads as a
+ * figure stuck to the wall rather than as somebody writing.
+ */
+function drawWriting(ctx, board, room, time) {
+  const marker = room.items.find((item) => item.inside === board.uid && item.item === 'marker');
+  const color = MARKER_COLORS[marker?.tint ?? 0] ?? MARKER_COLORS[0];
+
+  const bob = Math.sin(time * 3.4) * 9;
+  const slide = Math.cos(time * 2.1) * 7;
+  ctx.save();
+  /*
+   * Held out at arm's length, clear of her.
+   *
+   * Drawn at her shoulder first, where a hand actually is, and it was
+   * invisible: a small dark marker against dark hair is nothing at all at the
+   * size a room really is. Out beyond her arm it is against the wall, which
+   * is the only place on a character where a small object reads.
+   */
+  ctx.translate(66 + slide, -CHAR_H * 0.66 + bob);
+  ctx.rotate(-0.5);
+  fillRR(ctx, -7, -22, 14, 27, 4, color);
+  fillRR(ctx, -7, 3, 14, 4, 2, '#efe9df');
+  fillPoly(ctx, [-5, 6, 5, 6, 3, 17, -3, 17], shade(color, -0.28));
   ctx.restore();
 }
 

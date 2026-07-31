@@ -59,6 +59,14 @@ grow until saving stops working.
 - **WHEN** a board's drawing is loaded back as something that is not a drawing
 - **THEN** the board comes back blank rather than breaking the room
 
+### Requirement: Somewhere to sit and listen
+The class drawer MUST hold something to sit at, so a classroom can be built
+out of one drawer rather than assembled from three.
+
+#### Scenario: A row of desks
+- **WHEN** she places school desks in a room with a board
+- **THEN** each is one object with its own chair, and a character can sit at it
+
 ### Requirement: Writing at the board
 A character near the board MUST be able to be sent to write at it, the way she
 can be sent to read a book.

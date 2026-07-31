@@ -30,6 +30,10 @@
       "label": "Books"
     },
     {
+      "id": "class",
+      "label": "Class"
+    },
+    {
       "id": "food",
       "label": "Food"
     },
@@ -699,6 +703,55 @@
         "#5c8fae",
         "#7d9e62",
         "#d9a24e"
+      ]
+    },
+    {
+      "id": "whiteboard",
+      "cat": "class",
+      "w": 340,
+      "h": 230,
+      "surface": "wall",
+      "colors": [
+        "#d8d5cf"
+      ]
+    },
+    {
+      "id": "marker",
+      "cat": "class",
+      "w": 20,
+      "h": 62,
+      "colors": [
+        "#2f2b33",
+        "#c0392b",
+        "#2e7fc4",
+        "#3f9e5b",
+        "#e0891e",
+        "#8a5fb0",
+        "#d9679a",
+        "#33aba6"
+      ]
+    },
+    {
+      "id": "rubber",
+      "cat": "class",
+      "w": 70,
+      "h": 38,
+      "colors": [
+        "#5c6a7a",
+        "#c9707f",
+        "#7d9e62"
+      ]
+    },
+    {
+      "id": "desk_school",
+      "cat": "class",
+      "w": 170,
+      "h": 130,
+      "colors": [
+        "#c2996b",
+        "#5c8fae",
+        "#c9707f",
+        "#7d9e62"
       ]
     }
   ]

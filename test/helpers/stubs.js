@@ -91,6 +91,23 @@ export function stubWorld(name = 'House 1') {
     bowl.sips = 1;
     room.items.push(plate, cup, bowl, placeItem('milk', 150, 470));
 
+    // A whiteboard with a drawing on it and markers in its tray: the drawing
+    // is the only thing in the game that comes from her finger rather than
+    // from a menu, and the tray is a container with no door on it.
+    const board = placeItem('whiteboard', 640, 250);
+    board.design = { strokes: [
+      { c: 0, p: [120, 300, 300, 260, 480, 340, 700, 220] },
+      { c: 3, p: [200, 700, 520, 640] },
+      { c: 1, p: [820, 500] },
+    ] };
+    room.items.push(board);
+    [0, 1, 2].forEach((tint, slot) => {
+      const marker = placeItem('marker', 560 + slot * 54, 250);
+      marker.tint = tint;
+      marker.inside = board.uid;
+      room.items.push(marker);
+    });
+
     // And a fridge with something shut inside it.
     const fridge = placeItem('fridge', 1050, 470);
     const stored = placeItem('cake', 1050, 470 - 160);

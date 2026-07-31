@@ -21,6 +21,8 @@ import { createCharacterCreator } from '../js/scenes/charcreator.js';
 import { createBookDesigner } from '../js/scenes/bookdesigner.js';
 import { createCatCreator } from '../js/scenes/catcreator.js';
 import { createRuleBook } from '../js/scenes/rulebook.js';
+import { createBoardScene } from '../js/scenes/board.js';
+import { createBoard } from '../js/model/board.js';
 
 /**
  * Every scene, in the states it is actually seen in.
@@ -120,6 +122,45 @@ function scenes() {
 
   add('the book designer', () => withDocument(
     () => createBookDesigner(stubGame(), null, () => {}, () => {}),
+  ));
+
+  /*
+   * The whiteboard, in the four states it is really seen in.
+   *
+   * Blank, drawn on, with the rubber picked up, and with no markers at all —
+   * the last because a palette with nothing in it is the one state nobody
+   * would think to open by hand.
+   */
+  const boardIn = (roomId = HOUSE_LAYOUT[0]) => {
+    const game = stubGame();
+    const room = game.world.rooms[roomId];
+    const board = room.items.find((i) => i.item === 'whiteboard');
+    return { game, room, board };
+  };
+
+  add('the board, blank', () => {
+    const { game, room, board } = boardIn();
+    board.design = createBoard();
+    return createBoardScene(game, board, room.items, () => {}, () => {});
+  });
+  add('the board with a drawing on it', () => {
+    const { game, room, board } = boardIn();
+    return createBoardScene(game, board, room.items, () => {}, () => {});
+  });
+  add('the board with the rubber picked up', () => {
+    const { game, room, board } = boardIn();
+    const scene = createBoardScene(game, board, room.items, () => {}, () => {});
+    const rubber = scene.allControls().find((c) => c.id === 'rubber');
+    scene.onTap(rubber.x + rubber.w / 2, rubber.y + rubber.h / 2);
+    return scene;
+  });
+  add('the board with no markers anywhere', () => {
+    const { game, room, board } = boardIn();
+    room.items = room.items.filter((i) => i.item !== 'marker');
+    return createBoardScene(game, board, room.items, () => {}, () => {});
+  });
+  add('a room with the class drawer open at the board', () => createRoomScene(
+    stubGame(), HOUSE_LAYOUT[0], { open: true, tab: 'class' },
   ));
 
   return cases;
