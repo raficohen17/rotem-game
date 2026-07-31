@@ -12,7 +12,9 @@ import { dirname, join } from 'node:path';
 
 import {
   createWorld, createBuilding, placeItem, placeCharacter, placeCat, HOUSE_LAYOUT, STREET,
+  WALL_COLORS, FLOOR_COLORS,
 } from '../../js/model/world.js';
+import { createCharacterSpec } from '../../js/model/character.js';
 import { createBook } from '../../js/model/book.js';
 import { createCatSpec } from '../../js/model/cat.js';
 import { recordingContext } from './recorder.js';
@@ -129,9 +131,32 @@ export function stubWorld(name = 'House 1') {
     { ...placeCat(createCatSpec(), HOUSE_LAYOUT[2], 800, 430), pose: 'curl', building: home },
   ];
 
-  // A second building on the street, empty, so scenes that draw more than one
-  // have more than one to draw.
-  world.buildings.push(createBuilding('School', 'school'));
+  // A second building on the street: a school, with a class sitting at desks
+  // in one room and a playground in another. Both are states nobody would
+  // think to open by hand, and both are what the school is for.
+  const school = createBuilding('School', 'school');
+  world.buildings.push(school);
+
+  const classroom = school.rooms.living;
+  classroom.items.push(placeItem('whiteboard', 620, 250));
+  const teacher = { ...placeCharacter({ ...createCharacterSpec(), size: 1 }, 'living', 620, 470),
+    building: school.id };
+  world.characters.push(teacher);
+  [260, 420, 580].forEach((x) => {
+    const desk = placeItem('desk_school', x, 470);
+    classroom.items.push(desk);
+    const pupil = { ...placeCharacter(undefined, 'living', x, 470), building: school.id };
+    pupil.using = { uid: desk.uid, action: 'sit' };
+    if (x === 420) pupil.hand = true;
+    world.characters.push(pupil);
+  });
+
+  const playground = school.rooms.kitchen;
+  playground.wall = WALL_COLORS[WALL_COLORS.length - 1];
+  playground.floor = FLOOR_COLORS[FLOOR_COLORS.length - 1];
+  playground.floorStyle = 'grass';
+  playground.items.push(placeItem('slide', 300, 470), placeItem('swing', 620, 470),
+    placeItem('sandpit', 880, 470), placeItem('ball', 1000, 470));
   return world;
 }
 

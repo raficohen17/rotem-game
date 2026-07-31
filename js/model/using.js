@@ -187,6 +187,9 @@ export const AFFORDS = {
   beanbag: 'sit',
   toilet: 'sit',
   desk_school: 'sit',
+  swing: 'sit',
+  sandpit: 'sit',
+  slide: 'sit',
 
   bathtub: 'bathe',
 
@@ -202,6 +205,29 @@ export const AFFORDS = {
   mug: 'drink',
   dog_bowl: 'drink',
 };
+
+/**
+ * How high the seat is on things that are not chair-shaped.
+ *
+ * A fraction of the item's own height. Everything sittable used to share one
+ * number, which is right for chairs and sofas and wrong for a slide: she sat
+ * half way down the chute instead of at the top of it.
+ */
+export const SEAT_LEVEL = {
+  slide: 0.82,
+  swing: 0.44,
+  sandpit: 0.34,
+  desk_school: 0.42,
+};
+
+/**
+ * Things she sits behind rather than on top of.
+ *
+ * A desk is drawn over whoever is sitting at it, the way the bath is drawn
+ * over whoever is in it — otherwise a child at a desk is a child standing in
+ * front of one, which is what a classroom of them looked like.
+ */
+export const SIT_BEHIND = new Set(['desk_school']);
 
 /** The action an item offers, or null if it is only furniture. */
 export function useFor(itemId) {
@@ -257,6 +283,29 @@ export function actOnce(character, item, now = 0) {
   return !hasFoodLeft(item);
 }
 
+/**
+ * A hand up, and a hand down.
+ *
+ * Not an action on an object — there is nothing to put a hand up *at* — so it
+ * is a flag on her rather than a use. It only means anything sitting down: a
+ * child standing in the middle of the room with her arm in the air is not
+ * answering a question, she is waving.
+ */
+export function canRaiseHand(character) {
+  return Boolean(character?.using) && ACTIONS[character.using.action]?.pose === 'sit';
+}
+
+export function toggleHand(character) {
+  if (!canRaiseHand(character)) return false;
+  if (character.hand) delete character.hand;
+  else character.hand = true;
+  return Boolean(character.hand);
+}
+
+export function handIsUp(character) {
+  return Boolean(character?.hand) && canRaiseHand(character);
+}
+
 /** How long she is shown eating after a bite, in seconds. */
 export const CHEW_TIME = 0.9;
 
@@ -291,6 +340,9 @@ export function beginUse(character, item) {
 
 export function stopUsing(character) {
   delete character.using;
+  // Standing up takes the hand down with it. An arm left in the air belonged
+  // to a question that is no longer being asked.
+  delete character.hand;
 }
 
 export function isUsing(character) {
@@ -310,7 +362,16 @@ export function resolveUse(character, items) {
     stopUsing(character);
     return null;
   }
-  return { item, action: character.using.action, ...ACTIONS[character.using.action] };
+  const action = ACTIONS[character.using.action];
+  return {
+    item,
+    action: character.using.action,
+    ...action,
+    // Some things are sat on somewhere other than half way up.
+    ...(action.pose === 'sit' && SEAT_LEVEL[item.item] !== undefined
+      ? { seat: SEAT_LEVEL[item.item] }
+      : {}),
+  };
 }
 
 /**

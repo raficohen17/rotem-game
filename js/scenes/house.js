@@ -23,7 +23,7 @@ import { HOUSE_LAYOUT, STREET } from '../model/world.js';
 import {
   beginWalk, routeBetween, STAIR_X, LINKS, HOUSE_GRID, planExit, beginTrip,
 } from '../model/travel.js';
-import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
+import { drawCharacter, charHeight, CHAR_H, CHAR_W } from '../render/character.js';
 import {
   ACTIONS, SWITCHES, canUse, canSwitch, useFor, switchFor,
   beginUse, stopUsing, isUsing, toggleSwitch,
@@ -115,7 +115,7 @@ export function createHouse(game) {
     const reach = Math.max(CHAR_W, PICK_W / CELL_SCALE) / 2;
     return game.charactersIn(spot.roomId).find((c) => (
       spot.x >= c.x - reach && spot.x <= c.x + reach
-      && spot.y >= c.y - CHAR_H && spot.y <= c.y
+      && spot.y >= c.y - charHeight(c.spec) && spot.y <= c.y
     )) ?? null;
   }
 
@@ -186,7 +186,7 @@ export function createHouse(game) {
     const left = Math.min(box.x + box.w - width - 8,
       Math.max(box.x + 8, box.x + traveller.x * CELL_SCALE - width / 2));
     const top = Math.max(box.y + 6,
-      box.y + (traveller.y - CHAR_H) * CELL_SCALE - PIP - 8);
+      box.y + (traveller.y - charHeight(traveller.spec)) * CELL_SCALE - PIP - 8);
 
     return reachable.map((item, i) => {
       const action = useFor(item.item) ?? switchFor(item.item);

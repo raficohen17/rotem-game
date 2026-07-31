@@ -20,8 +20,23 @@ test(`at least ${REQUIRED_CHARACTERS.toLocaleString('en')} different characters 
   );
 });
 
+/*
+ * Parts that are allowed to offer only a couple of choices.
+ *
+ * The floor below exists because a part with four near-identical options does
+ * nothing visible — that is how eight brow shapes came to be a tab that
+ * changed nothing anybody could see. Size is the opposite case: two options,
+ * and each redraws the whole figure. The rule is about visible variation, and
+ * the count is only a proxy for it.
+ */
+const FEW_BUT_OBVIOUS = new Set(['size']);
+
 test('no single part is so thin that it barely varies', () => {
   for (const part of EDITABLE_PARTS) {
+    if (FEW_BUT_OBVIOUS.has(part.key)) {
+      assert.ok(PART_COUNTS[part.key] >= 2, `${part.key} is still a choice`);
+      continue;
+    }
     assert.ok(PART_COUNTS[part.key] >= 6, `${part.key} offers at least six choices`);
     if (part.colorKey) {
       assert.ok(PART_COUNTS[part.colorKey] >= 8, `${part.colorKey} offers at least eight colours`);

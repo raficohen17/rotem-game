@@ -49,6 +49,21 @@ function scenes() {
   });
 
   add('the street', () => createStreet(stubGame()));
+  add('the school classroom, sitting down', () => {
+    const game = stubGame();
+    game.building = game.world.buildings[1];
+    return createRoomScene(game, 'living');
+  });
+  add('the school playground', () => {
+    const game = stubGame();
+    game.building = game.world.buildings[1];
+    return createRoomScene(game, 'kitchen');
+  });
+  add('the school cutaway', () => {
+    const game = stubGame();
+    game.building = game.world.buildings[1];
+    return createHouse(game);
+  });
   add('the street with somebody picked up', () => {
     const game = stubGame();
     const scene = createStreet(game);

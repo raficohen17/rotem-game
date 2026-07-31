@@ -53,17 +53,30 @@ export const HOUSE_LAYOUT = ['bedroom', 'bath', 'living', 'kitchen'];
 export const WALL_COLORS = [
   '#ecdcd6', '#dde3ea', '#e0e7d6', '#f2e6cd', '#ecd9cb',
   '#dfd8e4', '#d3e0de', '#e8dce4', '#ebe5d9', '#ccd3da',
+  // Sky, for a room that is meant to be outside. Appended, never inserted.
+  '#a9cfe8',
 ];
 
 /**
  * Floor surfaces. The colour is chosen separately, so six patterns times ten
  * colours gives sixty floors rather than six.
  */
-export const FLOOR_STYLES = ['boards', 'tiles', 'checker', 'herringbone', 'carpet', 'plain'];
+/*
+ * Floor surfaces.
+ *
+ * Grass is appended rather than inserted, like every other table in this game:
+ * a floor is stored by name here, but the swatches are laid out in this order
+ * and moving one would move the thing she taps.
+ */
+export const FLOOR_STYLES = [
+  'boards', 'tiles', 'checker', 'herringbone', 'carpet', 'plain', 'grass',
+];
 
 export const FLOOR_COLORS = [
   '#c2996b', '#8a6448', '#d6c8ab', '#a3b09b', '#b3a6bd',
   '#ded0b4', '#6f8794', '#bf9a97', '#9c968d', '#556b5c',
+  // Grass, for the same reason.
+  '#7fa860',
 ];
 
 /** Where a character stands when first placed, in design coordinates. */
@@ -284,6 +297,9 @@ export function repairWorld(world) {
         // game, and it also silently dropped this the first time — she was
         // showering until the world was reopened, and then she was not.
         ...(isUsingRecord(c.using) ? { using: { uid: c.using.uid, action: c.using.action } } : {}),
+        // A hand still up when she comes back tomorrow, which is right: she is
+        // still sitting where she was, still waiting to be asked.
+        ...(c.hand === true && isUsingRecord(c.using) ? { hand: true } : {}),
         // Mid-mouthful is a moment, not a state worth carrying across a
         // session: the clock it is measured against restarts, so a saved one
         // would leave her frozen holding a cake. She simply finishes the bite.

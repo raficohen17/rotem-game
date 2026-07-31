@@ -200,6 +200,17 @@
       ]
     },
     {
+      "id": "teacher_desk",
+      "cat": "table",
+      "w": 230,
+      "h": 128,
+      "colors": [
+        "#8a6448",
+        "#c2996b",
+        "#5c8fae"
+      ]
+    },
+    {
       "id": "nightstand",
       "cat": "table",
       "w": 110,
@@ -443,6 +454,29 @@
       ]
     },
     {
+      "id": "globe",
+      "cat": "decor",
+      "w": 70,
+      "h": 96,
+      "colors": [
+        "#2e7fc4",
+        "#3f9e5b",
+        "#c9963c"
+      ]
+    },
+    {
+      "id": "school_bag",
+      "cat": "decor",
+      "w": 76,
+      "h": 86,
+      "colors": [
+        "#c0392b",
+        "#2e7fc4",
+        "#8a5fb0",
+        "#3f9e5b"
+      ]
+    },
+    {
       "id": "cake",
       "cat": "food",
       "w": 110,
@@ -658,6 +692,18 @@
       ]
     },
     {
+      "id": "poster",
+      "cat": "wall",
+      "w": 150,
+      "h": 110,
+      "colors": [
+        "#f2e6cd",
+        "#dde3ea",
+        "#e0e7d6"
+      ],
+      "surface": "wall"
+    },
+    {
       "id": "clock",
       "cat": "wall",
       "w": 90,
@@ -752,6 +798,50 @@
         "#5c8fae",
         "#c9707f",
         "#7d9e62"
+      ]
+    },
+    {
+      "id": "slide",
+      "cat": "class",
+      "w": 220,
+      "h": 170,
+      "colors": [
+        "#e0891e",
+        "#3f9e5b",
+        "#2e7fc4"
+      ]
+    },
+    {
+      "id": "swing",
+      "cat": "class",
+      "w": 190,
+      "h": 210,
+      "colors": [
+        "#8a6a4a",
+        "#5b5266",
+        "#3f9e5b"
+      ]
+    },
+    {
+      "id": "sandpit",
+      "cat": "class",
+      "w": 200,
+      "h": 56,
+      "colors": [
+        "#e8d5a8",
+        "#c9a97a"
+      ]
+    },
+    {
+      "id": "ball",
+      "cat": "class",
+      "w": 56,
+      "h": 56,
+      "colors": [
+        "#c0392b",
+        "#2e7fc4",
+        "#3f9e5b",
+        "#e0891e"
       ]
     }
   ]

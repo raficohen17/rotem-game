@@ -8,7 +8,7 @@
 import { button, hitTest, drawButtons, drawPanel, COLORS, TOUCH } from '../ui/widgets.js';
 import { drawIcon } from '../ui/icons.js';
 import { fillRR } from '../render/shapes.js';
-import { drawCharacter, headBounds, CHAR_H } from '../render/character.js';
+import { drawCharacter, headBounds, charHeight } from '../render/character.js';
 import {
   EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS, LIP_COLORS, EYE_COLORS,
   SKIN_TONES, LOOKS, applyLook, createCharacterSpec, clampSpec,
@@ -356,7 +356,10 @@ function drawMini(ctx, spec, box, crop, time) {
     ctx.translate(cx, box.y + box.h * 0.06 - head.top * scale);
     ctx.scale(scale, scale);
   } else {
-    const scale = (box.h - 16) / CHAR_H;
+    // Fitted to how tall this particular person is, not to the tallest one
+    // there could be: the size cells draw a child and a grown-up side by side,
+    // and a grown-up scaled as a child hangs out of the top of her cell.
+    const scale = (box.h - 16) / charHeight(spec);
     ctx.translate(cx, box.y + box.h - 8);
     ctx.scale(scale, scale);
   }

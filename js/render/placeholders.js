@@ -23,6 +23,7 @@ import {
 import { FACE } from '../model/board.js';
 
 const WHITE = '#f6f1e8';
+const PAPER_WHITE = '#f6f1e8';
 const GLASS = '#c2d9e2';
 const DARK = '#423d4d';
 const METAL = '#a8a49c';
@@ -998,20 +999,165 @@ export const PLACEHOLDERS = {
     groundShadow(ctx, w * 0.9, 0.42);
     const wood = litFill(ctx, -h, h, c, 0.16);
 
-    // The chair, behind and to one side, so the desk reads in front of it.
-    fillRR(ctx, w * 0.12, -h * 0.46, w * 0.3, h * 0.08, 3, shade(c, -0.14));
-    fillRR(ctx, w * 0.34, -h * 0.86, w * 0.08, h * 0.44, 3, shade(c, -0.2));
-    leg(ctx, w * 0.16, -h * 0.42, 0, w * 0.05, shade(c, -0.26));
-    leg(ctx, w * 0.38, -h * 0.42, 0, w * 0.05, shade(c, -0.26));
+    /*
+     * The chair first, in the middle, because that is where whoever sits here
+     * is drawn: an item is used at its own centre, and a chair off to one side
+     * had the child sitting on the desk top beside it.
+     */
+    fillRR(ctx, -w * 0.16, -h * 0.4, w * 0.32, h * 0.07, 3, shade(c, -0.16));
+    fillRR(ctx, -w * 0.18, -h * 0.88, w * 0.06, h * 0.52, 3, shade(c, -0.22));
+    leg(ctx, -w * 0.13, -h * 0.38, 0, w * 0.05, shade(c, -0.28));
+    leg(ctx, w * 0.13, -h * 0.38, 0, w * 0.05, shade(c, -0.28));
 
-    // The desk top, with a lip along the front and a shelf for books under it.
-    fillRR(ctx, -w * 0.48, -h * 0.66, w * 0.66, h * 0.09, 3, wood);
-    fillRR(ctx, -w * 0.48, -h * 0.58, w * 0.66, h * 0.04, 2, shade(c, -0.24));
-    fillRR(ctx, -w * 0.42, -h * 0.4, w * 0.52, h * 0.05, 2, shade(c, -0.3));
-    leg(ctx, -w * 0.42, -h * 0.6, 0, w * 0.06, shade(c, -0.2));
-    leg(ctx, w * 0.1, -h * 0.6, 0, w * 0.06, shade(c, -0.2));
-    // Pencil groove, which is what makes it a desk rather than a table.
-    fillRR(ctx, -w * 0.44, -h * 0.68, w * 0.5, h * 0.02, 1, shade(c, 0.3));
+    // The desk in front of it, spanning the whole object: drawn over whoever
+    // is sitting here, so she is behind her desk the way a pupil is.
+    fillRR(ctx, -w * 0.48, -h * 0.62, w * 0.96, h * 0.09, 3, wood);
+    fillRR(ctx, -w * 0.44, -h * 0.53, w * 0.88, h * 0.05, 2, shade(c, -0.26));
+    // A shelf under the top for books, and the pencil groove along the front.
+    fillRR(ctx, -w * 0.4, -h * 0.34, w * 0.8, h * 0.05, 2, shade(c, -0.3));
+    fillRR(ctx, -w * 0.44, -h * 0.64, w * 0.5, h * 0.02, 1, shade(c, 0.3));
+    leg(ctx, -w * 0.42, -h * 0.56, 0, w * 0.06, shade(c, -0.2));
+    leg(ctx, w * 0.42, -h * 0.56, 0, w * 0.06, shade(c, -0.2));
+  },
+
+  /* A slide: steps up one side, a chute down the other. */
+  slide(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.9, 0.4);
+    const rail = shade(c, -0.2);
+    // The chute, from the platform down to the ground.
+    fillPoly(ctx, [-w * 0.12, -h, w * 0.04, -h, w * 0.5, -h * 0.06, w * 0.34, -h * 0.06],
+      litFill(ctx, -h, h, c, 0.2));
+    // Its raised edge, which is what stops it reading as a ramp.
+    fillPoly(ctx, [-w * 0.12, -h, -w * 0.05, -h, w * 0.4, -h * 0.06, w * 0.34, -h * 0.06], rail);
+    // The ladder.
+    fillRR(ctx, -w * 0.46, -h, w * 0.06, h, 3, rail);
+    fillRR(ctx, -w * 0.2, -h, w * 0.06, h, 3, rail);
+    for (let i = 1; i <= 4; i += 1) {
+      fillRR(ctx, -w * 0.46, -h * (i / 4.6), w * 0.32, h * 0.05, 2, shade(c, 0.14));
+    }
+    // The platform at the top.
+    fillRR(ctx, -w * 0.5, -h - h * 0.05, w * 0.44, h * 0.06, 3, shade(c, 0.24));
+  },
+
+  /* A swing: a frame, two ropes and a seat. */
+  swing(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.85, 0.4);
+    const frame = litFill(ctx, -h, h, c, 0.18);
+    // Two A-frames and the beam across the top.
+    fillPoly(ctx, [-w * 0.5, 0, -w * 0.42, 0, -w * 0.02, -h, -w * 0.08, -h], frame);
+    fillPoly(ctx, [w * 0.5, 0, w * 0.42, 0, w * 0.02, -h, w * 0.08, -h], frame);
+    fillRR(ctx, -w * 0.12, -h - h * 0.03, w * 0.24, h * 0.04, 3, shade(c, -0.16));
+    // Ropes and seat.
+    strokeLine(ctx, -w * 0.09, -h, -w * 0.09, -h * 0.42, shade(c, -0.3), 3);
+    strokeLine(ctx, w * 0.09, -h, w * 0.09, -h * 0.42, shade(c, -0.3), 3);
+    fillRR(ctx, -w * 0.15, -h * 0.42, w * 0.3, h * 0.05, 3, '#8a6a4a');
+  },
+
+  /* A sandpit: a wooden box with sand heaped in it, and a spade. */
+  sandpit(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.95, 0.5);
+    fillRR(ctx, -w / 2, -h * 0.6, w, h * 0.6, 4, '#a87f52');
+    // The sand itself, mounded rather than flat.
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.16);
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.46, -h * 0.5);
+    ctx.quadraticCurveTo(0, -h * 0.95, w * 0.46, -h * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    // The rim, drawn over the sand so the sand sits inside the box.
+    fillRR(ctx, -w / 2, -h * 0.6, w, h * 0.16, 3, '#8a6a4a');
+    fillRR(ctx, w * 0.2, -h * 1.1, w * 0.05, h * 0.6, 2, '#c0392b');
+    fillPoly(ctx, [w * 0.14, -h * 0.62, w * 0.32, -h * 0.62, w * 0.28, -h * 0.44,
+      w * 0.18, -h * 0.44], '#c0392b');
+  },
+
+  /* A ball, panelled so it reads as a ball and not a dot. */
+  ball(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.7, 0.6);
+    const r = Math.min(w, h) / 2;
+    fillCircle(ctx, 0, -r, r, litFill(ctx, -h, h, c, 0.24));
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, -r, r, 0, Math.PI * 2);
+    ctx.clip();
+    fillEllipse(ctx, -r * 0.1, -r, r * 0.42, r, PAPER_WHITE);
+    fillEllipse(ctx, -r * 0.1, -r, r * 0.42, r * 0.34, shade(c, 0.1));
+    ctx.restore();
+    fillEllipse(ctx, -r * 0.34, -r * 1.4, r * 0.26, r * 0.16, 'rgba(255,255,255,0.5)');
+  },
+
+  /* An alphabet poster, for a classroom wall. */
+  poster(ctx, w, h, c) {
+    fillRR(ctx, -w / 2, -h, w, h, 4, litFill(ctx, -h, h, c, 0.1));
+    fillRR(ctx, -w / 2 + 4, -h + 4, w - 8, h - 8, 3, '#fbfaf6');
+    // Rows of letter blocks. Shapes rather than letters: at the size this is
+    // on a wall, text would be a smear, and a smear that is nearly readable is
+    // worse than a pattern that is not pretending.
+    const cols = 6;
+    const rows = 4;
+    const bw = (w - 24) / cols;
+    const bh = (h - 24) / rows;
+    const inks = ['#c0392b', '#2e7fc4', '#3f9e5b', '#e0891e', '#8a5fb0'];
+    for (let r = 0; r < rows; r += 1) {
+      for (let i = 0; i < cols; i += 1) {
+        fillRR(ctx, -w / 2 + 12 + i * bw + 2, -h + 12 + r * bh + 2,
+          bw - 5, bh - 5, 2, inks[(r * cols + i) % inks.length]);
+      }
+    }
+  },
+
+  /* A globe on a stand. */
+  globe(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.7, 0.44);
+    fillRR(ctx, -w * 0.24, -h * 0.16, w * 0.48, h * 0.08, 3, '#5b5266');
+    strokeLine(ctx, 0, -h * 0.16, 0, -h * 0.4, '#5b5266', 5);
+    const r = w * 0.36;
+    fillCircle(ctx, 0, -h * 0.4 - r, r, litFill(ctx, -h, h, c, 0.22));
+    // Land, in two blobs. A map at this size is two blobs however it is drawn.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, -h * 0.4 - r, r, 0, Math.PI * 2);
+    ctx.clip();
+    fillEllipse(ctx, -r * 0.3, -h * 0.4 - r * 1.2, r * 0.42, r * 0.3, '#7fa860');
+    fillEllipse(ctx, r * 0.34, -h * 0.4 - r * 0.7, r * 0.34, r * 0.42, '#7fa860');
+    ctx.restore();
+    // The meridian ring.
+    ctx.strokeStyle = shade(c, -0.34);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, -h * 0.4 - r, r + 3, Math.PI * 0.62, Math.PI * 2.38);
+    ctx.stroke();
+  },
+
+  /* A school bag, with a flap and two straps. */
+  school_bag(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.8, 0.46);
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.18);
+    fillRR(ctx, -w * 0.42, -h * 0.78, w * 0.84, h * 0.78, 8, ctx.fillStyle);
+    // The flap over the top, a shade darker.
+    fillRR(ctx, -w * 0.44, -h * 0.86, w * 0.88, h * 0.42, 8, shade(c, -0.16));
+    fillRR(ctx, -w * 0.1, -h * 0.5, w * 0.2, h * 0.12, 3, '#e8dfc8');
+    // The handle.
+    ctx.strokeStyle = shade(c, -0.3);
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, -h * 0.86, w * 0.16, Math.PI, 0);
+    ctx.stroke();
+  },
+
+  /* A teacher's desk: a bigger desk with a modesty panel across the front. */
+  teacher_desk(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.92, 0.42);
+    const wood = litFill(ctx, -h, h, c, 0.16);
+    fillRR(ctx, -w / 2, -h, w, h * 0.14, 4, wood);
+    fillRR(ctx, -w * 0.44, -h * 0.86, w * 0.88, h * 0.6, 3, shade(c, -0.12));
+    // Two drawers on the right, a knob each.
+    for (const dy of [0.74, 0.5]) {
+      fillRR(ctx, w * 0.1, -h * dy, w * 0.3, h * 0.2, 3, shade(c, 0.14));
+      fillCircle(ctx, w * 0.25, -h * (dy - 0.1), h * 0.02, shade(c, -0.36));
+    }
+    leg(ctx, -w * 0.4, -h * 0.26, 0, w * 0.05, shade(c, -0.24));
+    leg(ctx, w * 0.4, -h * 0.26, 0, w * 0.05, shade(c, -0.24));
   },
 
   /* A board rubber: a felt pad with a handle on top. */

@@ -26,7 +26,7 @@ import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, paperLaye
 import { litFill } from './materials.js';
 import {
   SKIN_TONES, HAIR_COLORS, CLOTH_COLORS, LIP_COLORS, EYE_COLORS, FACE_SHAPES,
-  BUILDS, clampSpec,
+  BUILDS, SIZES, clampSpec,
 } from '../model/character.js';
 
 /** How far the skull rises above the head origin. */
@@ -72,6 +72,9 @@ export const DEFAULT_SEAT = 92;
 /** Which pose the figure currently being drawn is in. */
 let POSE = 'stand';
 
+/** Whether this character has her hand up. Set per draw, like POSE. */
+let HAND_UP = false;
+
 /**
  * The same figure, sitting.
  *
@@ -104,24 +107,39 @@ function seated(b, seatY) {
   };
 }
 
-function metricsFor(b) {
-  const hipY = -b.leg;
-  const torsoTop = hipY - 82;
+/**
+ * @param {number} scale how big this person is: a child is 1, a grown-up more
+ */
+function metricsFor(b, scale = 1) {
+  const s = (value) => value * scale;
+  const hipY = s(-b.leg);
+  const torsoTop = hipY - s(82);
   return {
-    shoulderW: b.shoulder,
-    waistW: b.waist,
-    hipW: b.hip,
-    armW: b.arm,
-    legW: Math.round(b.hip * 0.56),
-    legX: b.hip * 0.42,
+    shoulderW: s(b.shoulder),
+    waistW: s(b.waist),
+    hipW: s(b.hip),
+    armW: s(b.arm),
+    legW: Math.round(s(b.hip * 0.56)),
+    legX: s(b.hip * 0.42),
     hipY,
-    waistY: hipY - 26,
+    waistY: hipY - s(26),
     torsoTop,
-    shoulderY: torsoTop + 8,
-    chinY: torsoTop - 20,
-    armX: b.shoulder + 7,
-    armLen: 100,
+    shoulderY: torsoTop + s(8),
+    chinY: torsoTop - s(20),
+    armX: s(b.shoulder + 7),
+    armLen: s(100),
   };
+}
+
+/** How tall somebody is against the figure the game started with. */
+export function sizeOf(rawSpec) {
+  const spec = clampSpec(rawSpec);
+  return SIZES[spec.size ?? 0] ?? SIZES[0];
+}
+
+/** The hit box for one character, which is not the same for everybody now. */
+export function charHeight(rawSpec) {
+  return CHAR_H * sizeOf(rawSpec).scale;
 }
 
 let B = metricsFor(BUILDS[2]);
@@ -141,11 +159,13 @@ function capsule(ctx, cx, top, bottom, width, color) {
  */
 export function headBounds(rawSpec) {
   const spec = clampSpec(rawSpec);
-  const metrics = metricsFor(BUILDS[spec.build]);
+  const size = sizeOf(spec);
+  const metrics = metricsFor(BUILDS[spec.build], size.scale);
   const shape = FACE_SHAPES[spec.face];
+  const head = HEAD_SCALE * size.scale * size.head;
 
-  const centre = metrics.chinY - shape.chin * HEAD_SCALE;
-  const top = centre - HEAD_TOP * HEAD_SCALE;
+  const centre = metrics.chinY - shape.chin * head;
+  const top = centre - HEAD_TOP * head;
   const bottom = metrics.chinY;
   return { top, bottom, centre: (top + bottom) / 2, height: bottom - top };
 }
@@ -157,8 +177,14 @@ export function headBounds(rawSpec) {
  */
 export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   const spec = clampSpec(rawSpec);
-  B = metricsFor(BUILDS[spec.build]);
+  const size = sizeOf(spec);
+  // The whole skeleton is built at her size, rather than the canvas being
+  // scaled: a seat height is a fact about the chair, not about who is sitting
+  // on it, and scaling the canvas would have scaled that too.
+  B = metricsFor(BUILDS[spec.build], size.scale);
+  const headScale = HEAD_SCALE * size.scale * size.head;
   POSE = motion?.pose === 'sit' ? 'sit' : 'stand';
+  HAND_UP = motion?.handUp === true;
   if (POSE === 'sit') B = seated(B, motion.seatY ?? DEFAULT_SEAT);
   const skin = SKIN_TONES[spec.skin];
   const hairColor = HAIR_COLORS[spec.hairColor];
@@ -179,14 +205,14 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   const blinking = motion?.asleep === true || (time + phase) % 4.2 < 0.13;
 
   const shape = FACE_SHAPES[spec.face];
-  const headY = B.chinY - shape.chin * HEAD_SCALE;
+  const headY = B.chinY - shape.chin * headScale;
 
   /** Runs a draw call in head space: anchored at the chin and scaled to fit. */
   const onHead = (draw) => {
     ctx.save();
     ctx.translate(0, headY);
     ctx.rotate(sway * 0.02);
-    ctx.scale(HEAD_SCALE, HEAD_SCALE);
+    ctx.scale(headScale, headScale);
     draw();
     ctx.restore();
   };
@@ -300,7 +326,16 @@ function drawTorso(ctx, skin) {
   ctx.fill();
 }
 
+/**
+ * Where an arm hangs.
+ *
+ * A hand up is one arm swung back over the shoulder rather than a new limb:
+ * the arm is drawn downwards from the shoulder, so turning it most of the way
+ * round points it at the ceiling and everything hung off it — the sleeve, the
+ * hand, anything she is holding — comes with it.
+ */
 function armAngle(sway, side) {
+  if (HAND_UP && side === 1) return Math.PI * 0.93;
   return sway * 0.05 * side;
 }
 

@@ -190,6 +190,9 @@ test('a room in a test has the states that only happen sometimes', () => {
   assert.match(stubs, /placeItem\('whiteboard'/, 'a whiteboard');
   assert.match(stubs, /strokes:/, 'with something drawn on it');
   assert.match(stubs, /marker\.inside = board\.uid/, 'and markers in its tray');
+  assert.match(stubs, /pupil\.using = /, 'a class sitting at its desks');
+  assert.match(stubs, /pupil\.hand = true/, 'with a hand up');
+  assert.match(stubs, /floorStyle = 'grass'/, 'and a room that is outdoors');
 });
 
 test('everything with a level shows that level', () => {

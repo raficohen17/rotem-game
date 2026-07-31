@@ -17,11 +17,15 @@ import {
 } from '../ui/widgets.js';
 import { fillRR, fillCircle, roundRect, shade } from '../render/shapes.js';
 import { drawItemArt } from '../render/catalog.js';
-import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
+import { drawCharacter, charHeight, CHAR_H, CHAR_W } from '../render/character.js';
 import {
   ACTIONS, SWITCHES, canUse, useFor, beginUse, stopUsing, isUsing,
   switchFor, toggleSwitch, actOnce, isInstant, isOn, CHEW_TIME,
+  canRaiseHand, toggleHand,
 } from '../model/using.js';
+import {
+  seatsIn, seatEveryone, standEveryone, isClassSeated,
+} from '../model/classroom.js';
 import {
   drawRoomShell, drawRoomContents, roomContents, drawFloorSample,
   ROOM_W, ROOM_H, FLOOR_Y, FLOOR_BAND,
@@ -369,7 +373,7 @@ export function createRoomScene(game, roomId, start = {}) {
       if (entry.kind === 'item') continue;
       const c = entry.placed;
       if (rx >= c.x - CHAR_W / 2 && rx <= c.x + CHAR_W / 2
-        && ry >= c.y - CHAR_H && ry <= c.y) return c;
+        && ry >= c.y - charHeight(c.spec) && ry <= c.y) return c;
     }
 
     for (let i = entries.length - 1; i >= 0; i -= 1) {
@@ -499,7 +503,24 @@ export function createRoomScene(game, roomId, start = {}) {
       button('drawer', 1204, 640, PIP, PIP, {
         icon: open ? 'chevronDown' : 'plus', round: true, tone: 'accent',
       }),
+      ...classButton(),
     ];
+  }
+
+  /**
+   * Sit everybody down, or stand everybody up.
+   *
+   * Offered only where it means something: a room with somewhere to sit and
+   * somebody to sit there. In a bathroom it would be a button that does
+   * nothing, and a button that does nothing is a button she stops trusting.
+   */
+  function classButton() {
+    const here = cast().filter((c) => !c.walk);
+    if (!here.length || !seatsIn(room.items).length) return [];
+    const down = isClassSeated(here, room.items);
+    return [button('classSit', 18, 108, PIP, PIP, {
+      icon: down ? 'walk' : 'sit', round: true, tone: 'good',
+    })];
   }
 
   function tabs() {
@@ -615,6 +636,7 @@ export function createRoomScene(game, roomId, start = {}) {
       ]
       : [
         ...(nearestUsable(selected) ? [['use', useIcon(selected)]] : []),
+        ...(canRaiseHand(selected) ? [['hand', selected.hand ? 'handDown' : 'handUp']] : []),
         ...(isUsing(selected) ? [['stop', 'cross']] : []),
         ['edit', 'person'], ['delete', 'trash'],
       ];
@@ -629,7 +651,7 @@ export function createRoomScene(game, roomId, start = {}) {
     // used. Moving the object still moves the row with it.
     const height = isItem(selected)
       ? (selected.h ?? catalog.get(selected.item)?.h ?? 0)
-      : CHAR_H;
+      : charHeight(selected.spec);
 
     // Above the object, or below it when that would leave the screen.
     let top = t.y + (selected.y - height) * t.s - PIP - 14;
@@ -651,6 +673,14 @@ export function createRoomScene(game, roomId, start = {}) {
   function act(hit) {
     switch (hit.id) {
       case 'back': game.setScene(createHouse(game)); return true;
+      case 'classSit': {
+        const here = cast().filter((c) => !c.walk);
+        if (isClassSeated(here, room.items)) standEveryone(here);
+        else seatEveryone(here, room.items);
+        game.persist();
+        return true;
+      }
+      case 'hand': toggleHand(selected); game.persist(); return true;
       case 'drawer': open = !open; return true;
       case 'addPerson': openCreator(null); return true;
       case 'addCat': openCatCreator(); return true;

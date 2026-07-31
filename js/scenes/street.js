@@ -15,7 +15,7 @@ import { button, hitTest, drawButtons, drawTitle, COLORS, TOUCH } from '../ui/wi
 import { fillRR, fillCircle, shade } from '../render/shapes.js';
 import { drawIcon } from '../ui/icons.js';
 import { drawFront, drawPlot } from '../render/building.js';
-import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
+import { drawCharacter, charHeight, CHAR_H, CHAR_W } from '../render/character.js';
 import { createBuilding, MAX_BUILDINGS, FRONT_ROOM } from '../model/world.js';
 import { planEntry, beginTrip, isWalking } from '../model/travel.js';
 import { ROOM_W } from '../render/room.js';
@@ -84,7 +84,7 @@ export function createStreet(game) {
     return game.charactersOutside().find((c) => {
       const cx = ORIGIN_X + c.x;
       return x >= cx - reach && x <= cx + reach
-        && y >= WALK_Y - CHAR_H * PEOPLE_SCALE && y <= WALK_Y + 10;
+        && y >= WALK_Y - charHeight(c.spec) * PEOPLE_SCALE && y <= WALK_Y + 10;
     }) ?? null;
   }
 

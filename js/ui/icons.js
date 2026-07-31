@@ -496,6 +496,21 @@ export const ICONS = {
     ctx.globalCompositeOperation = 'source-over';
   },
 
+  /* A hand up: an arm, and a hand at the top of it. */
+  handUp(ctx, c) {
+    strokeLine(ctx, -2, 18, -2, -2, c, 6);
+    // The hand, fingers together, the way a child puts one up.
+    fillRR(ctx, -10, -20, 16, 22, 7, c);
+    fillRR(ctx, 4, -13, 7, 14, 3.5, c);
+  },
+
+  /* The same hand, coming down. */
+  handDown(ctx, c) {
+    strokeLine(ctx, -2, -18, -2, 2, c, 6);
+    fillRR(ctx, -10, 0, 16, 22, 7, c);
+    fillRR(ctx, 4, 1, 7, 14, 3.5, c);
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

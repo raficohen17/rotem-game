@@ -128,11 +128,27 @@ export const BUILDS = [
 ];
 
 /**
+ * How big somebody is.
+ *
+ * Two sizes, because a school needs somebody in charge of it and a teacher the
+ * same height as her class is another child standing at the board. Index 0 is
+ * the figure the game has always drawn, so nobody already made changes size.
+ *
+ * A grown-up is not only bigger: her head is a little smaller against her body,
+ * which is most of what tells a child from an adult at a glance.
+ */
+export const SIZES = [
+  { id: 'child', scale: 1, head: 1 },
+  { id: 'grown', scale: 1.16, head: 0.92 },
+];
+
+/**
  * Number of styles per part. The character creator builds its option grids
  * from these counts, so adding a hairstyle means bumping one number and
  * drawing it — no UI work.
  */
 export const PART_COUNTS = {
+  size: SIZES.length,
   build: BUILDS.length,
   face: FACE_SHAPES.length,
   skin: SKIN_TONES.length,
@@ -176,6 +192,7 @@ export const PART_KEYS = Object.keys(PART_COUNTS);
 
 /** Parts offered as their own tab in the creator, in the order shown. */
 export const EDITABLE_PARTS = [
+  { key: 'size', colorKey: null, icon: 'person' },
   { key: 'build', colorKey: null, icon: 'build' },
   { key: 'face', colorKey: null, icon: 'face' },
   { key: 'skin', colorKey: null, icon: 'skin' },
@@ -206,6 +223,7 @@ export const EDITABLE_PARTS = [
 
 export function createCharacterSpec() {
   return {
+    size: 0,
     build: 2, face: 0, skin: 3, hair: 0, hairColor: 1,
     hairpin: 0, hairpinColor: 0, brows: 0,
     eyes: 0, eyeColor: 0, nose: 1, mouth: 0, mouthColor: 0,

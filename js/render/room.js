@@ -12,7 +12,7 @@ import { MARKER_COLORS } from '../model/board.js';
 import { holds, drinkColor } from '../model/drink.js';
 import { drawBookOpen, drawBookFlat } from './book.js';
 import {
-  resolveUse, carriedItems, isOn, switchFor, isEating, CHEW_TIME,
+  resolveUse, carriedItems, isOn, switchFor, isEating, handIsUp, SIT_BEHIND, CHEW_TIME,
 } from '../model/using.js';
 import { utensils, isOverHeat, cookingProgress } from '../model/recipes.js';
 import { drawCharacter, CHAR_H } from './character.js';
@@ -340,8 +340,38 @@ function drawCarpet(ctx, color, bands, area) {
   ctx.globalAlpha = 1;
 }
 
+/**
+ * Grass: tufts, thicker at the front.
+ *
+ * A room painted green is a green room. What makes it read as outside is that
+ * the floor has things growing out of it.
+ */
+function drawGrass(ctx, color, bands, area) {
+  ctx.strokeStyle = shade(color, -0.26);
+  ctx.lineCap = 'round';
+  for (const band of bands) {
+    const blade = 5 + band.row * 2.2;
+    const step = 16 + band.row * 5;
+    ctx.lineWidth = 1.6 + band.row * 0.5;
+    for (let x = area.x + (band.row % 2 ? step / 2 : 0); x < area.x + area.w; x += step) {
+      const foot = band.top + band.height;
+      ctx.beginPath();
+      ctx.moveTo(x, foot);
+      ctx.quadraticCurveTo(x + blade * 0.4, foot - blade * 0.7, x + blade * 0.2, foot - blade);
+      ctx.stroke();
+    }
+  }
+  // A lighter wash at the back, so the far grass reads as further away.
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = shade(color, 0.3);
+  ctx.fillRect(area.x, area.y, area.w, area.h * 0.24);
+  ctx.restore();
+}
+
 const PATTERNS = {
   boards: drawBoards,
+  grass: drawGrass,
   tiles: drawTiles,
   checker: drawChecker,
   herringbone: drawHerringbone,
@@ -506,10 +536,16 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
         pose: doing?.pose === 'sit' ? 'sit' : 'stand',
         seatY,
         asleep: doing?.asleep === true,
+        handUp: handIsUp(entry.placed),
       });
       if (doing?.action === 'read') drawReading(ctx, doing.item, host, time);
       if (doing?.action === 'write') drawWriting(ctx, doing.item, room, time);
       ctx.restore();
+      // The desk she is sitting at, drawn again over her: she is behind it.
+      if (doing && SIT_BEHIND.has(doing.item.item)) {
+        const deskDef = catalog.get(doing.item.item);
+        if (deskDef) drawItem(ctx, doing.item, deskDef);
+      }
       if (doing?.action === 'shower') drawShowerRunning(ctx, doing.item, time);
       if (doing?.action === 'bathe') drawBathWater(ctx, doing.item, host, time);
     }
