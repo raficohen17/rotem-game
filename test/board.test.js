@@ -338,3 +338,57 @@ test('markers travel with the board they are in', () => {
       'the marker went with the board rather than staying on the wall behind it');
   }
 });
+
+test('tapping a pen in the tray opens the board it belongs to', () => {
+  // Tapping a pen offered "make it bigger, turn it round, throw it away" and
+  // no way to write with it, which is the one thing a pen is for.
+  const game = stubGame();
+  const roomId = HOUSE_LAYOUT[0];
+  const room = game.world.buildings[0].rooms[roomId];
+  const board = room.items.find((i) => i.item === 'whiteboard');
+  const pen = room.items.find((i) => i.inside === board.uid && i.item === 'marker');
+  assert.ok(pen, 'there is a pen in the tray');
+
+  let opened = null;
+  const scene = createRoomScene({ ...game, setScene: (next) => { opened = next; } }, roomId);
+  scene.onPointerDown(20 + pen.x * 1.033, 22 + (pen.y - 20) * 1.033);
+  scene.onPointerUp(20 + pen.x * 1.033, 22 + (pen.y - 20) * 1.033);
+
+  const draw = scene.allControls().find((c) => c.id === 'draw');
+  assert.ok(draw, 'the pen offers a way to write with it');
+  scene.onTap(draw.x + draw.w / 2, draw.y + draw.h / 2);
+  assert.ok(opened?.allControls().some((c) => c.id === 'wipe'), 'the board opened');
+});
+
+test('the board opens holding the pen she tapped', () => {
+  const game = stubGame();
+  const roomId = HOUSE_LAYOUT[0];
+  const room = game.world.buildings[0].rooms[roomId];
+  const board = room.items.find((i) => i.item === 'whiteboard');
+  const pens = room.items.filter((i) => i.inside === board.uid && i.item === 'marker');
+  const red = pens.find((p) => p.tint === 1) ?? pens[1];
+
+  let opened = null;
+  const scene = createRoomScene({ ...game, setScene: (next) => { opened = next; } }, roomId);
+  scene.onPointerDown(20 + red.x * 1.033, 22 + (red.y - 20) * 1.033);
+  scene.onPointerUp(20 + red.x * 1.033, 22 + (red.y - 20) * 1.033);
+  const draw = scene.allControls().find((c) => c.id === 'draw');
+  scene.onTap(draw.x + draw.w / 2, draw.y + draw.h / 2);
+
+  const chosen = opened.allControls().find((c) => c.id === `marker:${red.tint}`);
+  assert.ok(chosen?.active, 'that pen is the one in her hand');
+});
+
+test('a marker lying on the floor is just a marker', () => {
+  const game = stubGame();
+  const roomId = HOUSE_LAYOUT[0];
+  const room = game.world.buildings[0].rooms[roomId];
+  const loose = placeItem('marker', 470, 470);
+  room.items.push(loose);
+
+  const scene = createRoomScene(game, roomId);
+  scene.onPointerDown(20 + loose.x * 1.033, 22 + (loose.y - 20) * 1.033);
+  scene.onPointerUp(20 + loose.x * 1.033, 22 + (loose.y - 20) * 1.033);
+  assert.equal(scene.allControls().some((c) => c.id === 'draw'), false,
+    'nothing to write on until it is in a board');
+});

@@ -25,12 +25,16 @@ const FACE = { x: 40, y: 96, w: 940, h: 489 };
 /** The tray of tools down the right-hand side. */
 const TOOL = { x: 1016, y: 116, size: 76, gapX: 92, gapY: 86, cols: 2 };
 
-export function createBoardScene(game, board, items, onBack, onFindMarkers) {
+/**
+ * @param {number|null} startColor the marker she came in holding, if she
+ *   opened the board by tapping a pen rather than the board itself
+ */
+export function createBoardScene(game, board, items, onBack, onFindMarkers, startColor = null) {
   board.design = clampBoard(board.design ?? createBoard());
 
   const colors = markersHere();
-  // The one she drew with last, if she still has it.
-  let tool = colors.length ? colors[0] : null;
+  // The pen she tapped, if she still has it; otherwise the first in the tray.
+  let tool = colors.includes(startColor) ? startColor : (colors.length ? colors[0] : null);
   let drawing = false;
   /** Set while the rubber is down, so a drag rubs rather than draws. */
   let rubbing = false;

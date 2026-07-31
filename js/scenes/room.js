@@ -444,14 +444,28 @@ export function createRoomScene(game, roomId, start = {}) {
   }
 
   /** Opens the whiteboard full screen, where a finger can draw on it. */
-  function openBoard(board) {
+  function openBoard(board, color = null) {
     const back = () => game.setScene(createRoomScene(game, roomId));
     board.design = board.design ?? createBoard();
     game.setScene(createBoardScene(game, board, room.items, back,
       // No markers anywhere: she is put back in the room with the class
       // drawer open, which is where the markers are. A palette with nothing
       // in it and no way out of it is a dead end.
-      () => game.setScene(createRoomScene(game, roomId, { open: true, tab: 'class' }))));
+      () => game.setScene(createRoomScene(game, roomId, { open: true, tab: 'class' })),
+      color));
+  }
+
+  /**
+   * The board a selected marker belongs to, if it is in one's tray.
+   *
+   * Tapping a pen and being offered "make it bigger" is the wrong answer to
+   * what she was asking. A pen in a board's tray is how you write on that
+   * board, so it opens it — in that pen's colour.
+   */
+  function boardForPen(item) {
+    if (!isItem(item) || item.item !== 'marker') return null;
+    const host = hostOf(item);
+    return host?.item === 'whiteboard' ? host : null;
   }
 
   /**
@@ -627,11 +641,12 @@ export function createRoomScene(game, roomId, start = {}) {
 
     const book = isItem(selected) && selected.item === 'book';
     const board = isItem(selected) && selected.item === 'whiteboard';
+    const pen = boardForPen(selected);
     const flick = isItem(selected) ? switchFor(selected.item) : null;
     const ids = isItem(selected)
       ? [
         ...(book ? [['design', 'looks']] : []),
-        ...(board ? [['draw', 'marker']] : []),
+        ...(board || pen ? [['draw', 'marker']] : []),
         ...(flick ? [['flick', SWITCHES[flick].icon]] : []),
         ['shrink', 'shrink'], ['grow', 'grow'], ['flip', 'flip'],
         ['sendBack', 'layerDown'], ['bringFront', 'layerUp'], ['delete', 'trash'],
@@ -711,7 +726,12 @@ export function createRoomScene(game, roomId, start = {}) {
       case 'stop': stopUsing(selected); game.persist(); return true;
       case 'flick': toggleSwitch(selected); game.persist(); return true;
       case 'design': openBookDesigner(selected); return true;
-      case 'draw': openBoard(selected); return true;
+      case 'draw': {
+        const pen = boardForPen(selected);
+        if (pen) openBoard(pen, selected.tint ?? 0);
+        else openBoard(selected);
+        return true;
+      }
       case 'delete': removeSelected(); return true;
       default: break;
     }
