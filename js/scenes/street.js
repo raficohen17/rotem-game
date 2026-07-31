@@ -19,6 +19,7 @@ import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import { createBuilding, MAX_BUILDINGS, FRONT_ROOM } from '../model/world.js';
 import { planEntry, beginTrip, isWalking } from '../model/travel.js';
 import { ROOM_W } from '../render/room.js';
+import { createExterior } from './exterior.js';
 
 /** The street in its own coordinates, the way a room has its own. */
 export const STREET_W = 1200;
@@ -98,6 +99,22 @@ export function createStreet(game) {
     });
   }
 
+  /**
+   * A paintbrush on each building, for designing its outside.
+   *
+   * On the building rather than on a bar somewhere: the same rule as the
+   * controls that float over a selected object indoors — the button is next to
+   * the thing it acts on.
+   */
+  function brushes() {
+    if (traveller) return [];
+    return buildings().map((building, i) => {
+      const box = toScreen(plotBox(i));
+      return button(`paint:${building.id}`, box.x + box.w - 64, box.y - 18, 56, 56,
+        { icon: 'paint', round: true, tone: 'accent', iconScale: 0.75, building });
+    });
+  }
+
   function addBuilding(index) {
     if (buildings().length >= MAX_BUILDINGS) return;
     // Named for the plot it stands on, so two buildings are never both "House".
@@ -110,7 +127,7 @@ export function createStreet(game) {
   return {
     controls: [back],
 
-    allControls: () => [...plots(), ...walkTargets(), back],
+    allControls: () => [...plots(), ...brushes(), ...walkTargets(), back],
 
     onTap(x, y) {
       // Sending somebody somewhere beats opening what is underneath.
@@ -120,6 +137,13 @@ export function createStreet(game) {
         beginTrip(traveller, legs);
         traveller = null;
         game.persist();
+        return;
+      }
+
+      const brush = hitTest(brushes(), x, y);
+      if (brush) {
+        game.setScene(createExterior(game, brush.building,
+          () => game.setScene(createStreet(game))));
         return;
       }
 
@@ -149,6 +173,7 @@ export function createStreet(game) {
         if (building) drawFront(ctx, building, box);
         else drawPlot(ctx, box);
       }
+      drawStreetFurniture(ctx);
 
       // Empty plots get a plus, drawn after the buildings so it is never behind
       // one, and only while there is somewhere to put another building.
@@ -172,7 +197,7 @@ export function createStreet(game) {
 
       drawTitle(ctx, game.world.name, 40, 66, 34);
       if (traveller) drawButtons(ctx, walkTargets());
-      drawButtons(ctx, [back]);
+      drawButtons(ctx, [...brushes(), back]);
     },
   };
 }
@@ -233,4 +258,64 @@ function drawPickedUp(ctx, person) {
   const h = CHAR_H * PEOPLE_SCALE;
   ctx.strokeRect(ORIGIN_X + person.x - w / 2, WALK_Y - h, w, h + 8);
   ctx.restore();
+}
+
+/**
+ * What stands along the pavement between the buildings.
+ *
+ * Placed in the gaps rather than anywhere: a tree in front of a door is a tree
+ * she has to walk through, and it would hide the one thing on a building that
+ * says how to get in. Fixed rather than random, so the street she comes back to
+ * is the street she left.
+ */
+function drawStreetFurniture(ctx) {
+  const gaps = [];
+  for (let i = 0; i < MAX_BUILDINGS - 1; i += 1) {
+    const box = plotBox(i);
+    gaps.push(ORIGIN_X + box.x + box.w + PLOT.gap / 2);
+  }
+  const ends = [ORIGIN_X + plotBox(0).x - 14, ORIGIN_X + plotBox(MAX_BUILDINGS - 1).x
+    + plotBox(0).w + 14];
+
+  drawTree(ctx, gaps[0], PAVEMENT_Y + 34);
+  drawLamp(ctx, gaps[1] ?? ends[1], PAVEMENT_Y + 34);
+  drawBench(ctx, ends[0] + 40, PAVEMENT_Y + 62);
+  drawPostBox(ctx, ends[1] - 26, PAVEMENT_Y + 56);
+}
+
+function drawTree(ctx, x, y) {
+  fillRR(ctx, x - 7, y - 74, 14, 76, 4, '#7a5a44');
+  for (const [dx, dy, r] of [[0, -104, 40], [-26, -86, 28], [26, -88, 26], [0, -74, 26]]) {
+    fillCircle(ctx, x + dx, y + dy, r, '#4f7a4a');
+  }
+  fillCircle(ctx, x - 14, y - 112, 16, shade('#4f7a4a', 0.16));
+}
+
+/**
+ * A street lamp, its arm reaching back over the pavement it stands on.
+ *
+ * Leaning the other way put the lantern over the next plot, which is a lamp
+ * post belonging to a building it is not standing in front of.
+ */
+function drawLamp(ctx, x, y) {
+  fillRR(ctx, x - 5, y - 150, 10, 152, 4, '#4a4650');
+  fillRR(ctx, x - 30, y - 156, 34, 8, 4, '#4a4650');
+  fillRR(ctx, x - 40, y - 150, 22, 16, 5, '#f0c86a');
+  // The pool of light it casts, which is what makes it a lamp and not a pole.
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  fillCircle(ctx, x - 29, y - 130, 46, '#f0c86a');
+  ctx.restore();
+}
+
+function drawBench(ctx, x, y) {
+  fillRR(ctx, x - 46, y - 22, 92, 10, 4, '#8a6a4a');
+  fillRR(ctx, x - 46, y - 44, 92, 9, 4, '#8a6a4a');
+  for (const dx of [-38, 38]) fillRR(ctx, x + dx - 4, y - 22, 8, 24, 3, '#5b5266');
+}
+
+function drawPostBox(ctx, x, y) {
+  fillRR(ctx, x - 16, y - 62, 32, 62, 6, '#b04a4a');
+  fillRR(ctx, x - 18, y - 70, 36, 12, 6, shade('#b04a4a', -0.2));
+  fillRR(ctx, x - 9, y - 50, 18, 5, 2, '#2f2b33');
 }

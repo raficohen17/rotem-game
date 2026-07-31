@@ -17,6 +17,7 @@ import { createBook } from '../js/model/book.js';
 import { createMenu } from '../js/scenes/menu.js';
 import { createHouse } from '../js/scenes/house.js';
 import { createStreet, WALK_Y } from '../js/scenes/street.js';
+import { createExterior } from '../js/scenes/exterior.js';
 import { createRoomScene } from '../js/scenes/room.js';
 import { createCharacterCreator } from '../js/scenes/charcreator.js';
 import { createBookDesigner } from '../js/scenes/bookdesigner.js';
@@ -141,6 +142,14 @@ function scenes() {
       return scene;
     });
   });
+
+  add('the outside designer', () => withDocument(
+    () => createExterior(stubGame(), stubGame().world.buildings[0], () => {}),
+  ));
+  add('the outside designer on a school', () => withDocument(() => {
+    const game = stubGame();
+    return createExterior(game, game.world.buildings[1], () => {});
+  }));
 
   add('the book designer', () => withDocument(
     () => createBookDesigner(stubGame(), null, () => {}, () => {}),

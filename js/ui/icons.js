@@ -479,6 +479,23 @@ export const ICONS = {
     ctx.globalCompositeOperation = 'source-over';
   },
 
+  /* A shop: an awning over a window. */
+  shop(ctx, c) {
+    fillRR(ctx, -17, -4, 34, 21, 3, c);
+    // The awning, scalloped, which is what says shop rather than house.
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-20, -6);
+    ctx.lineTo(-17, -18);
+    ctx.lineTo(17, -18);
+    ctx.lineTo(20, -6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalCompositeOperation = 'destination-out';
+    for (const x of [-13, -4.5, 4.5, 13]) fillCircle(ctx, x, -6, 3.4, '#000');
+    ctx.globalCompositeOperation = 'source-over';
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

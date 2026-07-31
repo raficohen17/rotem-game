@@ -35,11 +35,12 @@ export function drawFront(ctx, building, box, options = {}) {
   ctx.fillStyle = litFill(ctx, bodyTop, bodyH, look.wall, 0.12);
   fillRR(ctx, box.x, bodyTop, box.w, bodyH, 6, ctx.fillStyle);
 
+  const signed = Boolean(building?.kind) && building.kind !== 'house';
   drawRoofShape(ctx, look, box, bodyTop);
-  drawWindows(ctx, look, box, bodyTop, bodyH);
+  drawWindows(ctx, look, box, bodyTop, bodyH, signed);
   drawDoor(ctx, look, box, bodyTop, bodyH);
-  if (building?.kind && building.kind !== 'house') drawSign(ctx, building, box, bodyTop);
-  if (options.lit) drawLit(ctx, box, bodyTop, bodyH);
+  if (signed) drawSign(ctx, building, box, bodyTop);
+  if (options.lit) drawLit(ctx, box, bodyTop, bodyH, signed);
 }
 
 function drawRoofShape(ctx, look, box, bodyTop) {
@@ -77,15 +78,32 @@ function drawRoofShape(ctx, look, box, bodyTop) {
   fillPoly(ctx, [left, bodyTop, right, bodyTop, box.x + box.w / 2, top], paint);
 }
 
-function drawWindows(ctx, look, box, bodyTop, bodyH) {
+function drawWindows(ctx, look, box, bodyTop, bodyH, signed = false) {
   const w = box.w * 0.19;
   const h = bodyH * 0.2;
-  const row = bodyTop + bodyH * 0.16;
+  // Under the sign when there is one, rather than behind it: a school had its
+  // name written across its own windows.
+  const row = bodyTop + bodyH * (signed ? 0.34 : 0.16);
   for (const cx of [box.x + box.w * 0.26, box.x + box.w * 0.74]) {
     drawWindow(ctx, look, cx - w / 2, row, w, h);
   }
   // A second window over the door, if the building is tall enough to hold one.
   drawWindow(ctx, look, box.x + box.w * 0.5 - w / 2, row, w, h);
+}
+
+/**
+ * One window on its own, big, for a chip that is about the windows.
+ *
+ * A whole building shrunk into a chip shows the difference between four panes
+ * and two at about a pixel, which is no difference at all.
+ */
+export function drawWindowSample(ctx, front, box) {
+  const look = frontLook(front);
+  ctx.fillStyle = look.wall;
+  fillRR(ctx, box.x, box.y, box.w, box.h, 6, look.wall);
+  const w = box.w * 0.56;
+  const h = box.h * 0.56;
+  drawWindow(ctx, look, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
 }
 
 function drawWindow(ctx, look, x, y, w, h) {
@@ -166,12 +184,12 @@ function drawSign(ctx, building, box, bodyTop) {
 }
 
 /** Warm light in the windows, for a building somebody is inside. */
-function drawLit(ctx, box, bodyTop, bodyH) {
+function drawLit(ctx, box, bodyTop, bodyH, signed = false) {
   ctx.save();
   ctx.globalAlpha = 0.5;
   const w = box.w * 0.19;
   const h = bodyH * 0.2;
-  const row = bodyTop + bodyH * 0.16;
+  const row = bodyTop + bodyH * (signed ? 0.34 : 0.16);
   for (const cx of [box.x + box.w * 0.26, box.x + box.w * 0.5, box.x + box.w * 0.74]) {
     fillRR(ctx, cx - w / 2, row, w, h, 2, '#f0c86a');
   }
