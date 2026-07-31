@@ -183,7 +183,7 @@ test('a world saved before cats existed loads with none', () => {
   delete world.cats;
   const loaded = repairWorld(JSON.parse(JSON.stringify(world)));
   assert.deepEqual(loaded.cats, [], 'no cats, and nothing else disturbed');
-  assert.equal(Object.keys(loaded.rooms).length, 4);
+  assert.equal(Object.keys(loaded.buildings[0].rooms).length, 4);
 });
 
 test('a cat survives being closed and reopened', () => {
@@ -243,7 +243,7 @@ test('a cat is not something a character can be sent to or use', () => {
   // Cats are not in the room's item list at all, so they cannot turn up among
   // the things a character is offered.
   const game = stubGame();
-  const items = game.world.rooms.bedroom.items;
+  const items = game.world.buildings[0].rooms.bedroom.items;
   const cats = game.catsIn('bedroom');
   for (const cat of cats) {
     assert.equal(items.includes(cat), false, 'a cat is not furniture');

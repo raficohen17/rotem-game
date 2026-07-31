@@ -27,12 +27,12 @@ test('saving then loading gives back what went in', () => {
   const store = createStore(backend);
 
   const world = createWorld('Home');
-  world.rooms.bedroom.items.push(placeItem('sofa', 240, 430));
+  world.buildings[0].rooms.bedroom.items.push(placeItem('sofa', 240, 430));
   store.save([world]);
 
   const [loaded] = store.load();
   assert.equal(loaded.name, 'Home');
-  assert.equal(loaded.rooms.bedroom.items[0].item, 'sofa');
+  assert.equal(loaded.buildings[0].rooms.bedroom.items[0].item, 'sofa');
 });
 
 test('an empty shelf loads as an empty list', () => {
@@ -108,10 +108,10 @@ test('a change is persisted without any explicit save step by the caller', () =>
 
   const world = createWorld('Live');
   store.save([world]);
-  world.rooms.living.items.push(placeItem('tv', 600, 440));
+  world.buildings[0].rooms.living.items.push(placeItem('tv', 600, 440));
   store.save(replaceWorld(store.load(), world));
 
-  assert.equal(createStore(backend).load()[0].rooms.living.items.length, 1);
+  assert.equal(createStore(backend).load()[0].buildings[0].rooms.living.items.length, 1);
 });
 
 test("a world's picture survives being saved and loaded", () => {

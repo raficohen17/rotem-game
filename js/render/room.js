@@ -911,7 +911,9 @@ function drawSelectionHalo(ctx, entry, catalog) {
  *
  * @param {string[]} roomIds in cutaway order: top-left, top-right, then below
  */
-export function renderHouseThumbnail(world, roomIds, catalog, width = 240) {
+export function renderHouseThumbnail(world, roomIds, catalog, width = 240, buildingId = null) {
+  const building = world.buildings?.find((b) => b.id === buildingId) ?? world.buildings?.[0];
+  if (!building) return null;
   const cellW = width / 2;
   const cellH = (cellW * ROOM_H) / ROOM_W;
   const canvas = document.createElement('canvas');
@@ -920,7 +922,7 @@ export function renderHouseThumbnail(world, roomIds, catalog, width = 240) {
 
   const ctx = canvas.getContext('2d');
   roomIds.forEach((id, index) => {
-    const room = world.rooms[id];
+    const room = building.rooms[id];
     if (!room) return;
     ctx.save();
     ctx.translate((index % 2) * cellW, Math.floor(index / 2) * cellH);
@@ -929,7 +931,7 @@ export function renderHouseThumbnail(world, roomIds, catalog, width = 240) {
     ctx.clip();
     ctx.scale(cellW / ROOM_W, cellH / ROOM_H);
     drawRoomShell(ctx, room);
-    const cast = world.characters.filter((c) => c.room === id);
+    const cast = world.characters.filter((c) => c.room === id && c.building === building.id);
     drawRoomContents(ctx, room, cast, catalog, 0);
     ctx.restore();
   });

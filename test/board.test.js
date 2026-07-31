@@ -147,10 +147,10 @@ test('the drawing survives a save', () => {
   const board = placeItem('whiteboard', 600, 300);
   board.design = createBoard();
   scribble(board.design, 3, 4);
-  world.rooms.bedroom.items.push(board);
+  world.buildings[0].rooms.bedroom.items.push(board);
 
   const back = repairWorld(JSON.parse(JSON.stringify(world)));
-  const saved = back.rooms.bedroom.items.at(-1);
+  const saved = back.buildings[0].rooms.bedroom.items.at(-1);
   assert.deepEqual(saved.design, board.design, 'stroke for stroke');
 });
 
@@ -163,10 +163,10 @@ test('a board is not repaired as if it were a book', () => {
   board.design = createBoard();
   scribble(board.design);
   const book = placeItem('book', 300, 470);
-  world.rooms.bedroom.items.push(board, book);
+  world.buildings[0].rooms.bedroom.items.push(board, book);
 
   const back = repairWorld(JSON.parse(JSON.stringify(world)));
-  const savedBoard = back.rooms.bedroom.items.find((i) => i.item === 'whiteboard');
+  const savedBoard = back.buildings[0].rooms.bedroom.items.find((i) => i.item === 'whiteboard');
   assert.ok(savedBoard.design.strokes.length, 'the board kept its drawing');
   assert.equal('cover' in savedBoard.design, false, 'and was not given a cover');
 });
@@ -278,7 +278,7 @@ test('she uses the thing she is standing at, not the first one in the room', () 
   // board with a glass on a table behind her had her drinking the milk.
   const game = stubGame();
   const roomId = HOUSE_LAYOUT[0];
-  const room = game.world.rooms[roomId];
+  const room = game.world.buildings[0].rooms[roomId];
   const board = room.items.find((i) => i.item === 'whiteboard');
   const her = game.world.characters.find((c) => c.room === roomId);
   her.x = board.x;
@@ -298,7 +298,7 @@ test('she uses the thing she is standing at, not the first one in the room', () 
 test('a marker dropped on the board goes in its tray, and comes out again', () => {
   const game = stubGame();
   const roomId = HOUSE_LAYOUT[0];
-  const room = game.world.rooms[roomId];
+  const room = game.world.buildings[0].rooms[roomId];
   const board = room.items.find((i) => i.item === 'whiteboard');
   // Clear of the furniture the stub room is full of, so the drag picks it up.
   const loose = placeItem('marker', 470, 470);
@@ -322,7 +322,7 @@ test('a marker dropped on the board goes in its tray, and comes out again', () =
 test('markers travel with the board they are in', () => {
   const game = stubGame();
   const roomId = HOUSE_LAYOUT[0];
-  const room = game.world.rooms[roomId];
+  const room = game.world.buildings[0].rooms[roomId];
   const board = room.items.find((i) => i.item === 'whiteboard');
   const markers = room.items.filter((i) => i.inside === board.uid);
   assert.ok(markers.length, 'there are markers in the tray');

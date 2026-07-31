@@ -9,9 +9,36 @@
 
 import { clampBook } from './book.js';
 import { clampBoard } from './board.js';
+import { createFront, clampFront } from './front.js';
 import { clampCatSpec } from './cat.js';
 
-export const CURRENT_VERSION = 1;
+export const CURRENT_VERSION = 2;
+
+/**
+ * How many buildings stand on a street.
+ *
+ * Three, because the street is drawn across 1280 points and a building narrower
+ * than about 380 stops looking like a building. It is also as many as a child
+ * needs: somewhere to live, somewhere to learn, and somewhere else.
+ */
+export const MAX_BUILDINGS = 3;
+
+/** What a building is for. Its kind picks the sign and what it is called. */
+export const BUILDING_KINDS = ['house', 'school', 'shop'];
+
+/**
+ * The longest name that still fits on the sign over the door.
+ *
+ * Enforced here rather than where it is typed, so the limit is the same
+ * wherever a name comes from — typed, defaulted, or loaded from an old save.
+ */
+export const MAX_BUILDING_NAME = 12;
+
+/** Where a character is when she is outside, between the buildings. */
+export const STREET = 'street';
+
+/** The room the front door opens into: the one at the bottom left. */
+export const FRONT_ROOM = 'living';
 
 export const ROOM_IDS = ['bedroom', 'living', 'kitchen', 'bath'];
 
@@ -73,20 +100,40 @@ export function nextHouseName(worlds) {
 }
 
 /** @returns {object} a brand new world, ready to save. */
-export function createWorld(name = 'My House') {
+/**
+ * A building: a name, what it is for, how it looks from outside, and rooms.
+ *
+ * The rooms are the same four every building has. A school is a school because
+ * of what she puts in it and what its sign says, not because the game decided
+ * which of its rooms is a classroom.
+ */
+export function createBuilding(name = 'My House', kind = 'house') {
   const rooms = {};
   for (const id of ROOM_IDS) rooms[id] = emptyRoom(id);
+  return { id: makeId(), name, kind, front: createFront(), rooms };
+}
 
+export function createWorld(name = 'My House') {
   return {
     version: CURRENT_VERSION,
     id: makeId(),
     name,
     createdAt: 0, // stamped by the caller; keeps this function deterministic
-    rooms,
+    buildings: [createBuilding(name)],
     characters: [],
     cats: [],
     thumb: null,
   };
+}
+
+/** The rooms of one building, by its id. */
+export function roomsOf(world, buildingId) {
+  return buildingOf(world, buildingId)?.rooms ?? {};
+}
+
+/** The building with this id, or the first one, which always exists. */
+export function buildingOf(world, id) {
+  return world?.buildings?.find((b) => b.id === id) ?? world?.buildings?.[0] ?? null;
 }
 
 /**
@@ -137,7 +184,35 @@ export function backZ(entries) {
  *
  * @type {Record<number, (world: object) => object>}
  */
-export const MIGRATIONS = {};
+export const MIGRATIONS = {
+  /*
+   * v1 -> v2: a world was one house; it becomes a street with that house on it.
+   *
+   * Everything she has already built has to come through untouched, so the
+   * four rooms are lifted wholesale into the first building and everybody is
+   * told which building they are standing in. Nothing is thrown away and
+   * nothing is asked of her.
+   */
+  1(world) {
+    const building = {
+      id: makeId(),
+      name: typeof world.name === 'string' && world.name ? world.name : 'My House',
+      kind: 'house',
+      front: createFront(),
+      rooms: world.rooms && typeof world.rooms === 'object' ? world.rooms : {},
+    };
+    const inside = (who) => ({ ...who, building: building.id });
+    const next = {
+      ...world,
+      version: 2,
+      buildings: [building],
+      characters: Array.isArray(world.characters) ? world.characters.map(inside) : [],
+      cats: Array.isArray(world.cats) ? world.cats.map(inside) : [],
+    };
+    delete next.rooms;
+    return next;
+  },
+};
 
 /**
  * Brings a loaded world up to the current version and repairs anything
@@ -171,24 +246,27 @@ export function repairWorld(world) {
     id: typeof world.id === 'string' && world.id ? world.id : makeId(),
     name: typeof world.name === 'string' && world.name ? world.name : 'My House',
     createdAt: Number.isFinite(world.createdAt) ? world.createdAt : 0,
-    rooms: {},
+    buildings: [],
     characters: [],
     cats: [],
     thumb: typeof world.thumb === 'string' ? world.thumb : null,
   };
 
-  const rooms = world.rooms && typeof world.rooms === 'object' ? world.rooms : {};
-  for (const id of ROOM_IDS) {
-    const room = rooms[id] && typeof rooms[id] === 'object' ? rooms[id] : {};
-    safe.rooms[id] = {
-      id,
-      wall: typeof room.wall === 'string' ? room.wall : DEFAULT_WALL,
-      floor: typeof room.floor === 'string' ? room.floor : DEFAULT_FLOOR,
-      // Rooms saved before floor patterns existed get the original boards.
-      floorStyle: FLOOR_STYLES.includes(room.floorStyle) ? room.floorStyle : 'boards',
-      items: Array.isArray(room.items) ? room.items.filter(isValidItem).map(repairItem) : [],
-    };
-  }
+  const raw = Array.isArray(world.buildings) && world.buildings.length
+    ? world.buildings.slice(0, MAX_BUILDINGS)
+    : [{ name: safe.name }];
+  safe.buildings = raw
+    .filter((b) => b && typeof b === 'object')
+    .map((b) => repairBuilding(b, safe.name));
+  // A street with nothing on it is not a world she can play in.
+  if (!safe.buildings.length) safe.buildings = [createBuilding(safe.name)];
+
+  const homes = new Set(safe.buildings.map((b) => b.id));
+  const firstHome = safe.buildings[0].id;
+  /** Which building somebody is in — or none at all, meaning outdoors. */
+  const homeOf = (who) => (who.room === STREET
+    ? { building: null }
+    : { building: homes.has(who.building) ? who.building : firstHome });
 
   if (Array.isArray(world.characters)) {
     safe.characters = world.characters
@@ -196,7 +274,8 @@ export function repairWorld(world) {
       .map((c) => ({
         uid: typeof c.uid === 'string' ? c.uid : makeId(),
         spec: c.spec,
-        room: ROOM_IDS.includes(c.room) ? c.room : ROOM_IDS[0],
+        room: c.room === STREET || ROOM_IDS.includes(c.room) ? c.room : ROOM_IDS[0],
+        ...homeOf(c),
         x: Number.isFinite(c.x) ? c.x : SPAWN.x,
         y: Number.isFinite(c.y) ? c.y : SPAWN.y,
         z: Number.isFinite(c.z) ? c.z : 0,
@@ -220,7 +299,9 @@ export function repairWorld(world) {
       .map((c) => ({
         uid: typeof c.uid === 'string' ? c.uid : makeId(),
         spec: clampCatSpec(c.spec),
+        // A cat stays indoors. Nobody wants to look for it on the street.
         room: ROOM_IDS.includes(c.room) ? c.room : ROOM_IDS[0],
+        ...homeOf({ ...c, room: ROOM_IDS.includes(c.room) ? c.room : ROOM_IDS[0] }),
         x: Number.isFinite(c.x) ? c.x : SPAWN.x,
         y: Number.isFinite(c.y) ? c.y : SPAWN.y,
         pose: ['stand', 'sit', 'curl'].includes(c.pose) ? c.pose : 'stand',
@@ -244,6 +325,38 @@ export function repairWorld(world) {
   }
 
   return safe;
+}
+
+/** A name that will fit on a sign, whatever was typed or loaded. */
+export function cleanBuildingName(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ')
+    .trim().slice(0, MAX_BUILDING_NAME);
+}
+
+/** One building, rebuilt field by field like everything else in a save. */
+function repairBuilding(building, worldName) {
+  const rooms = {};
+  const given = building.rooms && typeof building.rooms === 'object' ? building.rooms : {};
+  for (const id of ROOM_IDS) {
+    const room = given[id] && typeof given[id] === 'object' ? given[id] : {};
+    rooms[id] = {
+      id,
+      wall: typeof room.wall === 'string' ? room.wall : DEFAULT_WALL,
+      floor: typeof room.floor === 'string' ? room.floor : DEFAULT_FLOOR,
+      // Rooms saved before floor patterns existed get the original boards.
+      floorStyle: FLOOR_STYLES.includes(room.floorStyle) ? room.floorStyle : 'boards',
+      items: Array.isArray(room.items) ? room.items.filter(isValidItem).map(repairItem) : [],
+    };
+  }
+
+  return {
+    id: typeof building.id === 'string' && building.id ? building.id : makeId(),
+    name: cleanBuildingName(building.name) || cleanBuildingName(worldName) || 'House',
+    kind: BUILDING_KINDS.includes(building.kind) ? building.kind : 'house',
+    front: clampFront(building.front),
+    rooms,
+  };
 }
 
 /** A saved "she is using something" record, before it is trusted. */

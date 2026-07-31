@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { hitTest, tabRow } from '../js/ui/widgets.js';
 import { recordingContext, SCREEN, onScreen, MIN_TEXT } from './helpers/recorder.js';
 import { stubGame, withDocument, BOOK_TITLE } from './helpers/stubs.js';
-import { HOUSE_LAYOUT } from '../js/model/world.js';
+import { HOUSE_LAYOUT, MAX_BUILDINGS, createBuilding } from '../js/model/world.js';
 import { EDITABLE_PARTS } from '../js/model/character.js';
 import { EXTRA_TABS } from '../js/scenes/room.js';
 import { CAT_PARTS } from '../js/model/cat.js';
@@ -16,6 +16,7 @@ import { createBook } from '../js/model/book.js';
 
 import { createMenu } from '../js/scenes/menu.js';
 import { createHouse } from '../js/scenes/house.js';
+import { createStreet, WALK_Y } from '../js/scenes/street.js';
 import { createRoomScene } from '../js/scenes/room.js';
 import { createCharacterCreator } from '../js/scenes/charcreator.js';
 import { createBookDesigner } from '../js/scenes/bookdesigner.js';
@@ -44,6 +45,27 @@ function scenes() {
     const game = stubGame();
     game.worlds = [];
     return createMenu(game);
+  });
+
+  add('the street', () => createStreet(stubGame()));
+  add('the street with somebody picked up', () => {
+    const game = stubGame();
+    const scene = createStreet(game);
+    const outside = game.charactersOutside()[0];
+    scene.onTap(40 + outside.x, WALK_Y - 40);
+    return scene;
+  });
+  add('a street with every plot taken', () => {
+    const game = stubGame();
+    while (game.world.buildings.length < MAX_BUILDINGS) {
+      game.world.buildings.push(createBuilding(`House ${game.world.buildings.length + 1}`));
+    }
+    return createStreet(game);
+  });
+  add('a street with one building on it', () => {
+    const game = stubGame();
+    game.world.buildings = game.world.buildings.slice(0, 1);
+    return createStreet(game);
   });
 
   add('the house', () => createHouse(stubGame()), { preview: true });
@@ -81,7 +103,7 @@ function scenes() {
   add('a room with an item selected', () => {
     const game = stubGame();
     const scene = createRoomScene(game, HOUSE_LAYOUT[0]);
-    const item = game.world.rooms[HOUSE_LAYOUT[0]].items[0];
+    const item = game.world.buildings[0].rooms[HOUSE_LAYOUT[0]].items[0];
     scene.onPointerDown(20 + item.x * 1.033, 22 + (item.y - 40) * 1.033);
     scene.onPointerUp(20 + item.x * 1.033, 22 + (item.y - 40) * 1.033);
     return scene;
@@ -133,7 +155,7 @@ function scenes() {
    */
   const boardIn = (roomId = HOUSE_LAYOUT[0]) => {
     const game = stubGame();
-    const room = game.world.rooms[roomId];
+    const room = game.world.buildings[0].rooms[roomId];
     const board = room.items.find((i) => i.item === 'whiteboard');
     return { game, room, board };
   };

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import {
-  createWorld, placeItem, placeCharacter, placeCat, HOUSE_LAYOUT,
+  createWorld, createBuilding, placeItem, placeCharacter, placeCat, HOUSE_LAYOUT, STREET,
 } from '../../js/model/world.js';
 import { createBook } from '../../js/model/book.js';
 import { createCatSpec } from '../../js/model/cat.js';
@@ -53,7 +53,7 @@ export function stubWorld(name = 'House 1') {
   const catalog = stubCatalog();
 
   HOUSE_LAYOUT.forEach((roomId, i) => {
-    const room = world.rooms[roomId];
+    const room = world.buildings[0].rooms[roomId];
     // A floor item, a wall item and a book: the three ways an item is drawn.
     const floor = catalog.items.filter((item) => item.surface !== 'wall');
     const wall = catalog.items.filter((item) => item.surface === 'wall');
@@ -115,24 +115,34 @@ export function stubWorld(name = 'House 1') {
     room.items.push(fridge, stored);
   });
 
-  world.characters.push(placeCharacter(undefined, HOUSE_LAYOUT[0], 320, 470));
-  world.characters.push(placeCharacter(undefined, HOUSE_LAYOUT[3], 700, 470));
+  const home = world.buildings[0].id;
+  world.characters.push({ ...placeCharacter(undefined, HOUSE_LAYOUT[0], 320, 470), building: home });
+  world.characters.push({ ...placeCharacter(undefined, HOUSE_LAYOUT[3], 700, 470), building: home });
+  // Somebody out on the pavement, because the street is a place people are
+  // and not only a set of doors.
+  world.characters.push({ ...placeCharacter(undefined, STREET, 300, 512), building: null });
 
   // A cat in each pose, so the scene harness covers all three drawings.
   world.cats = [
-    { ...placeCat(createCatSpec(), HOUSE_LAYOUT[0], 500, 470), pose: 'stand' },
-    { ...placeCat(createCatSpec(), HOUSE_LAYOUT[1], 400, 400), pose: 'sit' },
-    { ...placeCat(createCatSpec(), HOUSE_LAYOUT[2], 800, 430), pose: 'curl' },
+    { ...placeCat(createCatSpec(), HOUSE_LAYOUT[0], 500, 470), pose: 'stand', building: home },
+    { ...placeCat(createCatSpec(), HOUSE_LAYOUT[1], 400, 400), pose: 'sit', building: home },
+    { ...placeCat(createCatSpec(), HOUSE_LAYOUT[2], 800, 430), pose: 'curl', building: home },
   ];
+
+  // A second building on the street, empty, so scenes that draw more than one
+  // have more than one to draw.
+  world.buildings.push(createBuilding('School', 'school'));
   return world;
 }
 
 export function stubGame(overrides = {}) {
   const world = overrides.world ?? stubWorld();
+  // eslint-disable-next-line prefer-const
   const game = {
     catalog: stubCatalog(),
     time: 1.25,
     world,
+    building: world.buildings[0],
     worlds: [world],
     pendingSave: false,
     setScene() {},
@@ -141,8 +151,13 @@ export function stubGame(overrides = {}) {
     captureThumb() {},
     goMenu() {},
     openWorld() {},
-    charactersIn: (roomId) => world.characters.filter((c) => c.room === roomId),
-    catsIn: (roomId) => (world.cats ?? []).filter((c) => c.room === roomId),
+    openBuilding() {},
+    goStreet() {},
+    charactersIn: (roomId, buildingId = game.building?.id) => world.characters
+      .filter((c) => c.room === roomId && c.building === buildingId),
+    catsIn: (roomId, buildingId = game.building?.id) => (world.cats ?? [])
+      .filter((c) => c.room === roomId && c.building === buildingId),
+    charactersOutside: () => world.characters.filter((c) => c.room === STREET),
     ...overrides,
   };
   return game;

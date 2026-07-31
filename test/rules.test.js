@@ -88,9 +88,9 @@ test('what a container holds survives being saved', () => {
     const host = placeItem(c.id, 640, 470);
     const thing = placeItem('egg', 0, 0);
     putInside(thing, host, lookup(c.id));
-    world.rooms.kitchen.items.push(host, thing);
+    world.buildings[0].rooms.kitchen.items.push(host, thing);
 
-    const back = repairWorld(JSON.parse(JSON.stringify(world))).rooms.kitchen.items;
+    const back = repairWorld(JSON.parse(JSON.stringify(world))).buildings[0].rooms.kitchen.items;
     const saved = back.find((i) => i.item === 'egg');
     assert.equal(saved.inside, host.uid, `${c.id}: still inside after a reload`);
   }
@@ -259,7 +259,7 @@ const MOMENTS = new Set(['eating', 'dueAt', 'walk']);
 
 test('everything the game writes onto the world survives a save', () => {
   const world = createWorld('House 1');
-  const room = world.rooms.kitchen;
+  const room = world.buildings[0].rooms.kitchen;
 
   const lamp = placeItem('lamp_table', 200, 470);
   toggleSwitch(lamp);
@@ -284,7 +284,7 @@ test('everything the game writes onto the world survives a save', () => {
   room.items.push(lamp, fridge, cake, stove, pan, egg, cup);
 
   const back = repairWorld(JSON.parse(JSON.stringify(world)));
-  const saved = new Map(back.rooms.kitchen.items.map((i) => [i.uid, i]));
+  const saved = new Map(back.buildings[0].rooms.kitchen.items.map((i) => [i.uid, i]));
   for (const item of room.items) {
     const after = saved.get(item.uid);
     assert.ok(after, `${item.item} is still there`);
@@ -321,7 +321,7 @@ test('deleting a container leaves what was in it in the room', () => {
   for (const c of containers()) {
     const game = stubGame();
     const roomId = HOUSE_LAYOUT[2];
-    const room = game.world.rooms[roomId];
+    const room = game.world.buildings[0].rooms[roomId];
     room.items = [];
     const host = placeItem(c.id, 400, 470);
     const thing = placeItem('egg', 400, 400);
@@ -329,7 +329,7 @@ test('deleting a container leaves what was in it in the room', () => {
     room.items.push(host, thing);
 
     deleteInScene(game, roomId, host, -lookup(c.id).w * 0.36);
-    const after = game.world.rooms[roomId].items;
+    const after = game.world.buildings[0].rooms[roomId].items;
     assert.equal(after.includes(host), false, `${c.id}: it is gone`);
     assert.ok(after.includes(thing), `${c.id}: what was in it is still here`);
     assert.equal('inside' in thing, false, `${c.id}: and is not inside a ghost`);
@@ -340,11 +340,11 @@ test('deleting a container leaves what was in it in the room', () => {
 test('deleting what somebody is using stops them using it', () => {
   const game = stubGame();
   const roomId = HOUSE_LAYOUT[2];
-  const room = game.world.rooms[roomId];
+  const room = game.world.buildings[0].rooms[roomId];
   room.items = [];
   const sofa = placeItem('sofa', 400, 470);
   room.items.push(sofa);
-  const her = placeCharacter(createCharacterSpec(), roomId, 400, 470);
+  const her = { ...placeCharacter(createCharacterSpec(), roomId, 400, 470), building: game.building.id };
   game.world.characters.push(her);
   beginUse(her, sofa);
   assert.ok(her.using, 'she sat down');
@@ -356,11 +356,11 @@ test('deleting what somebody is using stops them using it', () => {
 test('deleting what a cat is on gets the cat off it', () => {
   const game = stubGame();
   const roomId = HOUSE_LAYOUT[2];
-  const room = game.world.rooms[roomId];
+  const room = game.world.buildings[0].rooms[roomId];
   room.items = [];
   const sofa = placeItem('sofa', 400, 470);
   room.items.push(sofa);
-  const cat = placeCat(createCatSpec(), roomId, 400, 430);
+  const cat = { ...placeCat(createCatSpec(), roomId, 400, 430), building: game.building.id };
   cat.on = sofa.uid;
   game.world.cats = [cat];
 

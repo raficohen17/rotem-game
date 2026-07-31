@@ -11,7 +11,7 @@
  * she was sent, it returns the waypoints she should walk through.
  */
 
-import { ROOM_IDS } from './world.js';
+import { ROOM_IDS, STREET, FRONT_ROOM } from './world.js';
 
 /** Room positions in the cutaway: index 0 top-left, 1 top-right, and so on. */
 export const HOUSE_GRID = ['bedroom', 'bath', 'living', 'kitchen'];
@@ -112,6 +112,61 @@ export function arrivalX(roomId, kind, roomWidth) {
   return exitPoint(roomId, kind, roomWidth);
 }
 
+/**
+ * Where the front door stands inside the room it opens into.
+ *
+ * The bottom-left room in the cutaway, at its left edge — the outside wall of
+ * the house, which is the only wall a front door can be in.
+ */
+export const FRONT_DOOR_X = DOOR_INSET;
+
+/**
+ * The legs that take somebody out of a building and onto the pavement.
+ *
+ * @param {number} streetX where on the street that building's door comes out
+ */
+export function planExit(character, streetX, roomWidth) {
+  const inside = planWalk(character.room, FRONT_ROOM, FRONT_DOOR_X, roomWidth);
+  if (!inside) return null;
+  return [
+    ...inside.map((leg) => ({ ...leg, building: character.building })),
+    // Out of the door and onto the pavement, where the door is.
+    { room: STREET, building: null, x: streetX, arriveX: streetX, exit: null },
+  ].map((leg, i, all) => (i === all.length - 2 ? { ...leg, exit: 'door' } : leg));
+}
+
+/**
+ * The legs that take somebody off the pavement and into a building.
+ *
+ * She always comes in through the front door, whichever room she is heading
+ * for, because that is what a front door is.
+ *
+ * The first leg is the walk along the pavement to that door. A leg is the
+ * ground she is on *now* — she only changes room on stepping into the next one
+ * — so a plan that started indoors would have teleported her through the wall.
+ *
+ * @param {number} streetX where on the street that building's door comes out
+ */
+export function planEntry(buildingId, streetX, toRoom, targetX, roomWidth) {
+  const inside = planWalk(FRONT_ROOM, toRoom, targetX, roomWidth);
+  if (!inside) return null;
+  return [
+    { room: STREET, building: null, x: streetX, exit: 'door' },
+    ...inside.map((leg, i) => ({
+      ...leg,
+      building: buildingId,
+      ...(i === 0 ? { arriveX: FRONT_DOOR_X } : {}),
+    })),
+  ];
+}
+
+/** Starts a character on a journey somebody else planned. */
+export function beginTrip(character, legs) {
+  if (!legs?.length) return false;
+  character.walk = { legs, index: 0 };
+  return true;
+}
+
 /** How fast a character walks, in room units per second. */
 export const WALK_SPEED = 240;
 
@@ -156,9 +211,11 @@ export function stepWalk(character, dt, roomWidth) {
   const next = walk.legs[walk.index];
   if (!next) { delete character.walk; return false; }
 
-  // Through the door, or up the stairs, and on into the next room.
+  // Through the door, or up the stairs, and on into the next room — or out of
+  // the building altogether, which is the same step with a different door.
   character.room = next.room;
-  character.x = arrivalX(next.room, leg.exit, roomWidth);
+  if ('building' in next) character.building = next.building;
+  character.x = next.arriveX ?? arrivalX(next.room, leg.exit, roomWidth);
   character.facing = Math.sign(next.x - character.x) || 1;
   return true;
 }

@@ -212,10 +212,10 @@ test("a book's design survives being saved and loaded", async () => {
   const world = createWorld('Library');
   const book = placeItem('book', 300, 460);
   book.design = { title: 'My Spells', cover: 4, pattern: 3, patternColor: 9, titleStyle: 1, titleColor: 8 };
-  world.rooms.living.items.push(book);
+  world.buildings[0].rooms.living.items.push(book);
 
   const loaded = migrateWorld(JSON.parse(JSON.stringify(world)));
-  const restored = loaded.rooms.living.items[0];
+  const restored = loaded.buildings[0].rooms.living.items[0];
 
   assert.equal(restored.design.title, 'My Spells', 'the title she typed');
   assert.equal(restored.design.cover, 4);
@@ -226,10 +226,10 @@ test('an ordinary item gains no design field', async () => {
   const { migrateWorld, createWorld, placeItem } = await import('../js/model/world.js');
 
   const world = createWorld('Plain');
-  world.rooms.living.items.push(placeItem('sofa', 300, 460));
+  world.buildings[0].rooms.living.items.push(placeItem('sofa', 300, 460));
   const loaded = migrateWorld(JSON.parse(JSON.stringify(world)));
 
-  assert.equal('design' in loaded.rooms.living.items[0], false);
+  assert.equal('design' in loaded.buildings[0].rooms.living.items[0], false);
 });
 
 /* ------------------------------------------------------------------ boys */

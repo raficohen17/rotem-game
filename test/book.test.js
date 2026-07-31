@@ -162,9 +162,9 @@ test('a book laid flat keeps its orientation through a save', async () => {
   flat.lying = true;
   flat.w = 117;
   flat.h = 27;
-  world.rooms.living.items.push(flat);
+  world.buildings[0].rooms.living.items.push(flat);
 
-  const restored = migrateWorld(JSON.parse(JSON.stringify(world))).rooms.living.items[0];
+  const restored = migrateWorld(JSON.parse(JSON.stringify(world))).buildings[0].rooms.living.items[0];
   assert.equal(restored.lying, true, 'still lying down');
   assert.equal(restored.w, 117);
   assert.equal(restored.h, 27);
@@ -176,9 +176,9 @@ test('a standing book gains no orientation fields', async () => {
   const world = createWorld('Shelf');
   const upright = placeItem('book', 400, 460);
   upright.design = createBook();
-  world.rooms.living.items.push(upright);
+  world.buildings[0].rooms.living.items.push(upright);
 
-  const restored = migrateWorld(JSON.parse(JSON.stringify(world))).rooms.living.items[0];
+  const restored = migrateWorld(JSON.parse(JSON.stringify(world))).buildings[0].rooms.living.items[0];
   assert.equal('lying' in restored, false);
   assert.equal('w' in restored, false);
 });

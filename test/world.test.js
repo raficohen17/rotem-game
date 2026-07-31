@@ -10,26 +10,26 @@ import {
 test('a new world has all four rooms, empty', () => {
   const world = createWorld('Test');
   assert.equal(world.version, CURRENT_VERSION);
-  assert.deepEqual(Object.keys(world.rooms).sort(), [...ROOM_IDS].sort());
+  assert.deepEqual(Object.keys(world.buildings[0].rooms).sort(), [...ROOM_IDS].sort());
   for (const id of ROOM_IDS) {
-    assert.deepEqual(world.rooms[id].items, []);
-    assert.equal(world.rooms[id].wall, DEFAULT_WALL);
+    assert.deepEqual(world.buildings[0].rooms[id].items, []);
+    assert.equal(world.buildings[0].rooms[id].wall, DEFAULT_WALL);
   }
   assert.deepEqual(world.characters, []);
 });
 
 test('a saved world survives a round trip through JSON', () => {
   const world = createWorld('Round trip');
-  world.rooms.bedroom.items.push(placeItem('sofa', 300, 420));
+  world.buildings[0].rooms.bedroom.items.push(placeItem('sofa', 300, 420));
   world.characters.push(placeCharacter({ skin: 2, hair: 1 }, 'bedroom', 500, 480));
-  world.rooms.kitchen.wall = '#123456';
+  world.buildings[0].rooms.kitchen.wall = '#123456';
 
   const restored = migrateWorld(JSON.parse(JSON.stringify(world)));
 
-  assert.equal(restored.rooms.bedroom.items.length, 1);
-  assert.equal(restored.rooms.bedroom.items[0].item, 'sofa');
-  assert.equal(restored.rooms.bedroom.items[0].x, 300);
-  assert.equal(restored.rooms.kitchen.wall, '#123456');
+  assert.equal(restored.buildings[0].rooms.bedroom.items.length, 1);
+  assert.equal(restored.buildings[0].rooms.bedroom.items[0].item, 'sofa');
+  assert.equal(restored.buildings[0].rooms.bedroom.items[0].x, 300);
+  assert.equal(restored.buildings[0].rooms.kitchen.wall, '#123456');
   assert.equal(restored.characters.length, 1);
   assert.equal(restored.characters[0].room, 'bedroom');
 });
@@ -45,13 +45,13 @@ test('migration runs every step from an older version up to the current one', ()
 
     const world = createWorld('Old');
     world.version = 1;
-    world.rooms.bedroom.items.push(placeItem('bed_single', 200, 400));
+    world.buildings[0].rooms.bedroom.items.push(placeItem('bed_single', 200, 400));
 
     // migrateWorld stops at CURRENT_VERSION, so with fakes registered above
     // the chain is walked only as far as the build actually is.
     const migrated = migrateWorld(world);
     assert.equal(migrated.version, CURRENT_VERSION);
-    assert.equal(migrated.rooms.bedroom.items.length, 1, 'contents survive migration');
+    assert.equal(migrated.buildings[0].rooms.bedroom.items.length, 1, 'contents survive migration');
   } finally {
     for (const key of Object.keys(MIGRATIONS)) delete MIGRATIONS[key];
     Object.assign(MIGRATIONS, original);
@@ -61,28 +61,28 @@ test('migration runs every step from an older version up to the current one', ()
 test('a save from a newer build is read rather than thrown away', () => {
   const world = createWorld('From the future');
   world.version = CURRENT_VERSION + 5;
-  world.rooms.living.items.push(placeItem('tv', 600, 430));
+  world.buildings[0].rooms.living.items.push(placeItem('tv', 600, 430));
 
   const loaded = migrateWorld(world);
   assert.ok(loaded, 'not discarded');
   assert.equal(loaded.version, CURRENT_VERSION);
-  assert.equal(loaded.rooms.living.items.length, 1);
+  assert.equal(loaded.buildings[0].rooms.living.items.length, 1);
 });
 
 test('a missing room is rebuilt and the rest of the world survives', () => {
   const world = createWorld('Damaged');
-  world.rooms.bedroom.items.push(placeItem('crib', 300, 400));
-  delete world.rooms.kitchen;
+  world.buildings[0].rooms.bedroom.items.push(placeItem('crib', 300, 400));
+  delete world.buildings[0].rooms.kitchen;
 
   const repaired = migrateWorld(world);
-  assert.deepEqual(repaired.rooms.kitchen.items, []);
-  assert.equal(repaired.rooms.kitchen.floor, DEFAULT_FLOOR);
-  assert.equal(repaired.rooms.bedroom.items.length, 1, 'other rooms untouched');
+  assert.deepEqual(repaired.buildings[0].rooms.kitchen.items, []);
+  assert.equal(repaired.buildings[0].rooms.kitchen.floor, DEFAULT_FLOOR);
+  assert.equal(repaired.buildings[0].rooms.bedroom.items.length, 1, 'other rooms untouched');
 });
 
 test('items missing optional fields are repaired, nonsense is dropped', () => {
   const world = createWorld('Partial');
-  world.rooms.bath.items = [
+  world.buildings[0].rooms.bath.items = [
     { item: 'toilet', x: 100, y: 400 },      // no uid, scale, flip, tint, z
     { item: 'bathtub', x: 'over there', y: 400 }, // unusable
     { x: 10, y: 10 },                             // no item id
@@ -90,8 +90,8 @@ test('items missing optional fields are repaired, nonsense is dropped', () => {
   ];
 
   const repaired = migrateWorld(world);
-  assert.equal(repaired.rooms.bath.items.length, 1);
-  const [item] = repaired.rooms.bath.items;
+  assert.equal(repaired.buildings[0].rooms.bath.items.length, 1);
+  const [item] = repaired.buildings[0].rooms.bath.items;
   assert.equal(item.scale, 1);
   assert.equal(item.flip, false);
   assert.equal(item.tint, 0);

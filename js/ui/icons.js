@@ -465,6 +465,20 @@ export const ICONS = {
     strokeLine(ctx, -21, 15, 21, 15, c, 3.4);
   },
 
+  /* A door standing open, for going outside. */
+  door(ctx, c) {
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 3.2;
+    ctx.lineJoin = 'round';
+    ctx.strokeRect(-15, -18, 30, 36);
+    // The leaf, swung towards you, so it reads as open rather than as a panel.
+    fillPoly(ctx, [-13, -16, 6, -12, 6, 16, -13, 16], c);
+    fillCircle(ctx, 2, 2, 2.4, '#000');
+    ctx.globalCompositeOperation = 'destination-out';
+    fillCircle(ctx, 2, 2, 2.4, '#000');
+    ctx.globalCompositeOperation = 'source-over';
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

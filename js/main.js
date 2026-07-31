@@ -8,14 +8,15 @@ import { loadCatalog } from './render/catalog.js';
 import { createStore, replaceWorld } from './model/storage.js';
 import { createMenu } from './scenes/menu.js';
 import { createHouse } from './scenes/house.js';
+import { createStreet } from './scenes/street.js';
 import { createArtSheet } from './scenes/artsheet.js';
 import { stepWalk } from './model/travel.js';
 import { stepCat, isDue } from './model/catlife.js';
 import { cookOn, isOverHeat, utensils, clearProgress } from './model/recipes.js';
 import { isOn } from './model/using.js';
-import { renderHouseThumbnail } from './render/room.js';
+import { renderStreetThumbnail } from './render/building.js';
 import { drawRotatePrompt } from './ui/rotate.js';
-import { HOUSE_LAYOUT } from './model/world.js';
+import { HOUSE_LAYOUT, STREET, roomsOf } from './model/world.js';
 import { ROOM_W, FLOOR_BAND } from './render/room.js';
 
 /** Where a cat's paws go when it is walking rather than sitting on something. */
@@ -59,6 +60,8 @@ const game = {
   time: 0,
   worlds: [],
   world: null,
+  /** The building whose inside is open, or null when she is on the street. */
+  building: null,
 
   setScene(next) {
     scene = next;
@@ -96,13 +99,16 @@ const game = {
    */
   captureThumb() {
     if (!game.world || !game.catalog) return;
-    game.world.thumb = renderHouseThumbnail(game.world, HOUSE_LAYOUT, game.catalog);
+    // The street, because that is what a world is: a thumbnail of one of its
+    // buildings said the same thing about two worlds that look nothing alike.
+    game.world.thumb = renderStreetThumbnail(game.world);
     game.pendingSave = true;
   },
 
   openWorld(world) {
     game.world = world;
-    game.setScene(createHouse(game));
+    game.building = null;
+    game.setScene(createStreet(game));
     // A brand new world gets a picture straight away, so its slot is never
     // blank even if she backs straight out again.
     game.captureThumb();
@@ -112,15 +118,43 @@ const game = {
     game.captureThumb();
     game.persist();
     game.world = null;
+    game.building = null;
     game.setScene(createMenu(game));
   },
 
-  charactersIn(roomId) {
-    return game.world ? game.world.characters.filter((c) => c.room === roomId) : [];
+  /** Opens the inside of a building. */
+  openBuilding(building) {
+    game.building = building;
+    game.setScene(createHouse(game));
   },
 
-  catsIn(roomId) {
-    return game.world ? (game.world.cats ?? []).filter((c) => c.room === roomId) : [];
+  /** Back out to the street the buildings stand on. */
+  goStreet() {
+    game.captureThumb();
+    game.building = null;
+    game.setScene(createStreet(game));
+  },
+
+  /**
+   * Whoever is in this room of the building that is open.
+   *
+   * The building matters as much as the room: two houses on a street both have
+   * a kitchen, and without it everybody in the world turned up in both.
+   */
+  charactersIn(roomId, buildingId = game.building?.id) {
+    if (!game.world) return [];
+    return game.world.characters.filter((c) => c.room === roomId && c.building === buildingId);
+  },
+
+  catsIn(roomId, buildingId = game.building?.id) {
+    if (!game.world) return [];
+    return (game.world.cats ?? []).filter((c) => c.room === roomId && c.building === buildingId);
+  },
+
+  /** Whoever is outside, between the buildings. */
+  charactersOutside() {
+    if (!game.world) return [];
+    return game.world.characters.filter((c) => c.room === STREET);
   },
 };
 
@@ -176,7 +210,7 @@ function frame(now) {
      * pan with nothing in it or a cold stove is one lookup and a skip, and
      * there are only ever a handful of pans in a house.
      */
-    for (const room of Object.values(game.world.rooms)) {
+    for (const room of game.world.buildings.flatMap((b) => Object.values(b.rooms))) {
       for (const utensil of room.items) {
         if (!utensils().includes(utensil.item)) continue;
         const contents = room.items.find((i) => i.inside === utensil.uid);
@@ -217,7 +251,7 @@ function frame(now) {
         continue;
       }
       if (!isDue(cat, catNow)) continue;
-      const room = game.world.rooms[cat.room];
+      const room = roomsOf(game.world, cat.building)[cat.room];
       if (stepCat(cat, room?.items ?? [], (id) => game.catalog?.get(id),
         catNow, Math.random, house)) {
         moved = true;

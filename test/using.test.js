@@ -119,14 +119,14 @@ test('what she is doing survives being loaded back out of storage', () => {
   const world = createWorld('House 1');
   const shower = placeItem('shower', 640, 470);
   const her = placeCharacter(createCharacterSpec(), 'bath', 200, 470);
-  world.rooms.bath.items.push(shower);
+  world.buildings[0].rooms.bath.items.push(shower);
   world.characters.push(her);
   beginUse(her, shower);
 
   const loaded = repairWorld(JSON.parse(JSON.stringify(world)));
   const restored = loaded.characters[0];
   assert.deepEqual(restored.using, { uid: shower.uid, action: 'shower' });
-  assert.ok(resolveUse(restored, loaded.rooms.bath.items), 'and still resolves to the shower');
+  assert.ok(resolveUse(restored, loaded.buildings[0].rooms.bath.items), 'and still resolves to the shower');
 });
 
 test('a nonsense using record is thrown away rather than trusted', () => {
@@ -201,27 +201,27 @@ test('a lamp she left on is still on tomorrow', () => {
   const world = createWorld('House 1');
   const lamp = placeItem('lamp_floor', 300, 470);
   toggleSwitch(lamp);
-  world.rooms.bedroom.items.push(lamp);
+  world.buildings[0].rooms.bedroom.items.push(lamp);
 
   const loaded = repairWorld(JSON.parse(JSON.stringify(world)));
-  assert.equal(isOn(loaded.rooms.bedroom.items[0]), true);
+  assert.equal(isOn(loaded.buildings[0].rooms.bedroom.items[0]), true);
 });
 
 test('a lamp that was off does not carry a field around', () => {
   const world = createWorld('House 1');
-  world.rooms.bedroom.items.push(placeItem('lamp_floor', 300, 470));
+  world.buildings[0].rooms.bedroom.items.push(placeItem('lamp_floor', 300, 470));
   const loaded = repairWorld(JSON.parse(JSON.stringify(world)));
-  assert.equal('on' in loaded.rooms.bedroom.items[0], false, 'off is the absence of the field');
+  assert.equal('on' in loaded.buildings[0].rooms.bedroom.items[0], false, 'off is the absence of the field');
 });
 
 test('a nonsense on value is not trusted', () => {
   const world = createWorld('House 1');
   const lamp = placeItem('lamp_floor', 300, 470);
-  world.rooms.bedroom.items.push(lamp);
+  world.buildings[0].rooms.bedroom.items.push(lamp);
   for (const junk of ['yes', 1, {}, []]) {
     lamp.on = junk;
     const loaded = repairWorld(JSON.parse(JSON.stringify(world)));
-    assert.equal('on' in loaded.rooms.bedroom.items[0], false, `${JSON.stringify(junk)} is dropped`);
+    assert.equal('on' in loaded.buildings[0].rooms.bedroom.items[0], false, `${JSON.stringify(junk)} is dropped`);
   }
 });
 

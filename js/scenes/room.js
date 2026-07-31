@@ -83,7 +83,7 @@ export const EXTRA_TABS = [
  *   so a scene that sends her here for something can put it in front of her.
  */
 export function createRoomScene(game, roomId, start = {}) {
-  const room = game.world.rooms[roomId];
+  const room = game.building.rooms[roomId];
   const { catalog } = game;
 
   let open = start.open === true;

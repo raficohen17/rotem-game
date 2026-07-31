@@ -110,9 +110,9 @@ test('food in the fridge is remembered, and so is how much is left', () => {
   const cake = placeItem('cake', 640, 470);
   cake.inside = fridge.uid;
   biteFrom(cake);
-  world.rooms.kitchen.items.push(fridge, cake);
+  world.buildings[0].rooms.kitchen.items.push(fridge, cake);
 
-  const back = repairWorld(JSON.parse(JSON.stringify(world))).rooms.kitchen.items;
+  const back = repairWorld(JSON.parse(JSON.stringify(world))).buildings[0].rooms.kitchen.items;
   const savedCake = back.find((i) => i.item === 'cake');
   assert.equal(savedCake.inside, fridge.uid, 'still in the fridge');
   assert.equal(portionsLeft(savedCake), wholePortions('cake') - 1, 'still a slice short');
@@ -121,10 +121,10 @@ test('food in the fridge is remembered, and so is how much is left', () => {
 test('a nonsense portion count reads as a whole one', () => {
   const world = createWorld('House 1');
   const cake = placeItem('cake', 100, 470);
-  world.rooms.kitchen.items.push(cake);
+  world.buildings[0].rooms.kitchen.items.push(cake);
   for (const junk of ['half', -1, 1.5, {}]) {
     cake.left = junk;
-    const back = repairWorld(JSON.parse(JSON.stringify(world))).rooms.kitchen.items[0];
+    const back = repairWorld(JSON.parse(JSON.stringify(world))).buildings[0].rooms.kitchen.items[0];
     assert.equal(portionsLeft(back), wholePortions('cake'), `${JSON.stringify(junk)} is a whole cake`);
   }
 });

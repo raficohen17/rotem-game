@@ -19,14 +19,17 @@ import { litFill, sideLit, woodGrain, within } from '../render/materials.js';
 import {
   drawRoomShell, drawRoomContents, ROOM_W, ROOM_H, FLOOR_Y,
 } from '../render/room.js';
-import { HOUSE_LAYOUT } from '../model/world.js';
-import { beginWalk, routeBetween, STAIR_X, LINKS, HOUSE_GRID } from '../model/travel.js';
+import { HOUSE_LAYOUT, STREET } from '../model/world.js';
+import {
+  beginWalk, routeBetween, STAIR_X, LINKS, HOUSE_GRID, planExit, beginTrip,
+} from '../model/travel.js';
 import { drawCharacter, CHAR_H, CHAR_W } from '../render/character.js';
 import {
   ACTIONS, SWITCHES, canUse, canSwitch, useFor, switchFor,
   beginUse, stopUsing, isUsing, toggleSwitch,
 } from '../model/using.js';
 import { createRoomScene } from './room.js';
+import { doorX } from './street.js';
 
 /** The painted carcass. Warm cream with a rose roof, to match the rooms. */
 const EXTERIOR = '#ecdfd0';
@@ -125,6 +128,25 @@ export function createHouse(game) {
    * scaled down to a 3px thread. Tapping a character appeared to do nothing at
    * all, and the whole feature read as broken.
    */
+  /**
+   * The way out of the building, offered next to the front door.
+   *
+   * Drawn under the house rather than in a room, because that is where she
+   * ends up: on the pavement, outside. Only while somebody is picked up, like
+   * every other walk target.
+   */
+  function exitTarget() {
+    if (!traveller || traveller.room === STREET) return null;
+    const index = game.world.buildings.indexOf(game.building);
+    if (index < 0) return null;
+    // At the bottom left corner, which is where the front door is: the outside
+    // wall of the room downstairs on the left. Under the house it would have
+    // been at y=726 on a 720-tall screen — the same way off the bottom edge
+    // that made the walk hint invisible.
+    return button('out', BODY.x - TOUCH / 2, BODY.y + BODY.h - TOUCH - 10,
+      TOUCH, TOUCH, { icon: 'door', round: true, tone: 'accent', index });
+  }
+
   function walkTargets() {
     if (!traveller) return [];
     return HOUSE_LAYOUT.flatMap((id, index) => {
@@ -151,7 +173,7 @@ export function createHouse(game) {
     if (!traveller) return [];
     const index = HOUSE_LAYOUT.indexOf(traveller.room);
     if (index < 0) return [];
-    const room = game.world.rooms[traveller.room];
+    const room = game.building.rooms[traveller.room];
     const box = cellBox(index);
 
     const reachable = (room?.items ?? []).filter((item) => (
@@ -186,6 +208,19 @@ export function createHouse(game) {
   return {
     controls: [...rooms, back],
 
+    /**
+     * Everything tappable right now, including what only appears once
+     * somebody is picked up.
+     *
+     * The harness only checks what a scene admits to having, and the way out
+     * of the building was not in the static list — so nothing was watching
+     * whether it was on the screen at all.
+     */
+    allControls: () => [
+      ...rooms, back, ...walkTargets(), ...actionTargets(),
+      ...(exitTarget() ? [exitTarget()] : []),
+    ],
+
     onTap(x, y) {
       // Anything she was offered wins over what is underneath it.
       const doing = hitTest(actionTargets(), x, y);
@@ -193,6 +228,14 @@ export function createHouse(game) {
         if (canSwitch(doing.item)) toggleSwitch(doing.item);
         else if (traveller.using?.uid === doing.item.uid) stopUsing(traveller);
         else beginUse(traveller, doing.item);
+        game.persist();
+        return;
+      }
+
+      const out = exitTarget();
+      if (out && hitTest([out], x, y)) {
+        beginTrip(traveller, planExit(traveller, doorX(out.index), ROOM_W));
+        traveller = null;
         game.persist();
         return;
       }
@@ -224,8 +267,9 @@ export function createHouse(game) {
       if (!hit) return;
 
       if (hit.id === 'back') {
-        // goMenu captures the picture on the way out, whatever route is taken.
-        game.goMenu();
+        // Out of a building is the street it stands on, not the shelf of
+        // worlds: the shelf is one more step out, from the street itself.
+        game.goStreet();
         return;
       }
       if (hit.roomId) game.setScene(createRoomScene(game, hit.roomId));
@@ -241,7 +285,7 @@ export function createHouse(game) {
 
       HOUSE_LAYOUT.forEach((id, index) => {
         const box = cellBox(index);
-        const room = game.world.rooms[id];
+        const room = game.building.rooms[id];
 
         ctx.save();
         ctx.beginPath();
@@ -263,9 +307,11 @@ export function createHouse(game) {
       if (traveller) {
         drawButtons(ctx, walkTargets());
         drawButtons(ctx, actionTargets());
+        const out = exitTarget();
+        if (out) drawButtons(ctx, [out]);
         drawHint(ctx);
       }
-      drawTitle(ctx, game.world.name, BODY.x + 6, BODY.y - ROOF_HEIGHT - 26, 30);
+      drawTitle(ctx, game.building.name, BODY.x + 6, BODY.y - ROOF_HEIGHT - 26, 30);
       drawButtons(ctx, [back]);
     },
   };

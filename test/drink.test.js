@@ -124,10 +124,10 @@ test('what a glass holds survives being saved', () => {
   const cup = glass();
   pourInto(carton(), cup);
   sipFrom(cup);
-  world.rooms.kitchen.items.push(cup);
+  world.buildings[0].rooms.kitchen.items.push(cup);
 
   const back = repairWorld(JSON.parse(JSON.stringify(world)));
-  const saved = back.rooms.kitchen.items.at(-1);
+  const saved = back.buildings[0].rooms.kitchen.items.at(-1);
   assert.equal(holds(saved), 'milk');
   assert.equal(sipsLeft(saved), sipsLeft(cup));
 });
@@ -183,7 +183,7 @@ test('dragging the milk onto a glass fills it and puts the milk back', () => {
   // was tipped, not moved, so it belongs back where it was standing.
   const game = stubGame();
   const roomId = HOUSE_LAYOUT[0];
-  const room = game.world.rooms[roomId];
+  const room = game.world.buildings[0].rooms[roomId];
   const cup = placeItem('glass', 700, 470);
   // Clear of the furniture the stub room is full of, so "back where it was"
   // means the same thing before and after.
@@ -205,7 +205,7 @@ test('dragging the milk onto a glass fills it and puts the milk back', () => {
 test('dragging the milk somewhere else just moves it', () => {
   const game = stubGame();
   const roomId = HOUSE_LAYOUT[0];
-  const room = game.world.rooms[roomId];
+  const room = game.world.buildings[0].rooms[roomId];
   const milk = placeItem('milk', 560, 470);
   room.items.push(milk);
 
