@@ -31,6 +31,7 @@ import {
   placeItem, placeCharacter, placeCat, frontZ, backZ, WALL_COLORS, FLOOR_COLORS, FLOOR_STYLES,
 } from '../model/world.js';
 import { createBook } from '../model/book.js';
+import { isVessel, isPourable, canPour, pourInto } from '../model/drink.js';
 import { createCharacterCreator } from './charcreator.js';
 import { createCatCreator } from './catcreator.js';
 import { createRuleBook } from './rulebook.js';
@@ -220,6 +221,21 @@ export function createRoomScene(game, roomId) {
       putInside(food, fridge, def, shelf);
       room.items.push(food);
     });
+  }
+
+  /**
+   * A glass under this point that could take a drink.
+   *
+   * Only one that has room: tipping a carton over a full glass should do
+   * nothing at all rather than quietly swallowing a measure.
+   */
+  function vesselAt(rx, ry, drink) {
+    return room.items.find((item) => {
+      if (!isVessel(item) || !canPour(drink, item)) return false;
+      const def = catalog.get(item.item);
+      if (!def) return false;
+      return boundsContain(itemBounds(item, def), rx, ry);
+    }) ?? null;
   }
 
   /** A utensil under this point, if there is one. */
@@ -617,7 +633,11 @@ export function createRoomScene(game, roomId) {
       const p = toRoom(x, y);
       const target = pick(p.x, p.y);
       selected = target;
-      if (target) drag = { mode: 'move', target, dx: p.x - target.x, dy: p.y - target.y };
+      // Where it started, so a carton that was only tipped over a glass can go
+      // back to standing where it was rather than ending up on top of it.
+      if (target) {
+        drag = { mode: 'move', target, dx: p.x - target.x, dy: p.y - target.y, fromX: target.x, fromY: target.y };
+      }
     },
 
     onPointerMove(x, y) {
@@ -652,6 +672,10 @@ export function createRoomScene(game, roomId) {
           }
           else if (vessel && isFood(entry)) putInPan(entry, vessel);
           else settle(entry, p.x, p.y);
+          // A carton brought straight out of the drawer onto a glass fills it
+          // on the way past, so pouring works the first time as well as later.
+          const glass = isPourable(entry) ? vesselAt(p.x, p.y, entry.item) : null;
+          if (glass) pourInto(entry, glass);
           room.items.push(entry);
           // A new fridge comes with something in it. An empty one is a
           // cupboard, and gives her no reason to cook.
@@ -664,6 +688,14 @@ export function createRoomScene(game, roomId) {
         // an open one, it goes in — so the same gesture puts food away and
         // fetches it out again.
         const moved = drag.target;
+        const p0 = toRoom(x, y);
+        // Pouring is the one gesture that changes two things at once: a measure
+        // leaves the carton and appears in the glass. The carton goes back to
+        // where it was standing, because it was tipped, not moved.
+        const glass = moved && isPourable(moved) ? vesselAt(p0.x, p0.y, moved.item) : null;
+        if (glass && pourInto(moved, glass)) {
+          settle(moved, drag.fromX ?? moved.x, drag.fromY ?? moved.y);
+        }
         if (moved && isFood(moved)) {
           const p = toRoom(x, y);
           const larder = openFridgeAt(p.x, p.y);

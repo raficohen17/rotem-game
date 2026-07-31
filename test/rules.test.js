@@ -7,7 +7,11 @@ import { dirname, join } from 'node:path';
 import { RECIPES, utensils } from '../js/model/recipes.js';
 import {
   isFood, putInside, takeOut, shelfSpot, panSpot, FRIDGE_STOCK,
+  portionsLeft, biteFrom,
 } from '../js/model/food.js';
+import {
+  POURABLE, VESSELS, canPour, pourInto, sipFrom, sipsLeft,
+} from '../js/model/drink.js';
 import { SWITCHED, switchFor } from '../js/model/using.js';
 import { createWorld, repairWorld, placeItem, placeCharacter, placeCat } from '../js/model/world.js';
 import { createCharacterSpec } from '../js/model/character.js';
@@ -172,4 +176,55 @@ test('a room in a test has the states that only happen sometimes', () => {
   assert.match(stubs, /placeItem\('pan'/, 'with a pan on it');
   assert.match(stubs, /inside = pan\.uid/, 'and something cooking in the pan');
   assert.match(stubs, /inside = fridge\.uid/, 'and something shut in a fridge');
+  assert.match(stubs, /\.left = \d/, 'a part-eaten meal');
+  assert.match(stubs, /\.sips = \d/, 'and a part-drunk glass');
+});
+
+test('everything with a level shows that level', () => {
+  // A cake, a glass, a carton: three ways of being half used up, all of which
+  // are invisible unless something draws them. The eaten cake shipped twice
+  // looking whole because the only thing checking was somebody's eyes.
+  const source = readFileSync(join(ROOT, 'js/render/catalog.js'), 'utf8');
+  assert.match(source, /function drawContents/, 'a glass is drawn by what is in it');
+  assert.match(source, /isVessel\(placed\)/, 'and every glass goes through it');
+  for (const id of Object.keys(VESSELS)) {
+    assert.ok(lookup(id), `${id} is a real item`);
+  }
+});
+
+test('nothing holds two different things at once', () => {
+  // The rule that keeps a container answerable: whatever is in it, there is
+  // one answer to what it is. Mixing would need a third thing to exist.
+  const vessel = placeItem('glass', 0, 0);
+  pourInto(placeItem('milk', 0, 0), vessel);
+  while (sipsLeft(vessel) > 1) sipFrom(vessel);
+  for (const drink of Object.keys(POURABLE)) {
+    if (drink === 'milk') continue;
+    assert.equal(canPour(drink, vessel), false, `${drink} does not go in on top of milk`);
+  }
+});
+
+test('a thing emptied is still a thing', () => {
+  // Deleting what she emptied has been wrong twice: a plate becomes crumbs, a
+  // glass becomes an empty glass. Neither vanishes out from under her.
+  const vessel = placeItem('glass', 0, 0);
+  pourInto(placeItem('milk', 0, 0), vessel);
+  while (sipsLeft(vessel) > 0) sipFrom(vessel);
+  assert.equal(canPour('juice', vessel), true, 'an empty glass takes a new drink');
+
+  const cake = placeItem('cake', 0, 0);
+  while (portionsLeft(cake) > 0) biteFrom(cake);
+  assert.equal(portionsLeft(cake), 0, 'and an eaten cake is still on the table');
+});
+
+test('the stub catalog shows what the real one shows', () => {
+  // The stub filtered nothing, so the harness drew a drawer the game never
+  // shows — cooked dishes included — and reported an overflow that could not
+  // happen while hiding whether the real drawer fits. A stub that has drifted
+  // tests a game that does not exist.
+  const real = readFileSync(join(ROOT, 'js/render/catalog.js'), 'utf8');
+  const stub = readFileSync(join(ROOT, 'test/helpers/stubs.js'), 'utf8');
+  const filter = /i\.cat === categoryId && !i\.made/;
+  assert.match(real, filter, 'the real catalog hides what is only made');
+  assert.match(stub, filter, 'and so does the stub');
 });

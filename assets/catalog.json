@@ -503,6 +503,56 @@
       ]
     },
     {
+      "id": "milk",
+      "cat": "food",
+      "w": 56,
+      "h": 92,
+      "colors": [
+        "#f6f2e8",
+        "#e8e2d4"
+      ]
+    },
+    {
+      "id": "juice",
+      "cat": "food",
+      "w": 54,
+      "h": 88,
+      "colors": [
+        "#e8963c",
+        "#d9832f"
+      ]
+    },
+    {
+      "id": "water",
+      "cat": "food",
+      "w": 46,
+      "h": 96,
+      "colors": [
+        "#a9d6e5",
+        "#8fc4d6"
+      ]
+    },
+    {
+      "id": "glass",
+      "cat": "food",
+      "w": 44,
+      "h": 62,
+      "colors": [
+        "#dfeef4"
+      ]
+    },
+    {
+      "id": "mug",
+      "cat": "food",
+      "w": 56,
+      "h": 56,
+      "colors": [
+        "#e0708a",
+        "#6fa8dc",
+        "#5fc4bd"
+      ]
+    },
+    {
       "id": "soup",
       "cat": "food",
       "w": 96,

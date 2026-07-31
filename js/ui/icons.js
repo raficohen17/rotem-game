@@ -415,6 +415,23 @@ export const ICONS = {
     strokeLine(ctx, 10.5, 0, 10.5, 19, c, 3.4);
   },
 
+  /* A glass with something in it, for having a drink. */
+  drink(ctx, c) {
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 3.2;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-11, -17);
+    ctx.lineTo(-8, 15);
+    ctx.lineTo(8, 15);
+    ctx.lineTo(11, -17);
+    ctx.closePath();
+    ctx.stroke();
+    // Filled to about half, which is what says it has something in it.
+    fillPoly(ctx, [-9.4, -2, 9.4, -2, 8, 13, -8, 13], c);
+    strokeLine(ctx, 4, -20, 13, -6, c, 3);
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

@@ -686,6 +686,75 @@ export const PLACEHOLDERS = {
     fillEllipse(ctx, -w * 0.04, -h * 0.56, w * 0.06, h * 0.07, '#f7dc8e');
   },
 
+  /* A carton of milk, gable topped. */
+  milk(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.8, 0.4);
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.16);
+    fillRR(ctx, -w * 0.4, -h * 0.78, w * 0.8, h * 0.78, 3, ctx.fillStyle);
+    fillPoly(ctx, [-w * 0.4, -h * 0.78, w * 0.4, -h * 0.78, w * 0.16, -h, -w * 0.16, -h],
+      shade(c, -0.12));
+    // A blue band, so it is milk at a glance and not a plain box.
+    fillRR(ctx, -w * 0.4, -h * 0.5, w * 0.8, h * 0.16, 2, '#6fa8dc');
+    fillEllipse(ctx, 0, -h * 0.42, w * 0.14, h * 0.06, '#f6f2e8');
+  },
+
+  /* A carton of juice, with a straw hole and a fruit on it. */
+  juice(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.8, 0.4);
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.16);
+    fillRR(ctx, -w * 0.4, -h * 0.86, w * 0.8, h * 0.86, 4, ctx.fillStyle);
+    fillCircle(ctx, 0, -h * 0.56, w * 0.2, shade(c, 0.36));
+    strokeLine(ctx, w * 0.22, -h * 0.88, w * 0.3, -h * 1.06, '#f6f1e8', 5);
+  },
+
+  /* A bottle of water. */
+  water(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.7, 0.36);
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.24);
+    fillRR(ctx, -w * 0.36, -h * 0.72, w * 0.72, h * 0.72, 6, ctx.fillStyle);
+    fillRR(ctx, -w * 0.16, -h * 0.92, w * 0.32, h * 0.24, 3, shade(c, 0.2));
+    fillRR(ctx, -w * 0.2, -h, w * 0.4, h * 0.1, 3, '#6fa8dc');
+    // A highlight down one side, which is what makes it read as glass.
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    fillRR(ctx, -w * 0.26, -h * 0.64, w * 0.1, h * 0.44, 4, '#ffffff');
+    ctx.restore();
+  },
+
+  /* An empty glass. What is in it is drawn over this. */
+  glass(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.7, 0.4);
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    fillPoly(ctx, [-w * 0.34, -h, w * 0.34, -h, w * 0.28, 0, -w * 0.28, 0], c);
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(210, 232, 240, 0.9)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.34, -h);
+    ctx.lineTo(-w * 0.28, 0);
+    ctx.lineTo(w * 0.28, 0);
+    ctx.lineTo(w * 0.34, -h);
+    ctx.stroke();
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    fillRR(ctx, -w * 0.24, -h * 0.9, w * 0.08, h * 0.7, 3, '#ffffff');
+    ctx.restore();
+  },
+
+  /* A mug, with a handle. */
+  mug(ctx, w, h, c) {
+    groundShadow(ctx, w * 0.7, 0.42);
+    ctx.strokeStyle = shade(c, -0.1);
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.arc(w * 0.34, -h * 0.5, h * 0.22, -1.1, 1.1);
+    ctx.stroke();
+    ctx.fillStyle = litFill(ctx, -h, h, c, 0.18);
+    fillRR(ctx, -w * 0.36, -h * 0.86, w * 0.72, h * 0.86, 6, ctx.fillStyle);
+    fillEllipse(ctx, 0, -h * 0.86, w * 0.36, h * 0.1, shade(c, 0.24));
+  },
+
   /* A frying pan, seen from the side with its handle out. */
   pan(ctx, w, h, c) {
     groundShadow(ctx, w * 0.7, 0.5);
@@ -796,7 +865,9 @@ export const PLACEHOLDERS = {
       litFill(ctx, -h * 0.7, h * 0.7, c, 0.14));
     fillEllipse(ctx, 0, -h * 0.7, w * 0.5, h * 0.14, shade(c, -0.18));
     fillEllipse(ctx, 0, -h * 0.68, w * 0.42, h * 0.11, shade(c, 0.28));
-    fillEllipse(ctx, 0, -h * 0.66, w * 0.3, h * 0.075, '#b5734c');
+    // The shadowed inside, not a permanent helping of food: the bowl holds
+    // milk now, and one that always looks full says nothing when it is filled.
+    fillEllipse(ctx, 0, -h * 0.66, w * 0.34, h * 0.085, shade(c, -0.34));
     fillRR(ctx, -w * 0.5, -h * 0.42, w, h * 0.08, 3, shade(c, 0.18));
   },
 

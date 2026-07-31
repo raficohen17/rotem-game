@@ -283,6 +283,10 @@ function repairItem(entry) {
     // Shut in the fridge. The first thing in the game that is inside another.
     ...(typeof entry.inside === 'string' ? { inside: entry.inside } : {}),
     ...(Number.isInteger(entry.shelf) ? { shelf: entry.shelf } : {}),
+    // What is in a glass, and how much of it. Named here or it is stripped,
+    // which is the lesson every stateful field in this game has had to learn.
+    ...(Number.isInteger(entry.sips) && entry.sips >= 0 ? { sips: entry.sips } : {}),
+    ...(typeof entry.holds === 'string' ? { holds: entry.holds } : {}),
   };
 }
 

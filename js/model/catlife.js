@@ -18,6 +18,7 @@
  */
 import { beginWalk, routeBetween } from './travel.js';
 import { catEats, hasFoodLeft, biteFrom } from './food.js';
+import { catWouldDrink, sipFrom } from './drink.js';
 
 
 
@@ -112,6 +113,17 @@ export function foodWithinReach(items) {
   ));
 }
 
+/**
+ * Milk a cat would drink, which means milk in a bowl on the floor.
+ *
+ * A cat does not drink out of her glass. Putting the milk in the bowl is the
+ * whole decision, and it is one she makes by choosing a bowl rather than by
+ * being told anywhere.
+ */
+export function drinkWithinReach(items) {
+  return items.filter((item) => item.inside === undefined && catWouldDrink(item));
+}
+
 /** Where the top of a cat's paws goes when it settles on this item. */
 export function perchLevel(itemId) {
   return PERCH_LEVEL[itemId] ?? 1;
@@ -195,8 +207,8 @@ export function stepCat(cat, items, lookup, now, random = Math.random, world = n
   cat.dueAt = nextDecisionAt(now, random());
   if (random() < STAY_CHANCE) return true; // it thought about it and stayed
 
-  // Something to eat beats anything to sit on.
-  const meals = foodWithinReach(items);
+  // Something to eat or drink beats anything to sit on.
+  const meals = [...foodWithinReach(items), ...drinkWithinReach(items)];
   if (meals.length) {
     const meal = meals[Math.min(meals.length - 1, Math.floor(random() * meals.length))];
     const def = lookup(meal.item);
@@ -205,7 +217,8 @@ export function stepCat(cat, items, lookup, now, random = Math.random, world = n
     cat.y = meal.y - (meal.onSurface ?? 0);
     cat.pose = 'stand';
     delete cat.on;
-    biteFrom(meal);
+    if (catWouldDrink(meal)) sipFrom(meal);
+    else biteFrom(meal);
     void height;
     return true;
   }

@@ -18,6 +18,7 @@ import { paperLayer } from './shapes.js';
 import { drawBook, drawBookFlat } from './book.js';
 import { fillEllipse, fillCircle, shade } from './shapes.js';
 import { isFood, portionsLeft, wholePortions } from '../model/food.js';
+import { isVessel, holds, fullness, drinkColor } from '../model/drink.js';
 
 const DRAWINGS_DIR = 'assets/drawings';
 
@@ -73,6 +74,69 @@ export async function loadCatalog() {
     inCategory: (categoryId) => [...byId.values()]
       .filter((i) => i.cat === categoryId && !i.made),
   };
+}
+
+/**
+ * The inside of each thing that holds a drink, as a fraction of its own size.
+ *
+ * Taken off the artwork rather than guessed, so the milk sits inside the glass
+ * instead of floating over it. A bowl is wide and shallow and a glass is narrow
+ * and tall, and the same drink has to look right in both.
+ */
+const INSIDE = {
+  glass: { floor: 0.04, brim: 0.92, wFloor: 0.25, wBrim: 0.31 },
+  // A mug is opaque, so its drink is only ever the surface in the mouth. That
+  // is why a mug holds one mouthful: full and empty are the two states it can
+  // actually show, and a level nobody can see is a level that is not there.
+  mug: { floor: 0.83, brim: 0.85, wFloor: 0.34, wBrim: 0.34 },
+  dog_bowl: { floor: 0.06, brim: 0.64, wFloor: 0.16, wBrim: 0.42 },
+};
+
+/**
+ * What is in a glass: its colour, and how far up it comes.
+ *
+ * Both at once, because either alone is too little to see at the size a glass
+ * really is in a room — a glass is 31 pixels tall on the phone, and one sip of
+ * three is about a dozen of them. That is exactly how a part-eaten cake
+ * shipped twice looking untouched.
+ */
+function drawContents(ctx, def, placed) {
+  const drink = holds(placed);
+  if (!drink) return;
+  const shape = INSIDE[placed.item];
+  if (!shape) return;
+
+  const color = drinkColor(drink);
+  const level = fullness(placed);
+  const floorY = -def.h * shape.floor;
+  const surfaceY = floorY - def.h * (shape.brim - shape.floor) * level;
+  const wFloor = def.w * shape.wFloor;
+  const wSurface = def.w * (shape.wFloor + (shape.wBrim - shape.wFloor) * level);
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(-wSurface, surfaceY);
+  ctx.lineTo(wSurface, surfaceY);
+  ctx.lineTo(wFloor, floorY);
+  ctx.lineTo(-wFloor, floorY);
+  ctx.closePath();
+  ctx.fill();
+  // The surface, which is what makes it read as liquid rather than as a block
+  // of colour painted on the front of the glass.
+  fillEllipse(ctx, 0, surfaceY, wSurface, def.h * 0.05, shade(color, 0.22));
+  // An edge round the drink, because milk is very nearly the colour of the
+  // paper the rooms are printed on and without it the glass reads as empty.
+  ctx.strokeStyle = shade(color, -0.3);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-wSurface, surfaceY);
+  ctx.lineTo(-wFloor, floorY);
+  ctx.lineTo(wFloor, floorY);
+  ctx.lineTo(wSurface, surfaceY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(0, surfaceY, wSurface, def.h * 0.05, 0, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 /** The plate everything edible sits on, at the size it started. */
@@ -182,6 +246,13 @@ export function drawItemArt(ctx, def, tint = 0, design = null, placed = null) {
     if (placed && isFood(placed)) {
       const color = def.colors[tint % def.colors.length];
       drawPortions(ctx, def, color, placed, paint);
+      return;
+    }
+    // A glass is drawn, then what is in it over the top, so the level shows
+    // through the side the way it does in a real one.
+    if (placed && isVessel(placed)) {
+      paint(ctx, def.w, def.h, def.colors[tint % def.colors.length]);
+      drawContents(ctx, def, placed);
       return;
     }
     paint(ctx, def.w, def.h, def.colors[tint % def.colors.length]);

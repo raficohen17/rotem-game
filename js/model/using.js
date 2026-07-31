@@ -54,6 +54,7 @@ export function isOn(item) {
 }
 
 import { isFood, hasFoodLeft, biteFrom, isEdible } from './food.js';
+import { sipsLeft, sipFrom, holds } from './drink.js';
 
 /** What a character can be doing. */
 export const ACTIONS = {
@@ -119,6 +120,15 @@ export const ACTIONS = {
     carried: false,
     instant: true,
   },
+  drink: {
+    offset: 0,
+    facing: 1,
+    inFront: true,
+    label: 'drink',
+    icon: 'drink',
+    carried: false,
+    instant: true,
+  },
   bathe: {
     offset: 0,
     facing: 1,
@@ -167,6 +177,10 @@ export const AFFORDS = {
   omelette: 'eat',
   soup: 'eat',
   egg_boiled: 'eat',
+
+  glass: 'drink',
+  mug: 'drink',
+  dog_bowl: 'drink',
 };
 
 /** The action an item offers, or null if it is only furniture. */
@@ -182,6 +196,8 @@ export function canUse(item) {
   // An empty plate is not something to offer anybody.
   // Raw food is not offered to anybody: cooking it is the point.
   if (ACTIONS[action].instant && isFood(item)) return isEdible(item);
+  // An empty glass is not a drink. It stays where it is, ready to be filled.
+  if (action === 'drink') return sipsLeft(item) > 0;
   return true;
 }
 
@@ -195,6 +211,15 @@ export function canUse(item) {
 export function actOnce(character, item, now = 0) {
   const action = useFor(item?.item);
   if (!action || !ACTIONS[action].instant) return false;
+  if (action === 'drink') {
+    if (sipsLeft(item) <= 0) return false;
+    // Noted before the sip, because the last one empties the glass and the
+    // splash would otherwise come out the colour of crumbs.
+    const drink = holds(item);
+    sipFrom(item);
+    character.eating = { uid: item.uid, until: now + CHEW_TIME, drink };
+    return sipsLeft(item) <= 0;
+  }
   if (!isFood(item) || !hasFoodLeft(item)) return false;
   biteFrom(item);
   /*

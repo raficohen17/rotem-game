@@ -8,6 +8,7 @@
  */
 
 import { drawItem, drawItemArt } from './catalog.js';
+import { holds, drinkColor } from '../model/drink.js';
 import { drawBookOpen, drawBookFlat } from './book.js';
 import {
   resolveUse, carriedItems, isOn, switchFor, isEating, CHEW_TIME,
@@ -463,7 +464,7 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
       if (def) drawItem(ctx, entry.placed, def);
       if (def && isOn(entry.placed)) drawSwitchedOn(ctx, entry.placed, def, time);
       const biter = eatenBy.get(entry.placed.uid);
-      if (def && biter) drawBiting(ctx, entry.placed, def, time, biter.eating.until);
+      if (def && biter) drawBiting(ctx, entry.placed, def, time, biter.eating.until, biter.eating.drink);
     } else {
       const doing = resolveUse(entry.placed, room.items);
       const host = doing ? catalog.get(doing.item.item) : null;
@@ -714,18 +715,23 @@ function drawSwitchedOn(ctx, placed, def, time) {
 }
 
 /**
- * The moment of eating: crumbs, over the food itself.
+ * The moment of eating or drinking, over the thing itself.
  *
  * Drawn where the food is, at the size the food is. Lifting it into her hands
  * at a smaller scale to show her holding it made the cake appear to shrink and
  * then grow back again when she finished, and a size that changes is read as
  * the amount of cake — so it said the opposite of what happened.
+ *
+ * A sip throws drops the colour of the drink rather than crumbs, because
+ * crumbs off a glass of milk say the wrong thing about what just happened.
  */
-function drawBiting(ctx, food, def, time, until) {
+function drawBiting(ctx, food, def, time, until, drinking = null) {
   const left = until - time;
   const swing = Math.sin(Math.max(0, Math.min(1, 1 - left / CHEW_TIME)) * Math.PI);
   if (swing <= 0) return;
 
+  const drink = drinking ?? holds(food);
+  const color = drink ? drinkColor(drink) : '#e2d3b6';
   const h = (food.h ?? def.h) * food.scale;
   ctx.save();
   ctx.globalAlpha = 0.8 * swing;
@@ -734,7 +740,7 @@ function drawBiting(ctx, food, def, time, until) {
     const spread = 14 + swing * 22;
     fillCircle(ctx, food.x + Math.cos(a) * spread,
       food.y - h * 0.6 + Math.sin(a) * spread * 0.6 + swing * 14,
-      2.6 - i * 0.2, '#e2d3b6');
+      2.6 - i * 0.2, color);
   }
   ctx.restore();
 }

@@ -38,7 +38,12 @@ export function stubCatalog() {
     categories: raw.categories,
     items: [...byId.values()],
     get: (id) => byId.get(id),
-    inCategory: (categoryId) => [...byId.values()].filter((i) => i.cat === categoryId),
+    // The same filter the real catalog applies. Without it the harness drew a
+    // drawer the game never shows — with the cooked dishes in it — and
+    // reported an overflow that could not happen, while hiding whether the
+    // real drawer fits.
+    inCategory: (categoryId) => [...byId.values()]
+      .filter((i) => i.cat === categoryId && !i.made),
   };
 }
 
@@ -73,6 +78,18 @@ export function stubWorld(name = 'House 1') {
     egg.inside = pan.uid;
     pan.cooked = 5;
     room.items.push(stove, pan, egg);
+
+    // A part-eaten meal and a part-drunk glass, because a level is exactly the
+    // kind of state that has shipped twice looking untouched.
+    const plate = placeItem('cake', 200, 470);
+    plate.left = 2;
+    const cup = placeItem('glass', 250, 470);
+    cup.holds = 'milk';
+    cup.sips = 2;
+    const bowl = placeItem('dog_bowl', 380, 470);
+    bowl.holds = 'milk';
+    bowl.sips = 1;
+    room.items.push(plate, cup, bowl, placeItem('milk', 150, 470));
 
     // And a fridge with something shut inside it.
     const fridge = placeItem('fridge', 1050, 470);
