@@ -33,6 +33,8 @@ import {
 import { createBook } from '../model/book.js';
 import { createCharacterCreator } from './charcreator.js';
 import { createCatCreator } from './catcreator.js';
+import { createRuleBook } from './rulebook.js';
+import { drawIcon } from '../ui/icons.js';
 import { drawCat } from '../render/cat.js';
 import { createCatSpec } from '../model/cat.js';
 import {
@@ -442,9 +444,19 @@ export function createRoomScene(game, roomId) {
       return controls;
     }
 
-    return catalog.inCategory(tab).map((def, i) => button(
-      `item:${def.id}`, CELL.x + i * CELL.step, CELL.y, CELL.w, CELL.h, { def },
-    ));
+    // The recipe book sits at the front of the kitchen drawer, where the
+    // things it is about are. Nothing else in the house tells her that an egg
+    // goes in a pan.
+    const first = tab === 'kitchen'
+      ? [button('recipes', CELL.x, CELL.y, CELL.w, CELL.h, { recipes: true })]
+      : [];
+    return [
+      ...first,
+      ...catalog.inCategory(tab).map((def, i) => button(
+        `item:${def.id}`, CELL.x + (i + first.length) * CELL.step, CELL.y,
+        CELL.w, CELL.h, { def },
+      )),
+    ];
   }
 
   /**
@@ -527,6 +539,9 @@ export function createRoomScene(game, roomId) {
       case 'drawer': open = !open; return true;
       case 'addPerson': openCreator(null); return true;
       case 'addCat': openCatCreator(); return true;
+      case 'recipes':
+        game.setScene(createRuleBook(game, () => game.setScene(createRoomScene(game, roomId))));
+        return true;
       case 'edit': openCreator(selected); return true;
       case 'use': {
         const item = nearestUsable(selected);
@@ -751,6 +766,12 @@ function drawDrawer(ctx, tabControls, contents, tab, time, floorColor) {
       fillCircle(ctx, control.x + control.w / 2, control.y + control.h / 2, 26,
         COLORS.buttonActive);
       drawPlus(ctx, control.x + control.w / 2, control.y + control.h / 2);
+    } else if (control.recipes) {
+      fillRR(ctx, control.x, control.y, control.w, control.h, 12, '#413945');
+      drawIcon(ctx, 'cook', control.x + control.w / 2, control.y + control.h / 2 - 8,
+        COLORS.buttonActive, 1.15);
+      drawIcon(ctx, 'book', control.x + control.w / 2 + 22, control.y + control.h / 2 + 22,
+        COLORS.ink, 0.6);
     } else if (control.addCat) {
       // A cat with a plus on it, so the two "add" cells are told apart by what
       // they add rather than by their position in the row.

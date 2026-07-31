@@ -20,6 +20,7 @@ import { createRoomScene } from '../js/scenes/room.js';
 import { createCharacterCreator } from '../js/scenes/charcreator.js';
 import { createBookDesigner } from '../js/scenes/bookdesigner.js';
 import { createCatCreator } from '../js/scenes/catcreator.js';
+import { createRuleBook } from '../js/scenes/rulebook.js';
 
 /**
  * Every scene, in the states it is actually seen in.
@@ -105,6 +106,8 @@ function scenes() {
       return scene;
     });
   });
+  add('the recipe book', () => createRuleBook(stubGame(), () => {}));
+
   add('the cat designer', () => createCatCreator(stubGame(), () => {}, () => {}));
   ['looks', ...CAT_PARTS.map((p) => p.key)].forEach((key, index) => {
     add(`the cat designer's ${key} tab`, () => {

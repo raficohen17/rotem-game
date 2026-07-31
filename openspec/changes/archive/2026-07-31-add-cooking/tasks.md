@@ -26,10 +26,10 @@
 
 ## 4. The rule book
 
-- [ ] 4.1 `js/scenes/rulebook.js` — every recipe as pictures
-- [ ] 4.2 Built from the recipe table, so a new recipe needs no edit here
-- [ ] 4.3 Reached from the kitchen drawer
-- [ ] 4.4 Under the scene harness: on screen, hittable, legible
+- [x] 4.1 `js/scenes/rulebook.js` — every recipe as pictures
+- [x] 4.2 Built from the recipe table, so a new recipe needs no edit here
+- [x] 4.3 Reached from the kitchen drawer
+- [x] 4.4 Under the scene harness: on screen, hittable, legible
 
 ## 5. A stocked fridge
 
@@ -42,5 +42,5 @@
 
 - [x] 6.1 `npm test`
 - [x] 6.2 Cook an omelette end to end in the running game at 915x412
-- [ ] 6.3 Screenshots: a stocked fridge, a pan cooking, the rule book
-- [ ] 6.4 Bump both versions, commit, merge, push
+- [x] 6.3 Screenshots: a stocked fridge, a pan cooking, the rule book
+- [x] 6.4 Bump both versions, commit, merge, push

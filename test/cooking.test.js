@@ -16,6 +16,7 @@ import { canUse } from '../js/model/using.js';
 import { catEats } from '../js/model/food.js';
 import { placeItem } from '../js/model/world.js';
 import { PLACEHOLDERS } from '../js/render/placeholders.js';
+import { cardGrid } from '../js/scenes/rulebook.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const catalog = JSON.parse(readFileSync(join(ROOT, 'assets/catalog.json'), 'utf8'));
@@ -269,4 +270,34 @@ test('shelves are handed out without doubling up', () => {
   }
   const used = items.filter((i) => i.inside).map((i) => i.shelf);
   assert.equal(new Set(used).size, SHELVES, `each of ${SHELVES} shelves used once`);
+});
+
+/* ------------------------------------------------------------- the book */
+
+test('the book has a card for every recipe, and nothing hand-written', () => {
+  // Built from the table, so a recipe added to the game appears without the
+  // book being touched — which is the difference between a book that stays
+  // true and one that quietly goes stale.
+  const source = readFileSync(join(ROOT, 'js/scenes/rulebook.js'), 'utf8');
+  assert.match(source, /RECIPES\.forEach/, 'it walks the recipes');
+  assert.match(source, /cardGrid\(RECIPES\.length\)/, 'and sizes itself to how many there are');
+  for (const r of RECIPES) {
+    assert.equal(source.includes(`'${r.makes}'`), false,
+      `${r.makes} is not named in the book by hand`);
+  }
+});
+
+test('every recipe card fits on the screen', () => {
+  for (const count of [1, 2, 4, 6, 8]) {
+    const grid = cardGrid(count);
+    const last = grid.at(count - 1);
+    assert.ok(last.x + grid.w <= 1280, `${count} recipes: the last card ends on screen`);
+    assert.ok(last.y + grid.h <= 720, `${count} recipes: and above the bottom`);
+  }
+});
+
+test('the book needs no reading', () => {
+  // The game has never required reading and does not start here.
+  const source = readFileSync(join(ROOT, 'js/scenes/rulebook.js'), 'utf8');
+  assert.equal(/fillText|strokeText/.test(source), false, 'not a word in it');
 });

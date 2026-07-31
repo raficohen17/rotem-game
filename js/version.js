@@ -7,4 +7,4 @@
  * `CACHE_VERSION` in sw.js must match — a test enforces that, because the two
  * drifting apart is exactly how a stale build hides.
  */
-export const VERSION = 'v49';
+export const VERSION = 'v50';
