@@ -458,7 +458,8 @@
         "#a8443f",
         "#8f3a36",
         "#c25a4e"
-      ]
+      ],
+      "made": true
     },
     {
       "id": "egg",
@@ -488,7 +489,8 @@
       "colors": [
         "#f0c86a",
         "#e8b950"
-      ]
+      ],
+      "made": true
     },
     {
       "id": "veg",
@@ -508,7 +510,8 @@
       "colors": [
         "#d98242",
         "#c9723a"
-      ]
+      ],
+      "made": true
     },
     {
       "id": "egg_boiled",
@@ -518,7 +521,8 @@
       "colors": [
         "#f6f1e8",
         "#f0e6d2"
-      ]
+      ],
+      "made": true
     },
     {
       "id": "balloons",

@@ -119,31 +119,92 @@ export function panSpot(host, hostDef) {
   return { x: host.x, y: host.y - h * 0.62 };
 }
 
-export function shelfSpot(host, hostDef) {
+export const SHELVES = 3;
+
+/**
+ * Where on the shelves something sits.
+ *
+ * One position for everything put three things in a fridge and drew one, so
+ * each thing gets its own shelf and they are all visible when the door opens —
+ * which is the entire reason a stocked fridge is worth having.
+ */
+export function shelfSpot(host, hostDef, slot = 0) {
   const w = (host.w ?? hostDef.w) * (host.scale ?? 1);
   const h = (host.h ?? hostDef.h) * (host.scale ?? 1);
+  const shelf = ((slot % SHELVES) + SHELVES) % SHELVES;
   return {
     x: host.x - w * 0.02,
-    y: host.y - h * 0.48,
+    y: host.y - h * (0.72 - shelf * 0.22),
   };
 }
 
-/** Puts food away, moving it onto the shelf so it is drawn where it is. */
-export function putInside(item, host, hostDef) {
-  const spot = shelfSpot(host, hostDef);
+/** Puts food away, moving it onto a shelf so it is drawn where it is. */
+export function putInside(item, host, hostDef, slot = 0) {
+  const spot = shelfSpot(host, hostDef, slot);
   item.x = spot.x;
   item.y = spot.y;
   item.inside = host.uid;
+  item.shelf = ((slot % SHELVES) + SHELVES) % SHELVES;
   return item;
 }
 
 /** Takes it back out. Where it lands is the caller's business. */
 export function takeOut(item) {
   delete item.inside;
+  delete item.shelf;
   return item;
+}
+
+/** The first shelf nothing is already standing on. */
+export function freeShelf(host, items) {
+  const taken = new Set(items.filter((i) => i.inside === host.uid).map((i) => i.shelf ?? 0));
+  for (let i = 0; i < SHELVES; i += 1) if (!taken.has(i)) return i;
+  return items.filter((i) => i.inside === host.uid).length % SHELVES;
 }
 
 /** Whether this is shut away rather than out where anyone can get at it. */
 export function isPutAway(item) {
   return Boolean(item?.inside);
+}
+
+/* ------------------------------------------------------- a stocked fridge */
+
+/**
+ * What a new fridge arrives with.
+ *
+ * An empty fridge is a cupboard. Stocked, opening one is a small discovery and
+ * a reason to cook — which is where cooking has to start, because a child does
+ * not go looking for a recipe she has no ingredients for.
+ *
+ * Only ingredients, never a finished meal: finding an omelette in the fridge
+ * would make cooking one pointless in exactly the way taking one from the
+ * drawer did.
+ */
+export const FRIDGE_STOCK = ['egg', 'veg', 'steak_raw', 'cake'];
+
+/** How many things a new fridge holds. */
+export const STOCK_MIN = 2;
+export const STOCK_MAX = 3;
+
+/**
+ * Chooses what is in a new fridge.
+ *
+ * Returns ids rather than items, so the caller owns how they are made and
+ * where they are put — this stays pure and testable.
+ */
+export function stockList(random = Math.random) {
+  const count = STOCK_MIN + Math.floor(random() * (STOCK_MAX - STOCK_MIN + 1));
+  const choices = [];
+  const pool = [...FRIDGE_STOCK];
+  for (let i = 0; i < count && pool.length; i += 1) {
+    const at = Math.min(pool.length - 1, Math.floor(random() * pool.length));
+    choices.push(pool[at]);
+    pool.splice(at, 1);
+  }
+  return choices;
+}
+
+/** Whether this is something a fridge would arrive holding. */
+export function isStockable(itemId) {
+  return FRIDGE_STOCK.includes(itemId);
 }

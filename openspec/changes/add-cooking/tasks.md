@@ -33,10 +33,10 @@
 
 ## 5. A stocked fridge
 
-- [ ] 5.1 A new fridge arrives with a few random things in it
-- [ ] 5.2 Only food and ingredients, never furniture
-- [ ] 5.3 Stocked once, on placing — never restocked on load
-- [ ] 5.4 Test: two fridges do not hold the same things
+- [x] 5.1 A new fridge arrives with a few random things in it
+- [x] 5.2 Only food and ingredients, never furniture
+- [x] 5.3 Stocked once, on placing — never restocked on load
+- [x] 5.4 Test: two fridges do not hold the same things
 
 ## 6. Checks
 

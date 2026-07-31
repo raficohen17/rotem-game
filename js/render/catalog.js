@@ -62,8 +62,16 @@ export async function loadCatalog() {
     categories: data.categories,
     items: [...byId.values()],
     get: (id) => byId.get(id),
-    /** Items in one drawer tab, in catalog order. */
-    inCategory: (categoryId) => [...byId.values()].filter((i) => i.cat === categoryId),
+    /**
+     * Items in one drawer tab, in catalog order.
+     *
+     * Anything a recipe makes is left out. With an omelette sitting in the
+     * drawer next to the egg, cooking one was strictly worse than taking one —
+     * the drawer was a cupboard that already held every meal, and the whole
+     * activity had no reason to exist.
+     */
+    inCategory: (categoryId) => [...byId.values()]
+      .filter((i) => i.cat === categoryId && !i.made),
   };
 }
 

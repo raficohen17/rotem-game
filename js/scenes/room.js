@@ -35,7 +35,9 @@ import { createCharacterCreator } from './charcreator.js';
 import { createCatCreator } from './catcreator.js';
 import { drawCat } from '../render/cat.js';
 import { createCatSpec } from '../model/cat.js';
-import { isFood, putInside, takeOut, isPutAway, panSpot } from '../model/food.js';
+import {
+  isFood, putInside, takeOut, isPutAway, panSpot, stockList, freeShelf,
+} from '../model/food.js';
 import { utensils, clearProgress } from '../model/recipes.js';
 import { createBookDesigner } from './bookdesigner.js';
 import { createHouse } from './house.js';
@@ -194,7 +196,7 @@ export function createRoomScene(game, roomId) {
     for (const item of room.items) {
       if (item.inside !== host.uid) continue;
       if (pan) putInPan(item, host, def);
-      else putInside(item, host, def);
+      else putInside(item, host, def, item.shelf ?? 0);
     }
   }
 
@@ -205,6 +207,17 @@ export function createRoomScene(game, roomId) {
     item.x = spot.x;
     item.y = spot.y;
     item.inside = vessel.uid;
+  }
+
+  /** Fills a newly placed fridge with a few things. */
+  function stockFridge(fridge) {
+    const def = catalog.get(fridge.item);
+    if (!def) return;
+    stockList().forEach((id, shelf) => {
+      const food = placeItem(id, fridge.x, fridge.y);
+      putInside(food, fridge, def, shelf);
+      room.items.push(food);
+    });
   }
 
   /** A utensil under this point, if there is one. */
@@ -220,6 +233,11 @@ export function createRoomScene(game, roomId) {
   /** Whatever a put-away item is inside, if it is still there. */
   function hostOf(item) {
     return room.items.find((entry) => entry.uid === item.inside) ?? null;
+  }
+
+  /** A container with a door on it, and the door closed. */
+  function isShut(host) {
+    return Boolean(host) && switchFor(host.item) === 'open' && !isOn(host);
   }
 
   /**
@@ -287,8 +305,10 @@ export function createRoomScene(game, roomId) {
     for (let i = entries.length - 1; i >= 0; i -= 1) {
       const entry = entries[i];
       if (entry.kind !== 'item') continue;
-      // Behind a closed door there is nothing to grab.
-      if (isPutAway(entry.placed) && !isOn(hostOf(entry.placed))) continue;
+      // Behind a closed door there is nothing to grab — but only a thing with
+      // a door counts. A pan has none, and the rule shut the omelette inside
+      // it for good.
+      if (isPutAway(entry.placed) && isShut(hostOf(entry.placed))) continue;
       const def = catalog.get(entry.placed.item);
       if (def && boundsContain(itemBounds(entry.placed, def), rx, ry)) return entry.placed;
     }
@@ -612,10 +632,15 @@ export function createRoomScene(game, roomId) {
           // place rather than a decoration.
           const larder = openFridgeAt(p.x, p.y);
           const vessel = utensilAt(p.x, p.y);
-          if (larder && isFood(entry)) putInside(entry, larder, catalog.get(larder.item));
+          if (larder && isFood(entry)) {
+            putInside(entry, larder, catalog.get(larder.item), freeShelf(larder, room.items));
+          }
           else if (vessel && isFood(entry)) putInPan(entry, vessel);
           else settle(entry, p.x, p.y);
           room.items.push(entry);
+          // A new fridge comes with something in it. An empty one is a
+          // cupboard, and gives her no reason to cook.
+          if (switchFor(entry.item) === 'open') stockFridge(entry);
           selected = entry;
           game.persist();
         }
@@ -628,7 +653,9 @@ export function createRoomScene(game, roomId) {
           const p = toRoom(x, y);
           const larder = openFridgeAt(p.x, p.y);
           const vessel = utensilAt(p.x, p.y);
-          if (larder) putInside(moved, larder, catalog.get(larder.item));
+          if (larder) {
+            putInside(moved, larder, catalog.get(larder.item), freeShelf(larder, room.items));
+          }
           else if (vessel) putInPan(moved, vessel);
           else if (isPutAway(moved)) {
             // Out of the pan it was in, so whatever it had cooked so far stops.

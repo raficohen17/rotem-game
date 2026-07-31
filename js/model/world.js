@@ -282,6 +282,7 @@ function repairItem(entry) {
     ...(Number.isInteger(entry.left) && entry.left >= 0 ? { left: entry.left } : {}),
     // Shut in the fridge. The first thing in the game that is inside another.
     ...(typeof entry.inside === 'string' ? { inside: entry.inside } : {}),
+    ...(Number.isInteger(entry.shelf) ? { shelf: entry.shelf } : {}),
   };
 }
 

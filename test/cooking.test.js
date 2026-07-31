@@ -8,7 +8,10 @@ import {
   RECIPES, HEAT_SOURCE, recipeFor, recipesIn, utensils, ingredients,
   isOverHeat, cookOn, cookingProgress, clearProgress,
 } from '../js/model/recipes.js';
-import { isRaw, isEdible, isFood, panSpot } from '../js/model/food.js';
+import {
+  isRaw, isEdible, isFood, panSpot, stockList, FRIDGE_STOCK, STOCK_MIN, STOCK_MAX,
+  shelfSpot, putInside, freeShelf, SHELVES,
+} from '../js/model/food.js';
 import { canUse } from '../js/model/using.js';
 import { catEats } from '../js/model/food.js';
 import { placeItem } from '../js/model/world.js';
@@ -180,4 +183,90 @@ test('every utensil can be used for something', () => {
   for (const id of utensils()) {
     assert.ok(recipesIn(id).length > 0, `${id} makes something`);
   }
+});
+
+test('what is in a pan can be taken out of it', () => {
+  // A pan has no door, but the rule that stops her reaching through a closed
+  // fridge treated anything not switched on as shut — so a finished omelette
+  // was stuck in the pan for good, which is the one place it must not be.
+  const source = readFileSync(join(ROOT, 'js/scenes/room.js'), 'utf8');
+  assert.match(source, /function isShut\(host\)/, 'being shut is asked about explicitly');
+  assert.match(source, /switchFor\(host\.item\) === 'open' && !isOn\(host\)/,
+    'and only a thing with a door can be shut');
+  assert.equal(/isPutAway\(entry\.placed\) && !isOn\(/.test(source), false,
+    'the old rule that caught pans is gone');
+});
+
+/* ---------------------------------------------------- a fridge worth opening */
+
+test('a new fridge arrives with a few things in it', () => {
+  // An empty fridge is a cupboard, and gives no reason to cook.
+  const list = stockList(() => 0.5);
+  assert.ok(list.length >= STOCK_MIN && list.length <= STOCK_MAX, `${list.length} things`);
+});
+
+test('two fridges do not hold the same things', () => {
+  const seen = new Set();
+  for (let i = 0; i < 40; i += 1) seen.add(stockList().join(','));
+  assert.ok(seen.size > 1, 'they vary');
+});
+
+test('a fridge never holds the same thing twice', () => {
+  for (let i = 0; i < 40; i += 1) {
+    const list = stockList();
+    assert.equal(new Set(list).size, list.length, `${list} has no duplicates`);
+  }
+});
+
+test('a fridge holds ingredients, never a finished meal', () => {
+  // Finding an omelette in the fridge would make cooking one pointless in
+  // exactly the way taking one from the drawer did.
+  const made = new Set(RECIPES.map((r) => r.makes));
+  for (const id of FRIDGE_STOCK) {
+    assert.equal(made.has(id), false, `${id} is not something you cook`);
+    assert.ok(isFood(placeItem(id, 0, 0)), `${id} is food`);
+  }
+});
+
+/* ------------------------------------------ cooking has to be worth doing */
+
+test('nothing a recipe makes can be taken from a drawer', () => {
+  // With an omelette in the drawer beside the egg, cooking one was strictly
+  // worse than taking one, and the whole activity had no reason to exist.
+  for (const r of RECIPES) {
+    assert.equal(lookup(r.makes).made, true, `${r.makes} is only made by cooking`);
+  }
+});
+
+test('everything a recipe needs can be taken from a drawer', () => {
+  // The other half of the same rule: she has to be able to get the ingredients.
+  for (const r of RECIPES) {
+    assert.notEqual(lookup(r.needs).made, true, `${r.needs} can be found`);
+    assert.notEqual(lookup(r.in).made, true, `${r.in} can be found`);
+  }
+});
+
+test('a fridge with three things in it shows three things', () => {
+  // One shelf position for everything put three things in and drew one, which
+  // takes the point out of stocking it at all.
+  const fridge = placeItem('fridge', 640, 470);
+  const def = lookup('fridge');
+  const spots = [0, 1, 2].map((slot) => shelfSpot(fridge, def, slot).y);
+  assert.equal(new Set(spots).size, 3, 'three different shelves');
+  for (const y of spots) {
+    assert.ok(y < fridge.y && y > fridge.y - def.h, `${y} is inside the fridge`);
+  }
+});
+
+test('shelves are handed out without doubling up', () => {
+  const fridge = placeItem('fridge', 640, 470);
+  const def = lookup('fridge');
+  const items = [fridge];
+  for (let i = 0; i < SHELVES; i += 1) {
+    const food = placeItem('egg', 0, 0);
+    putInside(food, fridge, def, freeShelf(fridge, items));
+    items.push(food);
+  }
+  const used = items.filter((i) => i.inside).map((i) => i.shelf);
+  assert.equal(new Set(used).size, SHELVES, `each of ${SHELVES} shelves used once`);
 });
