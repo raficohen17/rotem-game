@@ -12,7 +12,8 @@ import {
 import {
   POURABLE, VESSELS, canPour, pourInto, sipFrom, sipsLeft,
 } from '../js/model/drink.js';
-import { SWITCHED, switchFor } from '../js/model/using.js';
+import { SWITCHED, switchFor, toggleSwitch } from '../js/model/using.js';
+import { cookOn } from '../js/model/recipes.js';
 import { createWorld, repairWorld, placeItem, placeCharacter, placeCat } from '../js/model/world.js';
 import { createCharacterSpec } from '../js/model/character.js';
 import { createCatSpec } from '../js/model/cat.js';
@@ -227,4 +228,58 @@ test('the stub catalog shows what the real one shows', () => {
   const filter = /i\.cat === categoryId && !i\.made/;
   assert.match(real, filter, 'the real catalog hides what is only made');
   assert.match(stub, filter, 'and so does the stub');
+});
+
+/**
+ * The generic version of the rule that keeps catching us out.
+ *
+ * Every stateful field has had to be named in repairItem by somebody
+ * remembering: what a lamp was doing, what was left of a cake, what was in a
+ * glass. Each was found by playing, not by a test. So rather than listing the
+ * fields again here, this plays the game — pours, cooks, puts food away,
+ * takes a bite, turns things on — and demands that everything it wrote is
+ * still there afterwards.
+ *
+ * The exceptions are absolute times: a moment measured against a clock that
+ * restarts at zero is a debt the next session pays off. An accumulated amount,
+ * like how long something has been in the pan, is not a moment and does keep.
+ */
+const MOMENTS = new Set(['eating', 'dueAt', 'walk']);
+
+test('everything the game writes onto the world survives a save', () => {
+  const world = createWorld('House 1');
+  const room = world.rooms.kitchen;
+
+  const lamp = placeItem('lamp_table', 200, 470);
+  toggleSwitch(lamp);
+
+  const fridge = placeItem('fridge', 1050, 470);
+  toggleSwitch(fridge);
+  const cake = placeItem('cake', 1050, 470);
+  putInside(cake, fridge, lookup('fridge'), 1);
+  biteFrom(cake);
+
+  const stove = placeItem('stove', 900, 470);
+  toggleSwitch(stove);
+  const pan = placeItem('pan', 900, 300);
+  const egg = placeItem('egg', 900, 280);
+  egg.inside = pan.uid;
+  cookOn(pan, egg, 4, true);
+
+  const cup = placeItem('glass', 300, 470);
+  pourInto(placeItem('milk', 250, 470), cup);
+  sipFrom(cup);
+
+  room.items.push(lamp, fridge, cake, stove, pan, egg, cup);
+
+  const back = repairWorld(JSON.parse(JSON.stringify(world)));
+  const saved = new Map(back.rooms.kitchen.items.map((i) => [i.uid, i]));
+  for (const item of room.items) {
+    const after = saved.get(item.uid);
+    assert.ok(after, `${item.item} is still there`);
+    for (const [field, value] of Object.entries(item)) {
+      if (MOMENTS.has(field)) continue;
+      assert.deepEqual(after[field], value, `${item.item}.${field} was kept`);
+    }
+  }
 });

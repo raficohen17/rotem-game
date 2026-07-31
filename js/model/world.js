@@ -287,6 +287,10 @@ function repairItem(entry) {
     // which is the lesson every stateful field in this game has had to learn.
     ...(Number.isInteger(entry.sips) && entry.sips >= 0 ? { sips: entry.sips } : {}),
     ...(typeof entry.holds === 'string' ? { holds: entry.holds } : {}),
+    // How long something has been in the pan. Not a moment on a clock that
+    // restarts at zero but an amount already spent, so it keeps: an omelette
+    // half made when she closed the game is half made when she opens it.
+    ...(Number.isFinite(entry.cooked) && entry.cooked >= 0 ? { cooked: entry.cooked } : {}),
   };
 }
 
