@@ -22,7 +22,9 @@
  * single save file.
  */
 
-import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, paperLayer } from './shapes.js';
+import {
+  fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, paperLayer, detailLayer,
+} from './shapes.js';
 import { litFill } from './materials.js';
 import {
   SKIN_TONES, HAIR_COLORS, CLOTH_COLORS, LIP_COLORS, EYE_COLORS, FACE_SHAPES,
@@ -224,15 +226,15 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
 
   // Each group is its own sheet of paper, so the character reads as a stack of
   // cut shapes rather than as one flat sticker.
-  paperLayer(ctx, () => onHead(() => drawBackHair(ctx, spec.hair, hairColor)), 0.8);
-  paperLayer(ctx, () => {
+  detailLayer(ctx, () => onHead(() => drawBackHair(ctx, spec.hair, hairColor)));
+  detailLayer(ctx, () => {
     drawLegs(ctx, skin, stride);
     drawSocks(ctx, spec.socks, CLOTH_COLORS[spec.socksColor], stride);
     drawShoes(ctx, spec.shoes, CLOTH_COLORS[spec.shoesColor], stride);
-  }, 0.7);
+  });
 
   // Arms sit behind the body so the wide head and torso stay unbroken.
-  paperLayer(ctx, () => drawArms(ctx, skin, sway), 0.7);
+  detailLayer(ctx, () => drawArms(ctx, skin, sway));
   paperLayer(ctx, () => {
     drawNeck(ctx, skin);
     drawTorso(ctx, skin);
@@ -250,10 +252,10 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   // The layer always goes over the top, whatever either of them is. Fixing
   // the order rather than making it a choice is what keeps an outfit
   // coherent — a cardigan under a dress is never what anyone meant.
-  paperLayer(ctx, () => drawLayer(ctx, spec.layer, CLOTH_COLORS[spec.layerColor], sway));
+  detailLayer(ctx, () => drawLayer(ctx, spec.layer, CLOTH_COLORS[spec.layerColor], sway));
 
-  paperLayer(ctx, () => drawHands(ctx, skin, sway), 0.6);
-  paperLayer(ctx, () => drawHeld(ctx, spec.held, sway), 0.5);
+  detailLayer(ctx, () => drawHands(ctx, skin, sway));
+  detailLayer(ctx, () => drawHeld(ctx, spec.held, sway));
   onHead(() => drawHead(ctx, skin, spec, shape, hairColor, blinking));
 
   ctx.restore();
@@ -432,9 +434,9 @@ function drawHead(ctx, skin, spec, shape, hairColor, blinking) {
   drawNose(ctx, spec.nose, place, skin);
   drawMouth(ctx, spec.mouth, LIP_COLORS[spec.mouthColor], place);
 
-  paperLayer(ctx, () => drawFrontHair(ctx, spec.hair, hairColor, shape), 0.7);
-  paperLayer(ctx, () => drawHairpin(ctx, spec.hairpin, CLOTH_COLORS[spec.hairpinColor], shape), 0.6);
-  paperLayer(ctx, () => drawExtra(ctx, spec.extra, CLOTH_COLORS[spec.extraColor]), 0.7);
+  detailLayer(ctx, () => drawFrontHair(ctx, spec.hair, hairColor, shape));
+  detailLayer(ctx, () => drawHairpin(ctx, spec.hairpin, CLOTH_COLORS[spec.hairpinColor], shape));
+  detailLayer(ctx, () => drawExtra(ctx, spec.extra, CLOTH_COLORS[spec.extraColor]));
 }
 
 // ------------------------------------------------------------------- face

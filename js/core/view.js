@@ -19,9 +19,16 @@ export class View {
   }
 
   resize() {
-    // Capped at 2 — a Pixel reports ~2.6, and the extra pixels cost fill rate
-    // for no visible gain on flat vector art.
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    /*
+     * Capped at 1.5.
+     *
+     * A Pixel reports about 2.6. It was capped at 2, which is four times the
+     * pixels of 1 and measured about 28% of the cost of drawing a room and the
+     * cutaway — spent on flat vector art with no fine detail to resolve. At 1.5
+     * the edges are still smooth on a screen held at arm's length, and the
+     * phone does two thirds of the work.
+     */
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const cssW = window.innerWidth;
     const cssH = window.innerHeight;
 

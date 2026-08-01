@@ -103,22 +103,29 @@ function time(fn, runs = 30, batch = 4, flush = null) {
     if (flush) flush();
     taken.push((performance.now() - start) / batch);
   }
-  taken.sort((a, b) => a - b);
-  return taken[Math.floor(taken.length / 2)];
+  /*
+   * The fastest run, not the middle one.
+   *
+   * Everything else on the machine only ever adds time, so the median moves
+   * around with whatever else is running — two runs of the same code came out
+   * 17ms and 49ms. The lowest is the closest thing to what the work actually
+   * costs, and it is stable enough to compare two versions with.
+   */
+  return Math.min(...taken);
 }
 
-export async function runBench({ runs = 30, quiet = false } = {}) {
+export async function runBench({ runs = 30, quiet = false, dpr = null } = {}) {
   const catalog = await loadCatalog();
   const world = heavyWorld(catalog);
   const game = benchGame(catalog, world);
 
   // A canvas the size the phone really draws, at the same pixel ratio.
   const canvas = document.createElement('canvas');
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(915 * dpr);
-  canvas.height = Math.round(412 * dpr);
+  const ratio = dpr ?? Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(915 * ratio);
+  canvas.height = Math.round(412 * ratio);
   const ctx = canvas.getContext('2d');
-  const scale = Math.min((915 * dpr) / 1280, (412 * dpr) / 720);
+  const scale = Math.min((915 * ratio) / 1280, (412 * ratio) / 720);
 
   const frame = (scene) => (i) => {
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
@@ -135,6 +142,23 @@ export async function runBench({ runs = 30, quiet = false } = {}) {
 
   // Reading one pixel back waits for everything queued before it.
   const flush = () => ctx.getImageData(0, 0, 1, 1);
+
+  /*
+   * A fixed piece of work to measure everything else against.
+   *
+   * The machine is never quiet twice: the same code measured 17ms and 49ms
+   * half a minute apart. Dividing by a workload that never changes turns the
+   * numbers into something two runs can be compared on.
+   */
+  const unit = time(() => {
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    for (let i = 0; i < 200; i += 1) {
+      ctx.fillStyle = i % 2 ? '#c96' : '#69c';
+      ctx.beginPath();
+      ctx.arc(40 + (i % 20) * 60, 40 + Math.floor(i / 20) * 60, 22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }, 12, 2, flush);
 
   const results = {
     'room draw': time(frame(room), runs, 4, flush),
@@ -158,8 +182,9 @@ export async function runBench({ runs = 30, quiet = false } = {}) {
   window.localStorage.removeItem('rotem.bench');
 
   const report = Object.entries(results)
-    .map(([name, ms]) => `${name.padEnd(24)} ${ms.toFixed(2)} ms`)
+    .map(([name, ms]) => `${name.padEnd(24)} ${ms.toFixed(2)} ms  (${(ms / unit).toFixed(1)} units)`)
     .join('\n');
+  results.unit = unit;
   if (!quiet) console.log(report);
   return { results, report, world };
 }

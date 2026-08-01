@@ -20,6 +20,7 @@ import { drawCat } from './cat.js';
 import { drawOrder } from '../model/geometry.js';
 import {
   shade, deepen, fillRR, fillEllipse, fillCircle, fillPoly, roundRect, strokeLine,
+  setPaperShadows, paperShadows, shadowsOn,
 } from './shapes.js';
 import { litFill } from './materials.js';
 import { partitionSide } from '../model/travel.js';
@@ -454,6 +455,16 @@ export function roomContents(room, characters, catalog, cats = []) {
  * @param {object|null} selected highlighted with a halo
  */
 export function drawRoomContents(ctx, room, characters, catalog, time, selected = null, cats = []) {
+  /*
+   * Whether each kind of thing is worth a soft shadow here.
+   *
+   * Never more than whoever called us allowed: the cutaway turns shadows off
+   * for everything it draws, and a room that turned them back on for its own
+   * furniture undid exactly the saving the cutaway was making.
+   */
+  const allowed = paperShadows();
+  const itemShadows = allowed && shadowsOn.items;
+  const peopleShadows = allowed && shadowsOn.people;
   const carried = carriedItems(characters);
   // Whoever is mid-mouthful, and what they are holding.
   const eatenBy = new Map();
@@ -475,6 +486,7 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
     if (entry.kind === 'item') {
       // Something in somebody's hands is drawn there, not here as well.
       if (carried.has(entry.placed.uid)) continue;
+      setPaperShadows(itemShadows);
       if (entry.placed.inside) {
         const host = room.items.find((i) => i.uid === entry.placed.inside);
         if (!host) continue;
@@ -505,6 +517,7 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
       const biter = eatenBy.get(entry.placed.uid);
       if (def && biter) drawBiting(ctx, entry.placed, def, time, biter.eating.until, biter.eating.drink);
     } else {
+      setPaperShadows(peopleShadows);
       const doing = resolveUse(entry.placed, room.items);
       const host = doing ? catalog.get(doing.item.item) : null;
       // Anchored to the object she is on, not to a constant: a stool and a
@@ -550,6 +563,7 @@ export function drawRoomContents(ctx, room, characters, catalog, time, selected 
       if (doing?.action === 'bathe') drawBathWater(ctx, doing.item, host, time);
     }
   }
+  setPaperShadows(allowed);
 }
 
 /**
@@ -948,6 +962,8 @@ function drawSelectionHalo(ctx, entry, catalog) {
  * @param {string[]} roomIds in cutaway order: top-left, top-right, then below
  */
 export function renderHouseThumbnail(world, roomIds, catalog, width = 240, buildingId = null) {
+  // A house at a tenth of its size: nothing about a soft shadow survives that.
+  setPaperShadows(false);
   const building = world.buildings?.find((b) => b.id === buildingId) ?? world.buildings?.[0];
   if (!building) return null;
   const cellW = width / 2;
@@ -972,5 +988,6 @@ export function renderHouseThumbnail(world, roomIds, catalog, width = 240, build
     ctx.restore();
   });
 
+  setPaperShadows(true);
   return canvas.toDataURL('image/jpeg', 0.68);
 }

@@ -15,7 +15,54 @@
  * in a cut-paper world a scanned drawing reads as belonging rather than as a
  * patch.
  */
+/**
+ * Whether the paper shadow is worth drawing at the size we are drawing at.
+ *
+ * A blurred shadow is the most expensive thing a canvas does — measured at 38%
+ * of the cost of a whole room — and at a quarter size it is a two-pixel smudge
+ * nobody can see. The cutaway shows four rooms at 43%, and the menu shows a
+ * house at a tenth, so both turn it off around what they draw.
+ */
+let shadows = true;
+
+export function setPaperShadows(on) {
+  shadows = on;
+}
+
+/** Whether shadows are on right now, so a caller can put it back as it was. */
+export function paperShadows() {
+  return shadows;
+}
+
+/**
+ * Which kinds of thing are worth a shadow, for whoever draws a room.
+ *
+ * Furniture is flat against the wall and the floor and hardly shows one;
+ * a character is the thing being looked at, and the shadow is what lifts her
+ * off the furniture behind her.
+ */
+export const shadowsOn = { items: false, people: true, detail: false };
+
+/**
+ * Passes inside a character that do without their own shadow.
+ *
+ * A figure was drawn as eleven stacked sheets, each casting a soft shadow, and
+ * that shadow is three quarters of what a character costs: 2.66ms with, 0.70ms
+ * without. Dropping only the small ones — hands, a hairpin — saved nothing,
+ * because the cost is in how much is being shadowed rather than how many times
+ * it is set up.
+ *
+ * So the shadow stays where it does the work: behind her body and her clothes,
+ * which is what lifts her off the furniture. Her hair, arms, legs and the rest
+ * are drawn flat against her, which is where they are anyway.
+ */
+export function detailLayer(ctx, draw) {
+  if (!shadowsOn.detail) { draw(); return; }
+  paperLayer(ctx, draw, 0.6);
+}
+
 export function paperLayer(ctx, draw, lift = 1) {
+  if (!shadows) { draw(); return; }
   ctx.save();
   ctx.shadowColor = 'rgba(38, 28, 45, 0.26)';
   ctx.shadowBlur = 7 * lift;

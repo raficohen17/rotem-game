@@ -12,7 +12,7 @@
  */
 
 import { button, hitTest, drawButtons, drawTitle, COLORS, TOUCH } from '../ui/widgets.js';
-import { fillRR, fillCircle, shade } from '../render/shapes.js';
+import { fillRR, fillCircle, shade, setPaperShadows } from '../render/shapes.js';
 import { drawIcon } from '../ui/icons.js';
 import { drawFront, drawPlot } from '../render/building.js';
 import { drawCharacter, charHeight, CHAR_H, CHAR_W } from '../render/character.js';
@@ -182,6 +182,9 @@ export function createStreet(game) {
         drawIcon(ctx, 'plus', box.x + box.w / 2, box.y + box.h * 0.76, '#7d7078', 1.8);
       }
 
+      // People on the pavement are drawn at 46%, where the paper shadow is a
+      // smudge and costs more than everything else about them.
+      setPaperShadows(false);
       for (const person of game.charactersOutside()) {
         ctx.save();
         ctx.translate(ORIGIN_X + person.x, WALK_Y);
@@ -194,6 +197,8 @@ export function createStreet(game) {
         ctx.restore();
         if (person === traveller) drawPickedUp(ctx, person);
       }
+
+      setPaperShadows(true);
 
       drawTitle(ctx, game.world.name, 40, 66, 34);
       if (traveller) drawButtons(ctx, walkTargets());

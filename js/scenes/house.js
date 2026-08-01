@@ -14,7 +14,7 @@
  */
 
 import { button, hitTest, drawButtons, drawTitle, COLORS, TOUCH } from '../ui/widgets.js';
-import { fillRR, fillEllipse, fillPoly, roundRect, shade } from '../render/shapes.js';
+import { fillRR, fillEllipse, fillPoly, roundRect, shade, setPaperShadows } from '../render/shapes.js';
 import { litFill, sideLit, woodGrain, within } from '../render/materials.js';
 import {
   drawRoomShell, drawRoomContents, ROOM_W, ROOM_H, FLOOR_Y,
@@ -283,6 +283,9 @@ export function createHouse(game) {
       drawRoof(ctx);
       drawCarcass(ctx);
 
+      // Four rooms at 43%: the soft shadow behind every object comes out as a
+      // two-pixel smudge, and it is the most expensive thing on the canvas.
+      setPaperShadows(false);
       HOUSE_LAYOUT.forEach((id, index) => {
         const box = cellBox(index);
         const room = game.building.rooms[id];
@@ -302,6 +305,8 @@ export function createHouse(game) {
         // Outside the cell transform, so the outline keeps its real weight.
         if (traveller && traveller.room === id) drawPickedUp(ctx, box, traveller);
       });
+
+      setPaperShadows(true);
 
       drawStructure(ctx);
       if (traveller) {

@@ -165,10 +165,24 @@ new Input(canvas, view, () => (view.isPortrait() ? null : scene));
 window.addEventListener('resize', () => view.resize());
 window.addEventListener('orientationchange', () => view.resize());
 
+/**
+ * The shortest gap between two drawings.
+ *
+ * A dolls' house does not need sixty frames a second. Everything that moves
+ * moves slowly — she breathes, a cat crosses a room — and at thirty the game
+ * looks the same and the phone does half the work, which on a phone means half
+ * the heat and twice the battery. The world still updates on every frame the
+ * browser offers, so nothing walks any slower.
+ */
+const FRAME_GAP = 1 / 32;
+
+let sinceDraw = 0;
+
 function frame(now) {
   const dt = lastFrame ? Math.min((now - lastFrame) / 1000, 0.1) : 0;
   lastFrame = now;
   game.time += dt;
+  sinceDraw += dt;
 
   game.saveTimer = (game.saveTimer ?? 0) + dt;
   if (game.pendingSave && game.saveTimer > 0.4) {
@@ -262,6 +276,14 @@ function frame(now) {
   }
 
   if (scene?.update) scene.update(dt);
+
+  // Everything above has happened; only the drawing is rationed.
+  if (sinceDraw < FRAME_GAP) {
+    requestAnimationFrame(frame);
+    return;
+  }
+  sinceDraw = 0;
+
   view.begin();
   if (scene?.draw) scene.draw(view.ctx);
 
