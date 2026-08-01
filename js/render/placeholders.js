@@ -15,7 +15,9 @@
  * the helpers in materials.js.
  */
 
-import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade } from './shapes.js';
+import {
+  fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, worthDrawing,
+} from './shapes.js';
 import {
   litFill, sideLit, within, woodGrain, planks, folds, stitching, sheen, glass,
   knob, pull, panel,
@@ -299,17 +301,29 @@ export const PLACEHOLDERS = {
     ctx.fillRect(-w / 2 + w * 0.05, -h * 0.96, w * 0.9, h * 0.92);
 
     const books = ['#c9707f', '#5c8fae', '#7d9e62', '#d9a24e', '#8a6d9e', '#4f9695'];
+    // A book on a shelf is about a sixteenth of its width. Below three real
+    // pixels each they are a stripe of colour however carefully they are drawn.
+    const shelved = worthDrawing(ctx, w * 0.06);
     for (let row = 0; row < 3; row += 1) {
       const y = -h * 0.9 + row * h * 0.3;
       const shelfH = h * 0.24;
       let x = -w / 2 + w * 0.09;
       let i = row * 2;
+      /*
+       * Fewer, fatter books when they are small.
+       *
+       * A shelf drawn as one band of colour is a cupboard with paper in it —
+       * the books are what a bookshelf is. So below the size where a spine can
+       * be told from its neighbour they are drawn twice as wide and half as
+       * many, which keeps a row of books and halves the painting.
+       */
+      const fat = shelved ? 1 : 2.1;
       while (x < w / 2 - w * 0.12) {
-        const bw = w * (0.055 + ((i * 7) % 3) * 0.012);
+        const bw = w * (0.055 + ((i * 7) % 3) * 0.012) * fat;
         const bh = shelfH * (0.74 + ((i * 5) % 4) * 0.06);
         const col = books[i % books.length];
         fillRR(ctx, x, y + shelfH - bh, bw, bh, 2, sideLit(ctx, x, bw, col, 0.18));
-        fillRR(ctx, x, y + shelfH - bh * 0.78, bw, 2.5, 1, shade(col, 0.4));
+        if (shelved) fillRR(ctx, x, y + shelfH - bh * 0.78, bw, 2.5, 1, shade(col, 0.4));
         x += bw + 2;
         i += 1;
       }
@@ -1098,6 +1112,13 @@ export const PLACEHOLDERS = {
     const bw = (w - 24) / cols;
     const bh = (h - 24) / rows;
     const inks = ['#c0392b', '#2e7fc4', '#3f9e5b', '#e0891e', '#8a5fb0'];
+    if (!worthDrawing(ctx, bw)) {
+      // Rows of colour rather than twenty-four separate blocks of it.
+      for (let r = 0; r < rows; r += 1) {
+        fillRR(ctx, -w / 2 + 14, -h + 14 + r * bh, w - 28, bh - 5, 2, inks[r % inks.length]);
+      }
+      return;
+    }
     for (let r = 0; r < rows; r += 1) {
       for (let i = 0; i < cols; i += 1) {
         fillRR(ctx, -w / 2 + 12 + i * bw + 2, -h + 12 + r * bh + 2,

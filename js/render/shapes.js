@@ -72,6 +72,26 @@ export function paperLayer(ctx, draw, lift = 1) {
   ctx.restore();
 }
 
+/**
+ * Whether a detail this big is worth drawing at the size we are drawing at.
+ *
+ * The books on a shelf are seventy-two of the eight hundred and sixty shapes
+ * in the whole catalogue. At room size they are books; in the cutaway each one
+ * is four pixels wide, and in a thumbnail it is a quarter of one.
+ *
+ * Given the size of the detail in design units, this says whether it lands on
+ * enough real pixels to be worth painting. A canvas with no transform to read
+ * is a recorder measuring what gets drawn, so it is told yes.
+ */
+export function worthDrawing(ctx, designSize) {
+  if (typeof ctx.getTransform !== 'function') return true;
+  const t = ctx.getTransform();
+  // Six real pixels. A book three pixels wide with a rounded corner and a
+  // highlight down its spine is a coloured stripe with extra steps, which is
+  // exactly what is drawn instead when this says no.
+  return designSize * Math.hypot(t.a, t.b) >= 6;
+}
+
 /** Rounded rectangle path. Hand-rolled rather than ctx.roundRect for reach. */
 export function roundRect(ctx, x, y, w, h, r) {
   const radius = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
