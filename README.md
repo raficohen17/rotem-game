@@ -39,6 +39,28 @@ assets/drawings/      Rotem's scanned drawings, as transparent PNGs
 
 That is the whole process — no code change.
 
+## Parts behind a code
+
+Some things in the character creator are locked. They show in the grid greyed
+out with a padlock, so Rotem can see what exists; tapping one asks for a code.
+Entering it unlocks that part on that device, for good. A wrong code shakes the
+field and does nothing else — no message, no count, no lockout.
+
+The locked parts are listed in `js/model/unlocks.js`. To mint a code:
+
+```bash
+node tools/make_code.js bottom:10 tyyffk
+```
+
+Paste the `codeHash` it prints into that part's row, and **write the code down
+somewhere that is not this repository** — it cannot be recovered from the hash,
+and retyping it is the only way back after site data is cleared.
+
+This is not a security boundary and is not meant to be one. The whole game runs
+on the player's machine, so anyone willing to open devtools can write to the
+unlock list directly. The hash only keeps the codes out of a file you could
+read. It is a way to hand over a present, not a lock.
+
 ## Turning a drawing into an item
 
 Photograph the drawing on white paper in even light, then:

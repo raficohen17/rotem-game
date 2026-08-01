@@ -88,8 +88,13 @@ export const FACE_SHAPES = [
  */
 export const LAYERS = ['none', 'cardigan', 'coat', 'cloak', 'apron', 'pinafore', 'gilet'];
 
-/** Things a character can hold. Index 0 is empty handed. */
-export const HELD_ITEMS = ['none', 'book', 'wand', 'basket', 'flowers', 'teddy'];
+/**
+ * Things a character can hold. Index 0 is empty handed.
+ *
+ * The sword is appended, never inserted: a held item is stored as an index, so
+ * moving one would put a sword in the hand of somebody already made.
+ */
+export const HELD_ITEMS = ['none', 'book', 'wand', 'basket', 'flowers', 'teddy', 'sword'];
 
 /** Legwear, chosen separately from shoes — knee socks are half a uniform. */
 export const SOCKS = ['none', 'ankle', 'knee', 'tights', 'striped', 'slouch'];
@@ -166,7 +171,11 @@ export const PART_COUNTS = {
   topColor: CLOTH_COLORS.length,
   layer: LAYERS.length,
   layerColor: CLOTH_COLORS.length,
-  bottom: 10,
+  // Index 10 is the gala gown, which is behind a code. It is counted here like
+  // any other style — the lock lives in the creator's selection, not in the
+  // spec, so a character already wearing it still draws if the unlock list is
+  // ever lost.
+  bottom: 11,
   bottomColor: CLOTH_COLORS.length,
   socks: SOCKS.length,
   socksColor: CLOTH_COLORS.length,

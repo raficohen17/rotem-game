@@ -5,7 +5,7 @@
 import { View } from './core/view.js';
 import { Input } from './core/input.js';
 import { loadCatalog } from './render/catalog.js';
-import { createStore, replaceWorld } from './model/storage.js';
+import { createStore, createUnlockStore, replaceWorld } from './model/storage.js';
 import { createMenu } from './scenes/menu.js';
 import { createHouse } from './scenes/house.js';
 import { createStreet } from './scenes/street.js';
@@ -51,7 +51,9 @@ function safeStorage() {
   }
 }
 
-const store = createStore(safeStorage());
+const backend = safeStorage();
+const store = createStore(backend);
+const unlockStore = createUnlockStore(backend);
 
 /** Everything the scenes share. */
 const game = {
@@ -63,7 +65,21 @@ const game = {
   /** The building whose inside is open, or null when she is on the street. */
   building: null,
 
+  /**
+   * Parts unlocked with a code, on this device.
+   *
+   * Read once at boot rather than per scene: it belongs to the machine, not to
+   * a world, and every world on it sees the same list.
+   */
+  unlocks: unlockStore.load(),
+
+  setUnlocks(next) {
+    game.unlocks = next;
+    unlockStore.save(next);
+  },
+
   setScene(next) {
+    if (scene?.leave) scene.leave();
     scene = next;
     if (scene?.enter) scene.enter();
   },

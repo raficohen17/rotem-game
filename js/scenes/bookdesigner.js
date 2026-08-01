@@ -2,14 +2,16 @@
  * Designing a book cover.
  *
  * The title is typed on the phone's own keyboard rather than on one drawn in
- * canvas. A hidden input is focused when she taps the title, which brings up
- * the keyboard she already knows, with its own autocorrect and its own delete
- * key. A hand-drawn keyboard would have been consistent with the rest of the
- * game and considerably worse to use.
+ * canvas: a hand-drawn keyboard would have been consistent with the rest of the
+ * game and considerably worse to use. The field itself is the game's shared
+ * text field, a real input sitting where the field is drawn — so it has a
+ * caret, a selection and a paste of its own, and the keyboard cannot come up
+ * over the thing being typed into.
  */
 
 import { button, hitTest, drawButtons, drawPanel, drawTitle, COLORS, TOUCH } from '../ui/widgets.js';
-import { fillRR, roundRect } from '../render/shapes.js';
+import { openTextField } from '../ui/textfield.js';
+import { fillRR } from '../render/shapes.js';
 import { drawBook } from '../render/book.js';
 import {
   COVER_COLORS, COVER_PATTERNS, TITLE_STYLES, MAX_TITLE,
@@ -29,47 +31,23 @@ const PREVIEW = { x: 60, y: 110, w: 320, h: 480 };
 const PANEL = { x: 400, y: 96, w: 856, h: 576 };
 const ROW = { x: 430, step: 80, size: 72 };
 
-/**
- * The input that brings up the keyboard.
- *
- * Kept off screen rather than hidden with `display: none`, because a display
- * of none cannot take focus and so never opens the keyboard at all.
- */
-function createTitleInput(initial, onChange) {
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = initial;
-  input.maxLength = MAX_TITLE;
-  input.autocapitalize = 'words';
-  input.setAttribute('aria-label', 'Book title');
-  Object.assign(input.style, {
-    position: 'fixed',
-    left: '-9999px',
-    top: '0',
-    opacity: '0',
-    width: '1px',
-    height: '1px',
-  });
-
-  input.addEventListener('input', () => onChange(cleanTitle(input.value)));
-  input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') input.blur();
-  });
-
-  document.body.appendChild(input);
-  return input;
-}
+/** Where the title field is drawn, and so where the real input is put. */
+const TITLE_BOX = { x: PREVIEW.x, y: PREVIEW.y + PREVIEW.h + 24, w: PREVIEW.w, h: TOUCH };
 
 export function createBookDesigner(game, initial, onDone, onCancel) {
   let design = clampBook(initial ?? createBook());
-  let typing = false;
 
-  const input = createTitleInput(design.title, (value) => {
-    design = { ...design, title: value };
+  const field = openTextField(game.view, TITLE_BOX, {
+    value: design.title,
+    maxLength: MAX_TITLE,
+    filter: cleanTitle,
+    label: 'Book title',
+    placeholder: 'Name your book',
+    onChange: (value) => { design = { ...design, title: value }; },
   });
 
   const close = () => {
-    input.remove();
+    field.close();
   };
 
   const covers = () => COVER_COLORS.map((color, i) => button(
@@ -97,15 +75,19 @@ export function createBookDesigner(game, initial, onDone, onCancel) {
     { swatch: color, active: design.titleColor === i },
   ));
 
-  const titleField = () => button('title', PREVIEW.x, PREVIEW.y + PREVIEW.h + 24,
-    PREVIEW.w, TOUCH, {});
-
   const done = button('done', 1150, 24, TOUCH, TOUCH, { icon: 'check', tone: 'good' });
   const cancel = button('cancel', 1054, 24, TOUCH, TOUCH, { icon: 'cross' });
 
+  /*
+   * The title field is not in here.
+   *
+   * It is a real input on top of the canvas now, so it takes its own taps and
+   * a canvas button under it would never be hit — and the one thing worse than
+   * no hit target is two.
+   */
   const controls = () => [
     ...covers(), ...patterns(), ...patternInks(),
-    ...titleStyles(), ...titleInks(), titleField(), cancel, done,
+    ...titleStyles(), ...titleInks(), cancel, done,
   ];
 
   return {
@@ -114,16 +96,11 @@ export function createBookDesigner(game, initial, onDone, onCancel) {
 
     onTap(x, y) {
       const hit = hitTest(controls(), x, y);
-      if (!hit) { input.blur(); typing = false; return; }
+      // Tapping the canvas anywhere else puts the keyboard away.
+      if (!hit) { field.blur(); return; }
 
       if (hit.id === 'done') { close(); onDone(design); return; }
       if (hit.id === 'cancel') { close(); onCancel(); return; }
-      if (hit.id === 'title') {
-        typing = true;
-        input.focus();
-        input.setSelectionRange(input.value.length, input.value.length);
-        return;
-      }
 
       const [kind, value] = hit.id.split(':');
       const index = Number(value);
@@ -144,8 +121,6 @@ export function createBookDesigner(game, initial, onDone, onCancel) {
       ctx.translate(PREVIEW.x + PREVIEW.w / 2, PREVIEW.y + PREVIEW.h - 40);
       drawBook(ctx, design, 250, 380);
       ctx.restore();
-
-      drawTitleField(ctx, titleField(), design.title, typing, game.time);
 
       drawPanel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, COLORS.panel, 22);
       // Each label sits twice as far below the row above it as it does above
@@ -170,29 +145,6 @@ function label(ctx, text, x, y) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(text, x, y);
-}
-
-/** The title, shown as a field she can tap to type into. */
-function drawTitleField(ctx, box, title, typing, time) {
-  fillRR(ctx, box.x, box.y, box.w, box.h, 14, typing ? '#3d3543' : '#2c262e');
-  ctx.strokeStyle = typing ? COLORS.buttonActive : '#4a4048';
-  ctx.lineWidth = 3;
-  roundRect(ctx, box.x, box.y, box.w, box.h, 14);
-  ctx.stroke();
-
-  ctx.fillStyle = title ? COLORS.ink : COLORS.inkDim;
-  ctx.font = '600 24px Georgia, serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  const shown = title || 'Tap to name your book';
-  ctx.fillText(shown, box.x + 18, box.y + box.h / 2);
-
-  // A caret while the keyboard is up, so it is obvious where typing lands.
-  if (typing && Math.floor(time * 2) % 2 === 0) {
-    const width = ctx.measureText(title).width;
-    ctx.fillStyle = COLORS.buttonActive;
-    ctx.fillRect(box.x + 20 + width, box.y + 14, 3, box.h - 28);
-  }
 }
 
 /** A pattern chip showing the pattern on the cover colour actually chosen. */

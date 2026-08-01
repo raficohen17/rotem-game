@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   PART_COUNTS, PART_KEYS, EDITABLE_PARTS, SKIN_TONES, HAIR_COLORS, CLOTH_COLORS,
   LIP_COLORS, createCharacterSpec, clampSpec, nextPart, countCombinations,
-  LOOKS, applyLook, BUILDS,
+  LOOKS, applyLook, BUILDS, HELD_ITEMS,
 } from '../js/model/character.js';
 import { headBounds, seatedMetrics, standMetrics } from '../js/render/character.js';
 
@@ -353,4 +353,16 @@ test('sitting lowers the whole figure, not just the legs', () => {
   }
   assert.ok(b.hipY > standing.hipY, 'she is lower than when standing');
   assert.equal(b.shoulderW, standing.shoulderW, 'she is not a different build');
+});
+
+test('the wardrobe grew rather than shifted', () => {
+  // Both locked parts were appended. A part is stored as an index, so an
+  // insert anywhere earlier would silently redress everybody already made.
+  assert.equal(HELD_ITEMS[6], 'sword', 'the sword is last in hand');
+  assert.equal(PART_COUNTS.held, HELD_ITEMS.length);
+  assert.equal(PART_COUNTS.bottom, 11, 'the gown is bottom index 10');
+
+  // The five held items that were there before are still where they were.
+  assert.deepEqual(HELD_ITEMS.slice(0, 6),
+    ['none', 'book', 'wand', 'basket', 'flowers', 'teddy']);
 });

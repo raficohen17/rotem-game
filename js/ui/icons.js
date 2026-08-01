@@ -770,6 +770,15 @@ export const ICONS = {
     fillCircle(ctx, 0, -7.5, 5, c);
     fillPoly(ctx, [-7, -2, 7, -2, 4, 15, -4, 15], c);
   },
+
+  /* A padlock, for something that needs a code. */
+  lock(ctx, c) {
+    stroke(ctx, c, 4.5);
+    ctx.beginPath();
+    ctx.arc(0, -6, 9, Math.PI, 0);
+    ctx.stroke();
+    fillRR(ctx, -14, -5, 28, 22, 5, c);
+  },
 };
 
 /** Draws an icon centred at (x, y), scaled from its nominal 44px box. */

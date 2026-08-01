@@ -272,7 +272,9 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   }, 0.9);
 
   paperLayer(ctx, () => {
-    if (spec.bottom === 4) {
+    if (spec.bottom === GALA_GOWN) {
+      drawGalaGown(ctx, CLOTH_COLORS[spec.bottomColor]);
+    } else if (spec.bottom === 4) {
       drawDress(ctx, CLOTH_COLORS[spec.bottomColor]);
     } else {
       drawBottom(ctx, spec.bottom, CLOTH_COLORS[spec.bottomColor]);
@@ -1282,6 +1284,117 @@ function drawDress(ctx, color) {
 }
 
 /**
+ * The gala gown, which is `bottom` index 10 and behind a code.
+ *
+ * It is a `bottom` because it replaces the top as well — the same route the
+ * everyday dress at index 4 already takes. What separates the two is where the
+ * skirt begins: this one falls from the waist rather than the hip, which is
+ * most of the difference between a gown and a long skirt with a top over it.
+ *
+ * It is drawn with three things the free clothes do not have — a waist seam
+ * under a sash, a satin fall of light down the skirt, and a hem that reaches
+ * the floor instead of stopping at the shin. That is the whole reason it is
+ * worth a code: a locked garment that looked like the others would not be.
+ *
+ * Classic on purpose. One silhouette, one colour, no cutouts and no asymmetry.
+ */
+const GALA_GOWN = 10;
+
+function drawGalaGown(ctx, color) {
+  const top = B.torsoTop + 6;
+  const waist = B.waistY;
+
+  /*
+   * Standing, the hem sits 26 above the floor at y=0, so the deepest scallop
+   * still clears it. Sitting, it is pulled up over the lap instead: measured
+   * from the floor while seated it would pool where the chair is and hide the
+   * legs, which reads as somebody standing behind the furniture.
+   */
+  const hem = POSE === 'sit' ? B.hipY + 46 : -26;
+  const flare = B.hipW + 36;
+  const w = B.waistW + 3;
+
+  /*
+   * The skirt, from the waist, as an A-line rather than a bell.
+   *
+   * The curve is held close to the body for the first half and only opens
+   * below the knee. Flared straight off the waist it was both the wrong shape
+   * — a crinoline, which is a costume — and drawn out past where her hands
+   * hang: hands are a detail layer and go on last, so they came out as two
+   * pale circles sitting on top of the skirt.
+   */
+  ctx.fillStyle = litFill(ctx, waist - 10, hem - waist + 10, color, 0.16);
+  ctx.beginPath();
+  ctx.moveTo(-w, waist - 6);
+  ctx.lineTo(w, waist - 6);
+  ctx.bezierCurveTo(w + 4, waist + 58, flare * 0.5, hem - 46, flare, hem);
+  ctx.quadraticCurveTo(flare * 0.6, hem + 15, flare * 0.32, hem + 5);
+  ctx.quadraticCurveTo(0, hem + 17, -flare * 0.32, hem + 5);
+  ctx.quadraticCurveTo(-flare * 0.6, hem + 15, -flare, hem);
+  ctx.bezierCurveTo(-flare * 0.5, hem - 46, -w - 4, waist + 58, -w, waist - 6);
+  ctx.closePath();
+  ctx.fill();
+
+  // Folds, so the skirt has a fall to it rather than being one flat panel.
+  for (const dx of [-0.62, -0.24, 0.24, 0.62]) {
+    strokeLine(ctx, dx * B.waistW, waist + 6, dx * flare * 0.9, hem - 4,
+      shade(color, -0.12), 2);
+  }
+
+  /*
+   * The satin.
+   *
+   * A narrow off-centre fall of light. Centred it read as a seam down the
+   * front, and wide it read as a second colour — a stripe rather than a sheen.
+   */
+  ctx.fillStyle = shade(color, 0.2);
+  ctx.beginPath();
+  ctx.moveTo(-2, waist + 4);
+  ctx.lineTo(6, waist + 4);
+  ctx.quadraticCurveTo(20, hem - 40, 24, hem - 2);
+  ctx.quadraticCurveTo(12, hem + 3, 2, hem - 3);
+  ctx.quadraticCurveTo(-3, hem - 44, -2, waist + 4);
+  ctx.closePath();
+  ctx.fill();
+
+  /*
+   * The bodice, drawn here rather than through `garment`.
+   *
+   * Every other top ends at the hip, so `garment` cuts its hem at hip width.
+   * Asked to end at the waist it put a hip-wide hem there instead of a waist,
+   * which came out as a slab sticking out either side of her — the opposite of
+   * fitted, and the one line the whole silhouette rests on.
+   */
+  const sw = B.shoulderW - 2;
+  const ww = B.waistW + 3;
+  ctx.fillStyle = litFill(ctx, top, waist - top, color, 0.14);
+  ctx.beginPath();
+  ctx.moveTo(-sw, top + 16);
+  ctx.quadraticCurveTo(-sw + 2, top + 2, -sw * 0.4, top + 8);
+  // The dip at the front: a sweetheart neckline, which is the classic one.
+  ctx.quadraticCurveTo(0, top + 22, sw * 0.4, top + 8);
+  ctx.quadraticCurveTo(sw - 2, top + 2, sw, top + 16);
+  ctx.quadraticCurveTo(ww + 3, waist - 34, ww, waist + 6);
+  ctx.lineTo(-ww, waist + 6);
+  ctx.quadraticCurveTo(-ww - 3, waist - 34, -sw, top + 16);
+  ctx.closePath();
+  ctx.fill();
+
+  // Thin straps up over the shoulders: the neckline is cut low, and a gown
+  // that stayed up by itself read as a tube.
+  for (const side of [-1, 1]) {
+    strokeLine(ctx, side * (sw * 0.5), top + 8,
+      side * (sw * 0.72), B.torsoTop - 2, color, 5);
+  }
+
+  // The sash, with a brooch where it gathers. Kept to the waist it sits on —
+  // a sash wider than the waist is a belt worn over the hips.
+  fillRR(ctx, -ww - 2, waist - 6, (ww + 2) * 2, 13, 6, shade(color, -0.28));
+  fillRR(ctx, -ww - 2, waist - 6, (ww + 2) * 2, 4, 2, shade(color, -0.08));
+  fillCircle(ctx, 0, waist + 0.5, 4.5, shade(color, 0.45));
+}
+
+/**
  * Shoes, drawn on the feet.
  *
  * The x came from a constant while the legs came from the build, so on most
@@ -1643,6 +1756,68 @@ function drawHeld(ctx, style, sway) {
         fillCircle(ctx, dx, -22, 3, '#f6f1e8');
       }
       break;
+    case 6: { // the magic sword
+      /*
+       * Point down, tipped outward.
+       *
+       * The hand is already further from the middle than the leg is, so the
+       * only thing that can be hit on the way down is the leg itself — and a
+       * negative angle swings the tip away from the body rather than across
+       * it. The wand above tips the other way, which is fine at 58 long and
+       * would put a blade through her knee.
+       *
+       * Carried point down rather than shouldered: a blade resting on the
+       * shoulder crosses the head at every hairstyle, and one held up crosses
+       * the top of the design space on the grown-up size.
+       */
+      /*
+       * Far enough out to clear the stride.
+       *
+       * At a gentler angle the blade hung straight down beside the leg, which
+       * is fine standing still and wrong the moment she walks: the legs swing
+       * out under it and the near one crossed the blade every other step.
+       */
+      ctx.rotate(-0.42);
+
+      const steel = '#c2cedb';
+      const gold = '#d9a24e';
+      const gem = '#8fd8ea';
+
+      /*
+       * Sitting, the point rests on the ground beside the chair.
+       *
+       * Her hand drops about forty when she sits, and a blade that reaches the
+       * floor standing goes through it sitting — the only held thing in the
+       * game that did. Shortened to where the ground now is, it reads as a
+       * sword stood on its point beside her, which is what somebody sitting
+       * down with one does with it.
+       */
+      const reach = POSE === 'sit' ? 64 : 96;
+      const edge = reach * 0.77;
+
+      // The blade, tapering to a point, with a fuller down the middle and a
+      // pale edge that is as much magic as it is a highlight.
+      fillPoly(ctx, [-8, 12, 8, 12, 5.5, edge, 0, reach, -5.5, edge],
+        litFill(ctx, 12, reach - 12, steel, 0.2));
+      strokeLine(ctx, 0, 18, 0, edge + 2, shade(steel, -0.18), 2.5);
+      strokeLine(ctx, -5, 16, -3, edge + 4, '#f4fbff', 2.2);
+      strokeLine(ctx, 5, 16, 3, edge + 4, shade(steel, -0.28), 1.5);
+
+      // Crossguard, with a stone set in the middle of it.
+      fillRR(ctx, -17, 5, 34, 9, 4, litFill(ctx, 5, 9, gold, 0.25));
+      fillCircle(ctx, 0, 9.5, 3.4, gem);
+
+      // A wrapped grip: the wraps are what stop it reading as a stick.
+      capsule(ctx, 0, -14, 5, 8, '#6d4630');
+      for (let i = 0; i < 4; i += 1) {
+        strokeLine(ctx, -4, -11 + i * 4.6, 4, -13 + i * 4.6, shade('#6d4630', 0.3), 1.6);
+      }
+
+      // Pommel.
+      fillCircle(ctx, 0, -17, 6, litFill(ctx, -23, 12, gold, 0.3));
+      fillCircle(ctx, 0, -17, 3, gem);
+      break;
+    }
     default: { // a small teddy, carried by one arm
       const fur = '#c2996b';
       fillCircle(ctx, -6, 22, 7, fur);

@@ -8,9 +8,19 @@
  */
 
 import { CURRENT_VERSION, migrateWorld } from './world.js';
+import { cleanUnlocks } from './unlocks.js';
 
 export const STORAGE_KEY = 'rotem.worlds';
 export const MAX_WORLDS = 10;
+
+/**
+ * Unlocked parts, kept apart from the worlds.
+ *
+ * A code is entered on a device, not in a house. Filed under `rotem.worlds` it
+ * would arrive with a world and leave with one — a new house would start
+ * locked again, and deleting a house would take the gala dress with it.
+ */
+export const UNLOCKS_KEY = 'rotem.unlocks';
 
 /**
  * @param {{getItem(k: string): string|null, setItem(k: string, v: string): void}} backend
@@ -44,6 +54,40 @@ export function createStore(backend) {
       } catch {
         // Quota exceeded, or private mode with storage disabled. The game
         // stays playable; only persistence is lost.
+        return false;
+      }
+    },
+  };
+}
+
+/**
+ * The list of unlocked parts.
+ *
+ * Same injected backend as `createStore`, and the same rule when the backend
+ * fails: play carries on. A wiped unlock list costs her the codes, not the
+ * characters — a character already wearing the gala dress keeps wearing it.
+ *
+ * @param {{getItem(k: string): string|null, setItem(k: string, v: string): void}} backend
+ */
+export function createUnlockStore(backend) {
+  return {
+    /** @returns {string[]} lock ids, with anything unrecognised dropped. */
+    load() {
+      try {
+        const raw = backend.getItem(UNLOCKS_KEY);
+        if (!raw) return [];
+        return cleanUnlocks(JSON.parse(raw));
+      } catch {
+        return [];
+      }
+    },
+
+    /** @param {string[]} unlocked */
+    save(unlocked) {
+      try {
+        backend.setItem(UNLOCKS_KEY, JSON.stringify(cleanUnlocks(unlocked)));
+        return true;
+      } catch {
         return false;
       }
     },

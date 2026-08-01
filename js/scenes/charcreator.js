@@ -3,16 +3,22 @@
  *
  * Every option shows the result rather than naming it: choosing a hairstyle
  * means looking at eight heads and picking one. Nothing here needs reading.
+ *
+ * Two options are behind a code. They are shown rather than hidden, because a
+ * thing she cannot see is a thing she cannot look forward to — the point of a
+ * code is that she knows what it opens before she has it.
  */
 
 import { button, hitTest, drawButtons, drawPanel, COLORS, TOUCH } from '../ui/widgets.js';
 import { drawIcon } from '../ui/icons.js';
+import { openTextField } from '../ui/textfield.js';
 import { fillRR } from '../render/shapes.js';
 import { drawCharacter, headBounds, charHeight } from '../render/character.js';
 import {
   EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS, LIP_COLORS, EYE_COLORS,
   SKIN_TONES, LOOKS, applyLook, createCharacterSpec, clampSpec,
 } from '../model/character.js';
+import { lockFor, lockId, isLocked, redeem, cleanCode, CODE_LENGTH } from '../model/unlocks.js';
 
 /** Parts shown as a head close-up; the rest are shown full length. */
 const HEAD_PARTS = new Set(['face', 'skin', 'hair', 'hairColor', 'brows', 'eyes', 'nose', 'mouth', 'extra']);
@@ -94,12 +100,68 @@ const SWATCH_Y = 566;
  */
 const TABS = [{ key: 'looks', colorKey: null, icon: 'looks' }, ...EDITABLE_PARTS];
 
+/**
+ * Where the code field sits: under the option grid it was tapped in.
+ *
+ * Clear of the last row of cells, which for the two locked parts ends at 522 —
+ * the prompt was overlapping the very tile it was asking about.
+ */
+const CODE_BOX = { x: 648, y: 590, w: 380, h: TOUCH };
+
 export function createCharacterCreator(game, onDone, onCancel, initialSpec = null) {
   let spec = initialSpec ? clampSpec(initialSpec) : createCharacterSpec();
   let partIndex = 0;
 
+  /** The part whose code is being typed, or null when nothing is being unlocked. */
+  let unlocking = null;
+  let field = null;
+
   const part = () => TABS[partIndex];
   const onLooks = () => part().key === 'looks';
+
+  /** What has been unlocked on this device. Empty is a normal state, not a fault. */
+  const unlocked = () => game.unlocks ?? [];
+
+  function closeCode() {
+    field?.close();
+    field = null;
+    unlocking = null;
+  }
+
+  /**
+   * Asks for a code.
+   *
+   * The part being unlocked is named on the field, so it is obvious which of
+   * the two codes on the fridge she is meant to be typing.
+   */
+  function askForCode(lock) {
+    closeCode();
+    unlocking = lock;
+    const id = lockId(lock.key, lock.index);
+
+    field = openTextField(game.view, CODE_BOX, {
+      maxLength: CODE_LENGTH,
+      filter: cleanCode,
+      keyboard: 'code',
+      align: 'center',
+      label: `Code for ${lock.name}`,
+      placeholder: lock.name,
+      onChange: (value) => {
+        if (value.length < CODE_LENGTH) return;
+
+        const after = redeem(id, value, unlocked());
+        // `redeem` hands back the list it was given when the code is wrong, so
+        // the two cases tell themselves apart without a second check.
+        if (after === unlocked()) { field.shake(); return; }
+
+        game.setUnlocks(after);
+        spec = { ...spec, [lock.key]: lock.index };
+        partIndex = TABS.findIndex((t) => t.key === lock.key);
+        closeCode();
+      },
+    });
+    field.focus();
+  }
 
   function optionControls() {
     if (onLooks()) {
@@ -113,18 +175,23 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
       ));
     }
     const count = PART_COUNTS[part().key];
+    const key = part().key;
     return Array.from({ length: count }, (unused, i) => button(
       `opt:${i}`,
       GRID_X + (i % CELL.cols) * CELL.stepX,
       GRID_Y + Math.floor(i / CELL.cols) * CELL.stepY,
       CELL.w, CELL.h,
-      { option: i, active: spec[part().key] === i },
+      { option: i, active: spec[key] === i, locked: isLocked(key, i, unlocked()) },
     ));
   }
 
   function swatchControls() {
     const colorKey = part().colorKey;
     if (!colorKey || onLooks()) return [];
+    // The code field stands where the swatches do. She is not choosing a
+    // colour while she is typing a code, and two rows of them showing through
+    // the field made it look like something had gone wrong.
+    if (unlocking) return [];
     const palette = PALETTES[colorKey] ?? CLOTH_COLORS;
     const row = swatchRow(palette.length);
     return palette.map((color, i) => button(
@@ -156,19 +223,29 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
 
     onTap(x, y) {
       const hit = hitTest(controls(), x, y);
-      if (!hit) return;
+      if (!hit) { closeCode(); return; }
 
-      if (hit.id === 'done') { onDone(spec); return; }
-      if (hit.id === 'cancel') { onCancel(); return; }
+      if (hit.id === 'done') { closeCode(); onDone(spec); return; }
+      if (hit.id === 'cancel') { closeCode(); onCancel(); return; }
 
       const [kind, value] = hit.id.split(':');
-      if (kind === 'look') { spec = applyLook(spec, value); return; }
+      if (kind === 'look') { closeCode(); spec = applyLook(spec, value); return; }
 
       const index = Number(value);
-      if (kind === 'tab') partIndex = index;
-      else if (kind === 'opt') spec = { ...spec, [part().key]: index };
-      else if (kind === 'col') spec = { ...spec, [part().colorKey]: index };
+      if (kind === 'tab') { closeCode(); partIndex = index; return; }
+
+      if (kind === 'opt') {
+        if (hit.locked) { askForCode(lockFor(part().key, index)); return; }
+        closeCode();
+        spec = { ...spec, [part().key]: index };
+      } else if (kind === 'col') {
+        closeCode();
+        spec = { ...spec, [part().colorKey]: index };
+      }
     },
+
+    /** Scenes are dropped without ceremony, so the field has to go with it. */
+    leave: closeCode,
 
     draw(ctx) {
       ctx.fillStyle = COLORS.backdrop;
@@ -190,6 +267,23 @@ export function createCharacterCreator(game, onDone, onCancel, initialSpec = nul
       }
       for (const control of tabControls()) {
         drawTab(ctx, control, spec);
+      }
+
+      // The prompt over the code field, on a slab of its own so the field does
+      // not look like it is floating over the panel behind it. The field
+      // itself is a real input on top of the canvas, so nothing is drawn where
+      // it actually sits.
+      if (unlocking) {
+        fillRR(ctx, CODE_BOX.x - 24, CODE_BOX.y - 56, CODE_BOX.w + 168,
+          CODE_BOX.h + 80, 18, '#2c262e');
+        drawIcon(ctx, 'lock', CODE_BOX.x + CODE_BOX.w + 66,
+          CODE_BOX.y + CODE_BOX.h / 2, COLORS.inkDim, 0.8);
+        ctx.fillStyle = COLORS.ink;
+        ctx.font = '600 26px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(`Type the code for the ${unlocking.name.toLowerCase()}`,
+          CODE_BOX.x, CODE_BOX.y - 22);
       }
 
       drawButtons(ctx, [...swatchControls(), cancel, done]);
@@ -263,6 +357,24 @@ function drawOption(ctx, control, spec, part) {
     control.active ? COLORS.buttonActive : '#413945');
 
   const preview = { ...spec, [part.key]: control.option };
+
+  if (control.locked) {
+    /*
+     * Shown, but faint, with a padlock over it.
+     *
+     * Faint rather than a silhouette: she is meant to be able to tell that it
+     * is a long dress and that she wants it. A blank tile with a lock on it
+     * would say something exists and nothing about what.
+     */
+    ctx.save();
+    ctx.globalAlpha = 0.32;
+    drawCachedMini(ctx, preview, control, cropFor(part.key));
+    ctx.restore();
+    drawIcon(ctx, 'lock', control.x + control.w / 2, control.y + control.h / 2,
+      COLORS.ink, 0.62);
+    return;
+  }
+
   drawCachedMini(ctx, preview, control, cropFor(part.key));
 }
 

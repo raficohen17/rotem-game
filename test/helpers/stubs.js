@@ -165,7 +165,16 @@ export function stubGame(overrides = {}) {
   // eslint-disable-next-line prefer-const
   const game = {
     catalog: stubCatalog(),
+    /*
+     * The mapping a text field needs to put a real input where the canvas drew
+     * its slot. Identity: under test the design space and the page are the same
+     * thing, so a field lands exactly on the rectangle it was given.
+     */
+    view: { cssScale: 1, cssOffsetX: 0, cssOffsetY: 0 },
     time: 1.25,
+    /** Nothing unlocked, which is what a fresh install looks like. */
+    unlocks: [],
+    setUnlocks(next) { game.unlocks = next; },
     world,
     building: world.buildings[0],
     worlds: [world],
@@ -207,25 +216,73 @@ function stubCanvas() {
   };
 }
 
+let created = [];
+
+/** Every input built inside the last `withDocument`, in the order they appeared. */
+export function inputsCreated() {
+  return created;
+}
+
 /**
- * The book designer builds a hidden input to raise the phone's keyboard, so it
- * needs just enough DOM to get through its constructor.
+ * An input that remembers what was done to it.
+ *
+ * Enough of one to type into: the listeners are kept so a test can fire them,
+ * which is the only way to exercise a field that is driven by real keyboard
+ * events rather than by a method the game calls.
+ */
+function stubInput() {
+  const listeners = new Map();
+  return {
+    style: {},
+    value: '',
+    placeholder: '',
+    attached: true,
+    shakes: 0,
+    focused: false,
+    setAttribute() {},
+    addEventListener(name, fn) {
+      if (!listeners.has(name)) listeners.set(name, []);
+      listeners.get(name).push(fn);
+    },
+    removeEventListener(name, fn) {
+      listeners.set(name, (listeners.get(name) ?? []).filter((f) => f !== fn));
+    },
+    remove() { this.attached = false; },
+    focus() { this.focused = true; },
+    blur() { this.focused = false; },
+    setSelectionRange() {},
+    getBoundingClientRect: () => ({ top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 }),
+    animate() { this.shakes += 1; },
+
+    /*
+     * Types, the way the phone's keyboard does: set the value, fire `input`.
+     *
+     * Not called `type`. An input has a `type` of its own — the field sets it
+     * to 'text' in its constructor, which quietly replaced this method with a
+     * string and left every typing test reporting that it was not a function.
+     */
+    typeIn(text) {
+      this.value = text;
+      for (const fn of listeners.get('input') ?? []) fn();
+    },
+  };
+}
+
+/**
+ * Scenes that take typing build a real input, so they need just enough DOM to
+ * get through their constructor — and enough of one to type into.
  */
 export function withDocument(run) {
   const had = 'document' in globalThis;
   const previous = globalThis.document;
+  created = [];
   globalThis.document = {
-    createElement: (tag) => (tag === 'canvas' ? stubCanvas() : {
-      style: {},
-      value: '',
-      setAttribute() {},
-      addEventListener() {},
-      removeEventListener() {},
-      remove() {},
-      focus() {},
-      blur() {},
-      setSelectionRange() {},
-    }),
+    createElement: (tag) => {
+      if (tag === 'canvas') return stubCanvas();
+      const input = stubInput();
+      created.push(input);
+      return input;
+    },
     body: { appendChild() {}, removeChild() {} },
   };
   try {
