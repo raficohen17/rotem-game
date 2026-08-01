@@ -74,6 +74,36 @@ export const DEFAULT_SEAT = 92;
 /** Which pose the figure currently being drawn is in. */
 let POSE = 'stand';
 
+/**
+ * How much of a character is worth drawing at the size she is being drawn at.
+ *
+ * A figure is sixty-four painted shapes, and four of them in a room is more
+ * than every piece of furniture put together. In the cutaway she is 78 pixels
+ * tall: her eyebrows are a third of a pixel, the highlight in her eye is less
+ * than that, and the hairpin is a smudge the colour of her hair.
+ *
+ * So below a size, the parts that cannot resolve are not drawn. What stays is
+ * everything you pick her out by across a room — her hair, her clothes, her
+ * shape — and what goes is detail that was costing a fifth of the frame to
+ * paint under a pixel.
+ */
+let FINE = true;
+
+/** The height on the screen, in real pixels, below which detail is dropped. */
+const FINE_HEIGHT = 150;
+
+/**
+ * Whether she is being drawn big enough for the fine parts to land on pixels.
+ *
+ * A recording canvas has no transform to read — it is measuring what is drawn
+ * rather than drawing it — so it gets everything.
+ */
+function isWorthDetail(ctx, scale) {
+  if (typeof ctx.getTransform !== 'function') return true;
+  const t = ctx.getTransform();
+  return Math.hypot(t.a, t.b) * CHAR_H * scale >= FINE_HEIGHT;
+}
+
 /** Whether this character has her hand up. Set per draw, like POSE. */
 let HAND_UP = false;
 
@@ -180,6 +210,7 @@ export function headBounds(rawSpec) {
 export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   const spec = clampSpec(rawSpec);
   const size = sizeOf(spec);
+  FINE = motion?.fine ?? isWorthDetail(ctx, size.scale);
   // The whole skeleton is built at her size, rather than the canvas being
   // scaled: a seat height is a fact about the chair, not about who is sitting
   // on it, and scaling the canvas would have scaled that too.
@@ -229,7 +260,7 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   detailLayer(ctx, () => onHead(() => drawBackHair(ctx, spec.hair, hairColor)));
   detailLayer(ctx, () => {
     drawLegs(ctx, skin, stride);
-    drawSocks(ctx, spec.socks, CLOTH_COLORS[spec.socksColor], stride);
+    if (FINE) drawSocks(ctx, spec.socks, CLOTH_COLORS[spec.socksColor], stride);
     drawShoes(ctx, spec.shoes, CLOTH_COLORS[spec.shoesColor], stride);
   });
 
@@ -255,7 +286,7 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   detailLayer(ctx, () => drawLayer(ctx, spec.layer, CLOTH_COLORS[spec.layerColor], sway));
 
   detailLayer(ctx, () => drawHands(ctx, skin, sway));
-  detailLayer(ctx, () => drawHeld(ctx, spec.held, sway));
+  if (FINE) detailLayer(ctx, () => drawHeld(ctx, spec.held, sway));
   onHead(() => drawHead(ctx, skin, spec, shape, hairColor, blinking));
 
   ctx.restore();
@@ -429,14 +460,18 @@ function drawHead(ctx, skin, spec, shape, hairColor, blinking) {
     ctx.fill();
   }, 1.1);
 
-  drawBrows(ctx, spec.brows, place, shade(hairColor, -0.12));
+  // Eyes and a mouth are a face at any size. Brows and a nose are a pixel of
+  // shading at the size the cutaway draws her.
+  if (FINE) drawBrows(ctx, spec.brows, place, shade(hairColor, -0.12));
   drawEyes(ctx, spec.eyes, EYE_COLORS[spec.eyeColor], place, blinking);
-  drawNose(ctx, spec.nose, place, skin);
+  if (FINE) drawNose(ctx, spec.nose, place, skin);
   drawMouth(ctx, spec.mouth, LIP_COLORS[spec.mouthColor], place);
 
   detailLayer(ctx, () => drawFrontHair(ctx, spec.hair, hairColor, shape));
-  detailLayer(ctx, () => drawHairpin(ctx, spec.hairpin, CLOTH_COLORS[spec.hairpinColor], shape));
-  detailLayer(ctx, () => drawExtra(ctx, spec.extra, CLOTH_COLORS[spec.extraColor]));
+  if (FINE) {
+    detailLayer(ctx, () => drawHairpin(ctx, spec.hairpin, CLOTH_COLORS[spec.hairpinColor], shape));
+    detailLayer(ctx, () => drawExtra(ctx, spec.extra, CLOTH_COLORS[spec.extraColor]));
+  }
 }
 
 // ------------------------------------------------------------------- face
