@@ -20,7 +20,7 @@ import { drawCat } from './cat.js';
 import { drawOrder } from '../model/geometry.js';
 import {
   shade, deepen, fillRR, fillEllipse, fillCircle, fillPoly, roundRect, strokeLine,
-  setPaperShadows, paperShadows, shadowsOn,
+  setPaperShadows, paperShadows, shadowsOn, worthStroking,
 } from './shapes.js';
 import { litFill } from './materials.js';
 import { partitionSide } from '../model/travel.js';
@@ -196,6 +196,16 @@ export function drawFloorSample(ctx, color, style, area) {
  */
 function drawFloorPattern(ctx, color, style, area = FLOOR_AREA) {
   if (style === 'plain') return;
+  /*
+   * The floor is a pattern of lines, and in the cutaway a floorboard seam is
+   * two thirds of a real pixel: a faint haze over the colour, for hundreds of
+   * strokes a frame across four rooms.
+   *
+   * Grass is measured by its fattest tuft rather than its thinnest, because it
+   * is the one pattern that means something — it is what says a room is
+   * outside rather than painted green — and it is worth keeping for longer.
+   */
+  if (!worthStroking(ctx, PATTERN_WEIGHT[style] ?? 2)) return;
 
   ctx.save();
   ctx.beginPath();
@@ -369,6 +379,11 @@ function drawGrass(ctx, color, bands, area) {
   ctx.fillRect(area.x, area.y, area.w, area.h * 0.24);
   ctx.restore();
 }
+
+/** The line each pattern is made of, for deciding when it stops being one. */
+const PATTERN_WEIGHT = {
+  boards: 2, tiles: 2.5, herringbone: 2, carpet: 2, checker: 6, grass: 3.6,
+};
 
 const PATTERNS = {
   boards: drawBoards,
