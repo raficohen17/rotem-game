@@ -16,6 +16,7 @@ import { cookOn, isOverHeat, utensils, clearProgress } from './model/recipes.js'
 import { isOn } from './model/using.js';
 import { renderStreetThumbnail } from './render/building.js';
 import { drawRotatePrompt } from './ui/rotate.js';
+import { readyToDraw, isBusy, STIRRED } from './core/pace.js';
 import { HOUSE_LAYOUT, STREET, roomsOf } from './model/world.js';
 import { ROOM_W, FLOOR_BAND } from './render/room.js';
 
@@ -178,21 +179,20 @@ const game = {
 // rotate prompt — a stray tap on a control she cannot see would act on the
 // house she cannot see either.
 new Input(canvas, view, () => (view.isPortrait() ? null : scene));
+
+/*
+ * A touch means she is doing something, and something she is doing has to be
+ * drawn as fast as the game can. The listener is separate from Input so that
+ * every gesture counts, including ones a scene ignores.
+ */
+for (const kind of ['pointerdown', 'pointermove', 'pointerup']) {
+  canvas.addEventListener(kind, () => { touchedUntil = game.time + STIRRED; }, { passive: true });
+}
 window.addEventListener('resize', () => view.resize());
 window.addEventListener('orientationchange', () => view.resize());
 
-/**
- * The shortest gap between two drawings.
- *
- * A dolls' house does not need sixty frames a second. Everything that moves
- * moves slowly — she breathes, a cat crosses a room — and at thirty the game
- * looks the same and the phone does half the work, which on a phone means half
- * the heat and twice the battery. The world still updates on every frame the
- * browser offers, so nothing walks any slower.
- */
-const FRAME_GAP = 1 / 32;
-
 let sinceDraw = 0;
+let touchedUntil = 0;
 
 function frame(now) {
   const dt = lastFrame ? Math.min((now - lastFrame) / 1000, 0.1) : 0;
@@ -288,17 +288,23 @@ function frame(now) {
       }
     }
 
-    if (moved) game.persistSoon();
+    if (moved) {
+      game.persistSoon();
+      // Somebody is walking, a cat is crossing a room, an omelette is
+      // finishing: draw at the full rate until it stops.
+      game.stirred = true;
+    }
   }
 
   if (scene?.update) scene.update(dt);
 
   // Everything above has happened; only the drawing is rationed.
-  if (sinceDraw < FRAME_GAP) {
+  if (!readyToDraw(sinceDraw, isBusy(game.stirred, game.time, touchedUntil))) {
     requestAnimationFrame(frame);
     return;
   }
   sinceDraw = 0;
+  game.stirred = false;
 
   view.begin();
   if (scene?.draw) scene.draw(view.ctx);

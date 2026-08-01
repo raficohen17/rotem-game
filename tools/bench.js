@@ -12,6 +12,12 @@
  *
  * Not part of the game: nothing imports this, and it is not in the shell the
  * service worker caches.
+ *
+ * ONE THING TO CHECK BEFORE BELIEVING ANY NUMBER FROM THIS: the tab has to be
+ * on screen. A hidden tab is given a deprioritised renderer and stops asking
+ * for frames altogether, which made the same room measure 5.6ms and 25ms
+ * within the hour, and made a perfectly healthy game look like it was stuck on
+ * its loading screen. runBench refuses to guess about it and says so instead.
  */
 
 import { loadCatalog } from '../js/render/catalog.js';
@@ -115,6 +121,13 @@ function time(fn, runs = 30, batch = 4, flush = null) {
 }
 
 export async function runBench({ runs = 30, quiet = false, dpr = null } = {}) {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+    const warning = 'The tab is hidden — a hidden tab gets a deprioritised '
+      + 'renderer and no frames at all, so nothing measured here means anything. '
+      + 'Show the page and run it again.';
+    if (!quiet) console.warn(warning);
+    return { results: {}, report: warning, world: null, hidden: true };
+  }
   const catalog = await loadCatalog();
   const world = heavyWorld(catalog);
   const game = benchGame(catalog, world);
