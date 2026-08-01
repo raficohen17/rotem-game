@@ -10,7 +10,7 @@
  * so the whole room agrees about where the window is.
  */
 
-import { shade } from './shapes.js';
+import { shade, worthStroking } from './shapes.js';
 
 /** Vertical fall of light across a surface: lit on top, shaded underneath. */
 export function litFill(ctx, y, h, color, amount = 0.14) {
@@ -42,6 +42,7 @@ export function within(ctx, x, y, w, h, draw) {
 
 /** Long grain lines, slightly wandering so they do not read as a barcode. */
 export function woodGrain(ctx, x, y, w, h, color, lines = 4) {
+  if (!worthStroking(ctx, 1.6)) return;
   within(ctx, x, y, w, h, () => {
     ctx.strokeStyle = shade(color, -0.16);
     ctx.lineWidth = 1.6;
@@ -57,6 +58,7 @@ export function woodGrain(ctx, x, y, w, h, color, lines = 4) {
 
 /** Planks running across a surface, with a darker seam between each. */
 export function planks(ctx, x, y, w, h, color, count = 6, vertical = false) {
+  if (!worthStroking(ctx, 2)) return;
   within(ctx, x, y, w, h, () => {
     ctx.strokeStyle = shade(color, -0.2);
     ctx.lineWidth = 2;
@@ -78,6 +80,7 @@ export function planks(ctx, x, y, w, h, color, count = 6, vertical = false) {
 
 /** Soft creases, for anything stuffed: cushions, duvets, upholstery. */
 export function folds(ctx, x, y, w, h, color, count = 3) {
+  if (!worthStroking(ctx, 2.4)) return;
   within(ctx, x, y, w, h, () => {
     ctx.strokeStyle = shade(color, -0.13);
     ctx.lineWidth = 2.4;
@@ -94,6 +97,9 @@ export function folds(ctx, x, y, w, h, color, count = 3) {
 
 /** A dashed seam, the detail that most reads as "sewn". */
 export function stitching(ctx, x1, y1, x2, y2, color) {
+  // A dashed line whose dashes are under a pixel is a solid line nobody asked
+  // for, so below that it is simply not drawn.
+  if (!worthStroking(ctx, 1.8)) return;
   ctx.save();
   ctx.strokeStyle = shade(color, -0.3);
   ctx.lineWidth = 1.8;

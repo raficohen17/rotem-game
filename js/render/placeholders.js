@@ -16,7 +16,7 @@
  */
 
 import {
-  fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, worthDrawing,
+  fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, worthDrawing, worthStroking,
 } from './shapes.js';
 import {
   litFill, sideLit, within, woodGrain, planks, folds, stitching, sheen, glass,
@@ -893,7 +893,9 @@ export const PLACEHOLDERS = {
       litFill(ctx, -h * 0.1, h * 0.1, shade(c, -0.25), 0.14));
     // Post, wrapped in rope.
     fillRR(ctx, -w * 0.1, -h * 0.94, w * 0.2, h * 0.86, 4, shade(c, -0.05));
-    within(ctx, -w * 0.1, -h * 0.94, w * 0.2, h * 0.86, () => {
+    // The rope wrapped round the post: thirty little strokes, and a texture
+    // rather than a shape, so it goes the way the wood grain does.
+    if (worthStroking(ctx, 2)) within(ctx, -w * 0.1, -h * 0.94, w * 0.2, h * 0.86, () => {
       ctx.strokeStyle = shade(c, -0.25);
       ctx.lineWidth = 2;
       for (let y = -h * 0.92; y < -h * 0.1; y += 7) {

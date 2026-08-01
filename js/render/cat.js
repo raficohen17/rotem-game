@@ -11,6 +11,7 @@
 
 import {
   fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, roundRect, paperLayer, shade,
+  worthDrawing, worthStroking,
 } from './shapes.js';
 import { litFill } from './materials.js';
 import {
@@ -107,7 +108,8 @@ function drawHead(ctx, spec, coat, mark, eye, x, y) {
     fillEllipse(ctx, ex, y - 1 + lift, 3.4, 4.6, eye);
     // A slit pupil, which is the whole difference between a cat and a doll.
     fillEllipse(ctx, ex, y - 1 + lift, 1.1, 3.6, '#241f26');
-    fillCircle(ctx, ex - 1.2, y - 3 + lift, 1, 'rgba(255,255,255,0.85)');
+    // The glint in the eye is one pixel across at full size.
+    if (worthDrawing(ctx, 2)) fillCircle(ctx, ex - 1.2, y - 3 + lift, 1, 'rgba(255,255,255,0.85)');
     if (shape === 'grumpy') {
       strokeLine(ctx, ex - 5, y - 7, ex + 4, y - 5.5, shade(coat, -0.4), 1.6);
     }
@@ -116,15 +118,23 @@ function drawHead(ctx, spec, coat, mark, eye, x, y) {
   fillPoly(ctx, [x - 2.6, y + 3, x + 2.6, y + 3, x, y + 6], shade('#e0a0a8', 0));
   strokeLine(ctx, x, y + 6, x, y + 9, shade(coat, -0.4), 1.4);
 
-  // Whiskers.
-  ctx.globalAlpha = 0.5;
-  for (const side of [-1, 1]) {
-    for (const dy of [-1.5, 1.5]) {
-      strokeLine(ctx, x + side * 6, y + 6 + dy, x + side * (w + 12), y + 3 + dy * 2.2,
-        '#f2ece2', 1.2);
+  /*
+   * Whiskers.
+   *
+   * Four half-transparent hairs a pixel wide. In a room they are what makes a
+   * cat a cat; in the cutaway they are less than half a pixel of pale grey
+   * over pale fur, and they are a sixth of everything the cat costs to draw.
+   */
+  if (worthStroking(ctx, 1.2)) {
+    ctx.globalAlpha = 0.5;
+    for (const side of [-1, 1]) {
+      for (const dy of [-1.5, 1.5]) {
+        strokeLine(ctx, x + side * 6, y + 6 + dy, x + side * (w + 12), y + 3 + dy * 2.2,
+          '#f2ece2', 1.2);
+      }
     }
+    ctx.globalAlpha = 1;
   }
-  ctx.globalAlpha = 1;
 
   drawCollar(ctx, spec.collar, x + 12, y + h - 1, w);
 }

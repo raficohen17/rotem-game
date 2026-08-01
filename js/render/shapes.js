@@ -92,6 +92,21 @@ export function worthDrawing(ctx, designSize) {
   return designSize * Math.hypot(t.a, t.b) >= 6;
 }
 
+/**
+ * Whether a drawn line is thick enough to be a line.
+ *
+ * Texture is drawn in strokes rather than shapes, and what disappears first is
+ * the stroke, not the space between them: the grain on a wooden post is spaced
+ * forty points apart, so it looks big, while the line itself is a pixel and a
+ * half — six tenths of a real pixel in the cutaway, which paints a faint smear
+ * over the wood and costs the same as a line you can see.
+ */
+export function worthStroking(ctx, lineWidth) {
+  if (typeof ctx.getTransform !== 'function') return true;
+  const t = ctx.getTransform();
+  return lineWidth * Math.hypot(t.a, t.b) >= 0.8;
+}
+
 /** Rounded rectangle path. Hand-rolled rather than ctx.roundRect for reach. */
 export function roundRect(ctx, x, y, w, h, r) {
   const radius = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
