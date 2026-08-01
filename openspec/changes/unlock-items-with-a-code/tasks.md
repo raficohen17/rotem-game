@@ -46,3 +46,12 @@
 - [x] 6.3 Mint the two codes, write their hashes into `LOCKED_PARTS`, and record the codes outside the repo
 - [x] 6.4 Run `npm test` and check the creator on the phone at both sizes
 - [x] 6.5 Note the codes feature in `README.md`, including that the lock is not a security boundary
+
+## 7. A second gown
+
+- [x] 7.1 Bump `PART_COUNTS.bottom` to 12 and route `bottom === 11` to a new `drawGlitterGown`
+- [x] 7.2 Draw it as a mermaid column — plunging sweetheart, jewelled shoulder strands, beading along the seams — so it differs from the gala gown in silhouette and not only in trim
+- [x] 7.3 Skip the stones when `FINE` is false, and place them off a fixed pattern so cached option cells do not twinkle
+- [x] 7.4 Shorten the stride for floor-length bottoms so the legs stay inside the gown while walking
+- [x] 7.5 Add the `bottom:11` row to `LOCKED_PARTS`, mint its code, and extend the unlock tests to try every code against every other lock
+- [x] 7.6 Add a silhouette test: in a gown, walking is no wider than standing; trousers still stride

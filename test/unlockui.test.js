@@ -15,7 +15,7 @@ import { LOCKED_PARTS, lockId } from '../js/model/unlocks.js';
 import { stubGame, withDocument, inputsCreated } from './helpers/stubs.js';
 import { recordingContext } from './helpers/recorder.js';
 
-const CODES = { 'bottom:10': 'tyyffk', 'held:6': 'zibbon' };
+const CODES = { 'bottom:10': 'tyyffk', 'bottom:11': 'shimmr', 'held:6': 'zibbon' };
 
 /** The tab index of a part, the way a tap would reach it. */
 const tabFor = (key) => EDITABLE_PARTS.findIndex((p) => p.key === key) + 1;
@@ -169,5 +169,5 @@ test('the locked options are the only ones behind a code', () => {
   for (const lock of LOCKED_PARTS) {
     assert.ok(lock.index < PART_COUNTS[lock.key]);
   }
-  assert.equal(LOCKED_PARTS.length, 2, 'the gala dress and the magic sword');
+  assert.equal(LOCKED_PARTS.length, 3, 'two gowns and the magic sword');
 });

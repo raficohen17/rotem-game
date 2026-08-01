@@ -171,11 +171,11 @@ export const PART_COUNTS = {
   topColor: CLOTH_COLORS.length,
   layer: LAYERS.length,
   layerColor: CLOTH_COLORS.length,
-  // Index 10 is the gala gown, which is behind a code. It is counted here like
-  // any other style — the lock lives in the creator's selection, not in the
-  // spec, so a character already wearing it still draws if the unlock list is
-  // ever lost.
-  bottom: 11,
+  // Indices 10 and 11 are the two gowns, which are behind codes. They are
+  // counted here like any other style — the lock lives in the creator's
+  // selection, not in the spec, so a character already wearing one still draws
+  // if the unlock list is ever lost.
+  bottom: 12,
   bottomColor: CLOTH_COLORS.length,
   socks: SOCKS.length,
   socksColor: CLOTH_COLORS.length,

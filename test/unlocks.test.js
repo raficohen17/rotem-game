@@ -21,7 +21,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
  * a present for a seven year old rather than a secret. `codes never appear in
  * anything shipped` below is what actually matters, and it skips this folder.
  */
-const CODES = { 'bottom:10': 'tyyffk', 'held:6': 'zibbon' };
+const CODES = { 'bottom:10': 'tyyffk', 'bottom:11': 'shimmr', 'held:6': 'zibbon' };
 
 test('sha256 matches the published vectors', () => {
   assert.equal(sha256(''),
@@ -53,10 +53,17 @@ test('the right code unlocks its part', () => {
 });
 
 test('a code minted for one part does not open another', () => {
-  const [dress, sword] = LOCKED_PARTS.map((p) => lockId(p.key, p.index));
-  assert.deepEqual(redeem(sword, CODES[dress], []), [],
-    'the dress code offered for the sword unlocks nothing');
-  assert.deepEqual(redeem(dress, CODES[sword], []), []);
+  // Every pairing, not just one: the two gowns sit next to each other in the
+  // same grid, so mistyping one code into the other's field is the mistake
+  // most likely to actually happen.
+  const ids = LOCKED_PARTS.map((p) => lockId(p.key, p.index));
+  for (const mine of ids) {
+    for (const other of ids) {
+      if (mine === other) continue;
+      assert.deepEqual(redeem(other, CODES[mine], []), [],
+        `${mine}'s code offered for ${other} unlocks nothing`);
+    }
+  }
 });
 
 test('a wrong code changes nothing and never takes anything away', () => {
