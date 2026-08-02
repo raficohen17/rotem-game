@@ -1626,13 +1626,65 @@ function skirt(ctx, color, hem, flare) {
 }
 
 /** Trousers as one seat with two legs, so they join at the hip. */
-function trousers(ctx, color, hem, width) {
-  ctx.fillStyle = litFill(ctx, B.hipY - 20, hem - B.hipY + 20, color, 0.1);
-  fillRR(ctx, -B.hipW - 4, B.hipY - 20, (B.hipW + 4) * 2, 30, 10, ctx.fillStyle);
-  capsule(ctx, -B.legX, B.hipY - 12, hem, width, ctx.fillStyle);
-  capsule(ctx, B.legX, B.hipY - 12, hem, width, ctx.fillStyle);
-  // The inside seam, which is what stops it reading as one slab.
-  strokeLine(ctx, 0, B.hipY + 4, 0, hem - 6, shade(color, -0.2), 2.5);
+/**
+ * Trousers: a seat, a crotch and two legs, as one shape.
+ *
+ * They used to be a rounded rectangle with two capsules stuck under it, which
+ * gave the seat a notch bitten out between the legs and left every pair in the
+ * game with the same sausage silhouette whatever width it was handed — four of
+ * the ten bottoms were near enough indistinguishable. One path with a real
+ * crotch and a taper toward the hem gives a leg a shape, and `cuff` is what
+ * finally tells the four of them apart.
+ *
+ * @param {'none'|'band'|'turnup'} [options.cuff] how the leg ends
+ * @param {number} [options.taper] hem width against the thigh; below 1 tapers
+ */
+function trousers(ctx, color, hem, width, options = {}) {
+  const top = B.hipY - 20;
+  const hw = B.hipW + 4;
+  const taper = options.taper ?? 0.92;
+  const outer = B.legX + width * 0.5;
+  const inner = Math.max(1.5, B.legX - width * 0.5);
+  const oHem = B.legX + width * 0.5 * taper;
+  const iHem = Math.max(1.5, B.legX - width * 0.5 * taper);
+  // Far enough down to be a crotch, never more than a third of the way to the
+  // hem — on shorts that would land it below the leg opening.
+  const crotch = B.hipY + Math.min(26, (hem - B.hipY) * 0.32);
+
+  ctx.fillStyle = litFill(ctx, top, hem - top, color, 0.1);
+  ctx.beginPath();
+  ctx.moveTo(-hw, top + 9);
+  ctx.quadraticCurveTo(-hw, top, -hw + 9, top);
+  ctx.lineTo(hw - 9, top);
+  ctx.quadraticCurveTo(hw, top, hw, top + 9);
+  ctx.quadraticCurveTo(outer + 3, B.hipY + 24, oHem, hem);
+  ctx.quadraticCurveTo(B.legX, hem + 6, iHem, hem);
+  ctx.quadraticCurveTo(inner, B.hipY + 44, 0, crotch);
+  ctx.quadraticCurveTo(-inner, B.hipY + 44, -iHem, hem);
+  ctx.quadraticCurveTo(-B.legX, hem + 6, -oHem, hem);
+  ctx.quadraticCurveTo(-outer - 3, B.hipY + 24, -hw, top + 9);
+  ctx.closePath();
+  ctx.fill();
+
+  /*
+   * The inside seam.
+   *
+   * The legs are drawn 11-ish apart and 21 wide, so they very nearly touch —
+   * the crotch curve leaves a gap barely a pixel across, and without a seam
+   * down it the two legs read as one block to the ankle. The silhouette cannot
+   * do this job at these proportions, so a line has to.
+   */
+  strokeLine(ctx, 0, crotch + 2, 0, hem - 8, shade(color, -0.22), 2.5);
+
+  const cuff = options.cuff ?? 'none';
+  if (cuff !== 'none' && FINE) {
+    const deep = cuff === 'turnup' ? 13 : 6;
+    const tone = shade(color, cuff === 'turnup' ? 0.16 : -0.2);
+    for (const side of [-1, 1]) {
+      fillRR(ctx, side * B.legX - width * 0.5 * taper - 1, hem - deep,
+        width * taper + 2, deep + 4, 3, tone);
+    }
+  }
 }
 
 function drawBottom(ctx, style, color) {
@@ -1655,8 +1707,8 @@ function drawBottom(ctx, style, color) {
   };
 
   switch (style) {
-    case 1: // shorts
-      trousers(ctx, color, hemFor(B.hipY + 34), B.legW + 8);
+    case 1: // shorts, with a turn-up
+      trousers(ctx, color, hemFor(B.hipY + 34), B.legW + 8, { cuff: 'turnup', taper: 1 });
       break;
     case 2: // short skirt
       skirt(ctx, color, hemFor(B.hipY + 40), B.hipW + 26);
@@ -1664,20 +1716,37 @@ function drawBottom(ctx, style, color) {
     case 3: // long skirt
       skirt(ctx, color, hemFor(B.hipY + 74), B.hipW + 34);
       break;
-    case 5: // leggings
-      trousers(ctx, color, hemFor(-12), B.legW + 2);
+    case 5: // leggings, tapered to the ankle with a cuff
+      trousers(ctx, color, hemFor(-12), B.legW + 2, { cuff: 'band', taper: 0.8 });
       break;
-    case 6: // pleated skirt
-      skirt(ctx, color, hemFor(B.hipY + 52), B.hipW + 30);
-      for (let i = -2; i <= 2; i += 1) {
-        strokeLine(ctx, i * 12, B.hipY - 8, i * 20, B.hipY + 46, shade(color, -0.18), 3);
+    case 6: { // pleated skirt
+      const hem = hemFor(B.hipY + 52);
+      const flare = B.hipW + 30;
+      skirt(ctx, color, hem, flare);
+      /*
+       * Pleats that reach the hem and open out with it.
+       *
+       * They used to stop forty short of the hem and fan on a fixed 12-to-20
+       * spread, so on a wide skirt they huddled in the middle and on a narrow
+       * one they ran outside it. Spacing both ends as a fraction of the skirt's
+       * own width is what keeps a pleat a pleat.
+       */
+      if (FINE) {
+        for (const f of [-0.68, -0.34, 0, 0.34, 0.68]) {
+          // Dark enough to actually read. At -0.18 the pleats were drawn and
+          // invisible, which made this indistinguishable from the plain skirt
+          // two options along — the one thing a pleated skirt must not be.
+          strokeLine(ctx, f * (B.hipW * 0.7), B.hipY - 10, f * flare * 0.94, hem + 2,
+            shade(color, -0.36), 3);
+        }
       }
       break;
-    case 7: // dungaree trousers
-      trousers(ctx, color, hemFor(-14), B.legW + 9);
+    }
+    case 7: // dungaree trousers, rolled at the ankle
+      trousers(ctx, color, hemFor(-14), B.legW + 9, { cuff: 'turnup', taper: 0.94 });
       break;
-    case 8: // wide legged
-      trousers(ctx, color, hemFor(-12), B.legW + 16);
+    case 8: // wide legged, falling straight from the hip
+      trousers(ctx, color, hemFor(-12), B.legW + 16, { taper: 1.08 });
       break;
     case 9: // tutu, in three layers
       skirt(ctx, shade(color, -0.12), hemFor(B.hipY + 46), B.hipW + 42);
