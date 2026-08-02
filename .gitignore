@@ -7,3 +7,7 @@ assets/drawings/_raw/
 
 # Asset tooling only. The game itself ships no dependencies.
 tools/.venv/
+
+# Throwaway harnesses for looking at the art in a browser. One of these was
+# swept into a commit by a broad `git add` and shipped.
+__preview*.html

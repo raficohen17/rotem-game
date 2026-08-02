@@ -2443,11 +2443,39 @@ function drawHeld(ctx, style, sway) {
       fillRR(ctx, -8, -6, 8, 40, 3, shade('#8a4a52', -0.3));
       fillRR(ctx, 0, -3, 20, 34, 2, PAPER);
       break;
-    case 2: // a wand
+    case 2: { // a wand
+      /*
+       * A tapered shaft, a bound grip and a star on the end.
+       *
+       * It was a straight brown capsule with a slightly paler bead on top,
+       * which is a stick. Next to a sword that has a crossguard and a gem in
+       * the pommel it looked like the thing you got instead of a present. A
+       * wand tapers toward the tip and the magic is at the end of it.
+       */
       ctx.rotate(0.42);
-      capsule(ctx, 0, -34, 24, 6, litFill(ctx, -34, 58, '#7d5236', 0.2));
-      fillCircle(ctx, 0, -34, 4.5, shade('#7d5236', 0.4));
+      const wood = '#7d5236';
+      const spark = '#f4e6b0';
+
+      ctx.fillStyle = litFill(ctx, -34, 58, wood, 0.2);
+      ctx.beginPath();
+      ctx.moveTo(-3.8, 24);
+      ctx.lineTo(3.8, 24);
+      ctx.lineTo(2, -30);
+      ctx.lineTo(-2, -30);
+      ctx.closePath();
+      ctx.fill();
+      fillRR(ctx, -4.6, 7, 9.2, 14, 3, shade(wood, -0.3));
+
+      fillCircle(ctx, 0, -34, 8, shade(spark, 0.5));
+      if (FINE) {
+        fillPoly(ctx, [
+          0, -45, 2.5, -36.5, 11, -34, 2.5, -31.5,
+          0, -23, -2.5, -31.5, -11, -34, -2.5, -36.5,
+        ], spark);
+      }
+      fillCircle(ctx, 0, -34, 2.6, '#fffdf2');
       break;
+    }
     case 3: // a basket
       fillPoly(ctx, [-20, 4, 20, 4, 15, 30, -15, 30], '#c2996b');
       for (let i = -2; i <= 2; i += 1) strokeLine(ctx, i * 8, 6, i * 6, 28, shade('#c2996b', -0.25), 2);
@@ -2618,15 +2646,51 @@ function drawExtra(ctx, style, color) {
       fillCircle(ctx, -HEAD_R + 2, 16, 2.5, shade(color, 0.45));
       fillCircle(ctx, HEAD_R - 2, 16, 2.5, shade(color, 0.45));
       break;
-    case 10: // a scarf round the neck
-      fillRR(ctx, -40, HEAD_R - 4, 80, 22, 11, color);
-      fillRR(ctx, 12, HEAD_R + 12, 20, 40, 9, shade(color, -0.12));
+    case 10: { // a scarf wound round the neck
+      /*
+       * It was one 80-wide capsule at the chin — as wide as her whole head,
+       * sticking out well past the neck it was supposed to be round, with a
+       * separate rounded rect beside it for a tail. It read as a surgical
+       * collar. A scarf is wound, so it is two bands with the front one lapped
+       * over the back, and the tail hangs off the front one rather than
+       * floating next to it.
+       */
+      const w = HEAD_R * 0.46;
+      fillRR(ctx, -w, HEAD_R - 8, w * 2, 17, 8, shade(color, -0.18));
+      fillRR(ctx, -w * 0.94, HEAD_R + 1, w * 1.88, 16, 8, color);
+
+      const tx = w * 0.34;
+      ctx.fillStyle = shade(color, -0.07);
+      ctx.beginPath();
+      ctx.moveTo(tx, HEAD_R + 12);
+      ctx.lineTo(tx + w * 0.62, HEAD_R + 12);
+      ctx.quadraticCurveTo(tx + w * 0.58, HEAD_R + 40, tx + w * 0.42, HEAD_R + 50);
+      ctx.quadraticCurveTo(tx + w * 0.06, HEAD_R + 44, tx, HEAD_R + 12);
+      ctx.closePath();
+      ctx.fill();
+      if (FINE) {
+        for (let i = 0; i < 3; i += 1) {
+          strokeLine(ctx, tx + 3 + i * 6, HEAD_R + 47, tx + 2 + i * 6, HEAD_R + 55,
+            relief(color, 0.2), 2);
+        }
+      }
       break;
+    }
     case 11: // cat ears
-      fillPoly(ctx, [-46, -34, -30, -74, -12, -40], color);
-      fillPoly(ctx, [46, -34, 30, -74, 12, -40], color);
-      fillPoly(ctx, [-38, -38, -30, -62, -20, -41], shade(color, 0.4));
-      fillPoly(ctx, [38, -38, 30, -62, 20, -41], shade(color, 0.4));
+      /*
+       * Sat on the head instead of hovering over it. Both base corners used to
+       * fall outside the skull — the outer one at 46 against a radius of 58,
+       * but paired with a y that put it well clear of the curve — so the ears
+       * floated above her hair with a gap under them.
+       */
+      for (const side of [-1, 1]) {
+        fillPoly(ctx, [
+          side * 15, -40, side * 40, -22, side * 33, -72,
+        ], color);
+        fillPoly(ctx, [
+          side * 21, -40, side * 34, -28, side * 31, -62,
+        ], relief(color, 0.34));
+      }
       break;
     default:
       break;
