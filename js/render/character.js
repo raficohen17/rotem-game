@@ -2285,9 +2285,23 @@ function drawLayer(ctx, style, color, sway) {
       ctx.quadraticCurveTo(-B.hipW - 12, hem - 14, -B.waistW - 6, B.waistY - 6);
       ctx.closePath();
       ctx.fill();
-      // Straps up over the shoulders and a tie at the waist.
-      fillRR(ctx, -20, top + 12, 8, 24, 3, color);
-      fillRR(ctx, 12, top + 12, 8, 24, 3, color);
+      /*
+       * Straps that reach the shoulders, and a tie at the waist.
+       *
+       * They were two short vertical bars floating either side of the neck,
+       * ending in mid-air well short of the shoulder — the same mistake the
+       * dungarees made. An apron hangs from the shoulders, so the straps run
+       * from the top of the bib out to them.
+       */
+      for (const side of [-1, 1]) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(side * (B.waistW - 2), top + 34);
+        ctx.quadraticCurveTo(side * (B.waistW + 6), top + 8, side * B.shoulderW * 0.58, top + 4);
+        ctx.stroke();
+      }
       fillRR(ctx, -B.waistW - 8, B.waistY - 10, (B.waistW + 8) * 2, 9, 4,
         shade(color, -0.18));
       break;
@@ -2304,11 +2318,34 @@ function drawLayer(ctx, style, color, sway) {
       break;
     }
     default: { // gilet: padded, no sleeves
-      openFront(ctx, color, top + 6, B.hipY + 12);
+      const gTop = top + 6;
+      const gBottom = B.hipY + 12;
+      openFront(ctx, color, gTop, gBottom);
+
+      /*
+       * Quilting that stops where the gilet does.
+       *
+       * These ran from a fixed shoulder width inward, so at the waist — where
+       * the gilet is now at its narrowest — they carried on out past the edge
+       * of it. The same mistake the shirt stripes were making. Each seam is
+       * measured against the garment's own half-width at its own height, which
+       * means walking the same three points the side seam is built from.
+       */
+      const tipY = gTop + SHOULDER_DROP;
+      const sw = B.shoulderW + 7;
+      const ww = B.waistW + 7;
+      const hw = B.hipW + 7;
+      const halfAt = (y) => {
+        if (y <= tipY) return sw;
+        if (y <= B.waistY) return sw + (ww - sw) * ((y - tipY) / (B.waistY - tipY));
+        return ww + (hw - ww) * Math.min(1, (y - B.waistY) / (gBottom - B.waistY));
+      };
+
       for (let i = 0; i < 3; i += 1) {
-        const y = top + 26 + i * 22;
-        strokeLine(ctx, -B.shoulderW - 4, y, -10, y, shade(color, -0.18), 3);
-        strokeLine(ctx, 10, y, B.shoulderW + 4, y, shade(color, -0.18), 3);
+        const y = gTop + 26 + i * 22;
+        const edge = halfAt(y) - 2;
+        strokeLine(ctx, -edge, y, -10, y + 1, shade(color, -0.18), 3);
+        strokeLine(ctx, 10, y + 1, edge, y, shade(color, -0.18), 3);
       }
     }
   }
@@ -2318,22 +2355,35 @@ function drawLayer(ctx, style, color, sway) {
 function openFront(ctx, color, top, bottom, lapel = 0) {
   const sw = B.shoulderW + 7;
   const hw = B.hipW + 7;
+  const ww = B.waistW + 7;
+  const tipY = top + SHOULDER_DROP;
 
   for (const side of [-1, 1]) {
     ctx.fillStyle = litFill(ctx, top, bottom - top, color, 0.12);
     ctx.beginPath();
-    ctx.moveTo(side * sw, top + 14);
-    ctx.quadraticCurveTo(side * sw, top, side * sw * 0.5, top + 2);
+    /*
+     * The same sloped shoulder the garments got, for the same reason: this ran
+     * flat from the neck to the tip and then straight down, which put a square
+     * pad on every cardigan, coat and gilet in the game.
+     */
+    ctx.moveTo(side * sw, tipY);
+    ctx.bezierCurveTo(side * sw, top + 4, side * sw * 0.72, top - 1, side * sw * 0.46, top + 4);
     ctx.lineTo(side * 9, top + 30);
     ctx.lineTo(side * 9, bottom);
     ctx.quadraticCurveTo(side * hw * 0.6, bottom + 8, side * hw, bottom - 4);
-    ctx.quadraticCurveTo(side * hw, B.waistY, side * sw, top + 14);
+    /*
+     * And a waist. The side seam used to run from the hem to the shoulder in
+     * one curve that bulged outward on the way, so a coat was a barrel with a
+     * head on top — the figure underneath has a waist and the coat hid it.
+     */
+    ctx.quadraticCurveTo(side * hw, B.waistY + 10, side * ww, B.waistY);
+    ctx.quadraticCurveTo(side * sw, tipY + 22, side * sw, tipY);
     ctx.closePath();
     ctx.fill();
 
     if (lapel > 0) {
       fillPoly(ctx, [
-        side * sw * 0.55, top + 2, side * 9, top + 30 + lapel * 24, side * 9, top + 26,
+        side * sw * 0.5, top + 4, side * 9, top + 30 + lapel * 24, side * 9, top + 26,
       ], shade(color, 0.2));
     }
   }
