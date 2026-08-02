@@ -83,13 +83,22 @@ export function paperLayer(ctx, draw, lift = 1) {
  * enough real pixels to be worth painting. A canvas with no transform to read
  * is a recorder measuring what gets drawn, so it is told yes.
  */
-export function worthDrawing(ctx, designSize) {
+export function worthDrawing(ctx, designSize, min = 6) {
   if (typeof ctx.getTransform !== 'function') return true;
   const t = ctx.getTransform();
-  // Six real pixels. A book three pixels wide with a rounded corner and a
-  // highlight down its spine is a coloured stripe with extra steps, which is
-  // exactly what is drawn instead when this says no.
-  return designSize * Math.hypot(t.a, t.b) >= 6;
+  /*
+   * Six real pixels by default. A book three pixels wide with a rounded corner
+   * and a highlight down its spine is a coloured stripe with extra steps,
+   * which is exactly what is drawn instead when this says no.
+   *
+   * The floor is a parameter because six is right for something that is a
+   * shape with detail inside it, and wrong for something that is only ever a
+   * small flat oval. A nail is the second kind: three of them came out at 5.8
+   * pixels in the creator's own preview — the biggest a character is ever
+   * drawn — and fell back to the crude version there, which looked like her
+   * hands had been dipped in paint.
+   */
+  return designSize * Math.hypot(t.a, t.b) >= min;
 }
 
 /**
@@ -184,6 +193,28 @@ export function deepen(hex, amount) {
   const g = channel(8, SHADOW[1]);
   const b = channel(0, SHADOW[2]);
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+/** How bright a colour reads, weighted the way an eye weights it. */
+export function luminance(hex) {
+  const v = parseInt(hex.slice(1), 16);
+  const r = ((v >> 16) & 255) / 255;
+  const g = ((v >> 8) & 255) / 255;
+  const b = (v & 255) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * A shade that is always visible against the colour it came from.
+ *
+ * `shade(color, +0.4)` is a highlight, which is fine on a navy sock and does
+ * nothing whatever on a cream one — the stripes on the striped socks were
+ * drawn every time and had never once been seen. Detail on a pale colour has
+ * to go darker and detail on a dark colour has to go lighter, so the direction
+ * is chosen from the colour rather than typed in at the call site.
+ */
+export function relief(hex, amount = 0.28) {
+  return shade(hex, luminance(hex) > 0.55 ? -amount : amount);
 }
 
 export function shade(hex, amount) {

@@ -10,7 +10,14 @@
  * runs from -w/2 to w/2 and y from -h up to 0.
  */
 
-import { fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, roundRect, shade } from './shapes.js';
+import {
+  fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, roundRect, shade, luminance,
+} from './shapes.js';
+
+// Re-exported from here because this is where it was first needed and where
+// the book's contrast tests import it from. It lives in shapes.js now, so the
+// character art can reach it without depending on books.
+export { luminance };
 import { litFill, sideLit, within } from './materials.js';
 import { COVER_COLORS, COVER_PATTERNS, TITLE_STYLES, clampBook } from '../model/book.js';
 
@@ -443,14 +450,6 @@ export function readableInk(design) {
 /** Black or white, whichever the given colour can carry. */
 export function contrastTo(color) {
   return luminance(color) > 0.55 ? '#2e2a30' : '#f7f2e8';
-}
-
-export function luminance(hex) {
-  const v = parseInt(hex.slice(1), 16);
-  const r = ((v >> 16) & 255) / 255;
-  const g = ((v >> 8) & 255) / 255;
-  const b = (v & 255) / 255;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 /** Halfway between two colours, as the eye sees a pattern over a cover. */

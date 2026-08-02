@@ -23,8 +23,8 @@
  */
 
 import {
-  fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, paperLayer, detailLayer,
-  worthDrawing,
+  fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, relief,
+  paperLayer, detailLayer, worthDrawing,
 } from './shapes.js';
 import { litFill } from './materials.js';
 import {
@@ -467,7 +467,10 @@ function drawNails(ctx, spec) {
   const half = rx * shape.wide * 0.3;
   const color = CLOTH_COLORS[spec.nailColor ?? 0];
 
-  if (!worthDrawing(ctx, half * 2)) {
+  // A nail is a flat oval with nothing inside it, so it survives smaller than
+  // a thing with detail in it does: three and a half real pixels across still
+  // reads as a painted nail, and that is what a room draws them at.
+  if (!worthDrawing(ctx, half * 2, 3.5)) {
     // Too small for three nails — but not too small to see that they are
     // painted. Fewer and fatter, the way a bookshelf loses half its books
     // rather than all of them: one tinted fingertip, so a red manicure is
@@ -517,11 +520,17 @@ function drawTintedTip(ctx, shape, color, rx, ry, hy) {
   ctx.beginPath();
   ctx.ellipse(0, hy, rx, ry, 0, 0, Math.PI * 2);
   ctx.clip();
-  const top = hy + ry * 0.32;
-  fillEllipse(ctx, 0, hy + ry, rx * 1.1, ry - (top - hy), color);
-  if (shape.gel) {
-    fillEllipse(ctx, 0, hy + ry * 1.06, rx * 0.92, ry * 0.34, '#fdf8f4');
-  }
+  /*
+   * A band along the very end of the hand, and nothing else.
+   *
+   * The first version covered most of the lower half and put a near-white
+   * ellipse on top of it for the gel designs, which at the size this is used
+   * read as hands dipped in paint. What is wanted here is only the colour of
+   * her nails, at the end of her fingers, and a gel one lightened rather than
+   * given a white tip it has no room for.
+   */
+  const paint = shape.gel ? shade(color, 0.3) : color;
+  fillEllipse(ctx, 0, hy + ry * 1.2, rx * 0.95, ry * 0.52, paint);
   ctx.restore();
 }
 
@@ -908,7 +917,7 @@ function drawMouth(ctx, style, lip, place) {
 function hairSheen(ctx, color, width = 44, y = -34) {
   ctx.save();
   ctx.globalAlpha = 0.38;
-  ctx.strokeStyle = shade(color, 0.42);
+  ctx.strokeStyle = relief(color, 0.42);
   ctx.lineWidth = 7;
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -1347,8 +1356,8 @@ function stripeBand(ctx, y, reach, thickness, color) {
 function collar(ctx, color) {
   const top = B.torsoTop - 5;
   const w = B.shoulderW * 0.6;
-  fillPoly(ctx, [-w, top + 2, 0, top + 26, -6, top + 2], shade(color, 0.34));
-  fillPoly(ctx, [w, top + 2, 0, top + 26, 6, top + 2], shade(color, 0.34));
+  fillPoly(ctx, [-w, top + 2, 0, top + 26, -6, top + 2], relief(color, 0.34));
+  fillPoly(ctx, [w, top + 2, 0, top + 26, 6, top + 2], relief(color, 0.34));
 }
 
 function drawTop(ctx, style, color, sway) {
@@ -1437,7 +1446,7 @@ function drawTop(ctx, style, color, sway) {
         const step = (gBottom - 6 - first) / STRIPE_COUNT;
         for (let i = 0; i < STRIPE_COUNT; i += 1) {
           stripeBand(ctx, first + i * step, B.hipW + 30,
-            Math.min(7, step * 0.44), shade(color, 0.42));
+            Math.min(7, step * 0.44), relief(color, 0.42));
         }
       });
       break;
@@ -1873,7 +1882,7 @@ function drawGalaGown(ctx, color) {
   // a sash wider than the waist is a belt worn over the hips.
   fillRR(ctx, -ww - 2, waist - 6, (ww + 2) * 2, 13, 6, shade(color, -0.28));
   fillRR(ctx, -ww - 2, waist - 6, (ww + 2) * 2, 4, 2, shade(color, -0.08));
-  fillCircle(ctx, 0, waist + 0.5, 4.5, shade(color, 0.45));
+  fillCircle(ctx, 0, waist + 0.5, 4.5, relief(color, 0.45));
 }
 
 /**
@@ -1934,7 +1943,7 @@ function drawGlitterGown(ctx, color) {
   // ran down past her feet and flared back up into two spikes.
   const knee = POSE === 'sit' ? hip + 26 : hem - 34;
   const flare = B.hipW + 26;
-  const sparkle = shade(color, 0.55);
+  const sparkle = relief(color, 0.55);
 
   const hw = B.hipW + 4;
   /*
@@ -2039,7 +2048,7 @@ function drawShoes(ctx, style, color, stride = 0) {
       case 1: // ankle boots
         fillRR(ctx, x - B.legW / 2 - 2, -40, B.legW + 4, 34, 6, litFill(ctx, -40, 34, color, 0.14));
         fillEllipse(ctx, toe, -6, B.legW * 0.72, 8, shade(color, -0.22));
-        fillRR(ctx, x - B.legW / 2 - 2, -40, B.legW + 4, 5, 2, shade(color, 0.28));
+        fillRR(ctx, x - B.legW / 2 - 2, -40, B.legW + 4, 5, 2, relief(color, 0.28));
         break;
       case 2: // sandals
         fillEllipse(ctx, toe, -6, B.legW * 0.66, 7, color);
@@ -2052,16 +2061,16 @@ function drawShoes(ctx, style, color, stride = 0) {
       case 4: // mary janes with a strap
         fillEllipse(ctx, toe, -8, B.legW * 0.72, 10, litFill(ctx, -18, 20, color, 0.14));
         strokeLine(ctx, x - B.legW * 0.5, -15, x + B.legW * 0.6, -15, shade(color, -0.25), 4);
-        fillCircle(ctx, toe, -15, 3.2, shade(color, 0.4));
+        fillCircle(ctx, toe, -15, 3.2, relief(color, 0.4));
         break;
       case 5: // wellies
         fillRR(ctx, x - B.legW / 2 - 3, -62, B.legW + 6, 56, 8, litFill(ctx, -62, 56, color, 0.14));
         fillEllipse(ctx, toe, -6, B.legW * 0.8, 9, shade(color, -0.25));
-        fillRR(ctx, x - B.legW / 2 - 3, -56, B.legW + 6, 7, 3, shade(color, 0.3));
+        fillRR(ctx, x - B.legW / 2 - 3, -56, B.legW + 6, 7, 3, relief(color, 0.3));
         break;
       case 6: // fluffy slippers
         fillEllipse(ctx, toe, -9, B.legW * 0.8, 11, color);
-        fillCircle(ctx, toe, -18, B.legW * 0.42, shade(color, 0.32));
+        fillCircle(ctx, toe, -18, B.legW * 0.42, relief(color, 0.32));
         break;
       case 7: // high tops with laces
         fillRR(ctx, x - B.legW / 2 - 3, -38, B.legW + 8, 34, 9, litFill(ctx, -38, 34, color, 0.14));
@@ -2072,6 +2081,20 @@ function drawShoes(ctx, style, color, stride = 0) {
         break;
       default: // flats
         fillEllipse(ctx, toe, -7, B.legW * 0.68, 9, litFill(ctx, -16, 18, color, 0.14));
+    }
+
+    /*
+     * A sole under every shoe.
+     *
+     * Five of the eight are a single ellipse in the shoe's own colour stuck to
+     * the bottom of a leg, which reads as a foot rather than as footwear —
+     * flats, sandals, mary janes and slippers were all the same pebble with a
+     * different decoration on top. A sole is the one thing every shoe has and
+     * none of these had, and it is what puts her on the floor rather than
+     * ending at it.
+     */
+    if (FINE) {
+      fillRR(ctx, toe - B.legW * 0.76, -4, B.legW * 1.5, 6, 2.5, shade(color, -0.4));
     }
   };
   for (const side of [-1, 1]) {
@@ -2155,7 +2178,7 @@ function drawHairpin(ctx, style, color, shape) {
         const a = (i / 6) * Math.PI * 2;
         fillEllipse(ctx, -side + Math.cos(a) * 11, top + Math.sin(a) * 11, 7, 7, color);
       }
-      fillCircle(ctx, -side, top, 6, shade(color, 0.4));
+      fillCircle(ctx, -side, top, 6, relief(color, 0.4));
       break;
     case 9: // a row of pearl pins
       for (let i = 0; i < 5; i += 1) {
@@ -2202,19 +2225,26 @@ function drawSocks(ctx, style, color, stride = 0) {
       ctx.fillStyle = litFill(ctx, top, length - top, color, 0.12);
       fillRR(ctx, -w / 2, top, w, length - top, w * 0.3, ctx.fillStyle);
 
+      /*
+       * The stripes and the cuff both used to be a highlight — shade(+0.4) and
+       * shade(+0.28). That works on a navy sock and does nothing at all on a
+       * cream one, and the sock palette is mostly pale, so the striped socks
+       * had their stripes drawn every single time and had never once been
+       * seen. `relief` picks the direction from the colour instead.
+       */
       if (style === 4) {
         for (let y = top + 8; y < length - 12; y += 16) {
-          fillRR(ctx, -w / 2, y, w, 6, 2, shade(color, 0.4));
+          fillRR(ctx, -w / 2, y, w, 6, 2, relief(color, 0.34));
         }
       }
       if (style === 5) {
         // Bunched at the ankle: a couple of folds where it slouches.
         for (const y of [length - 26, length - 14]) {
-          fillRR(ctx, -w / 2 - 2, y, w + 4, 9, 4, shade(color, -0.14));
+          fillRR(ctx, -w / 2 - 2, y, w + 4, 9, 4, relief(color, 0.16));
         }
       }
       // A turned cuff, which is what tells a sock from a painted leg.
-      if (style !== 3) fillRR(ctx, -w / 2 - 1, top, w + 2, 8, 4, shade(color, 0.28));
+      if (style !== 3) fillRR(ctx, -w / 2 - 1, top, w + 2, 8, 4, relief(color, 0.22));
     });
   }
 }
@@ -2270,7 +2300,7 @@ function drawLayer(ctx, style, color, sway) {
       // A collar across the shoulders and the clasp that holds it.
       fillRR(ctx, -B.shoulderW - 6, top + 2, (B.shoulderW + 6) * 2, 18, 8,
         shade(color, -0.12));
-      fillCircle(ctx, 0, top + 11, 7, shade(color, 0.42));
+      fillCircle(ctx, 0, top + 11, 7, relief(color, 0.42));
       break;
     }
     case 4: { // apron, tied over whatever is underneath
@@ -2565,8 +2595,8 @@ function drawExtra(ctx, style, color) {
       ctx.fillStyle = color;
       ctx.fill();
       ctx.restore();
-      fillRR(ctx, -HEAD_R - 6, -34, HEAD_R * 2 + 12, 16, 7, shade(color, 0.28));
-      fillCircle(ctx, 0, -HEAD_R - 22, 13, shade(color, 0.28));
+      fillRR(ctx, -HEAD_R - 6, -34, HEAD_R * 2 + 12, 16, 7, relief(color, 0.28));
+      fillCircle(ctx, 0, -HEAD_R - 22, 13, relief(color, 0.28));
       break;
     case 7: // flower crown
       for (let i = -2; i <= 2; i += 1) {

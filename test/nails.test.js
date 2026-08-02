@@ -206,3 +206,34 @@ test('the nails tab is framed on a hand rather than on a whole person', () => {
   assert.match(source, /HAND_PARTS/, 'the creator knows which parts want a hand');
   assert.match(source, /crop === 'hand'/, 'and frames them on one');
 });
+
+test('the preview in the creator gets real nails, not the crude fallback', () => {
+  /*
+   * The creator's own preview is the biggest a character is ever drawn, and it
+   * came out at 5.8 real pixels a nail — a hair under the six the size rule
+   * asks for, so the one place she goes to look at her nails showed her the
+   * version meant for across a room. It looked like her hands had been dipped
+   * in paint.
+   */
+  const view = 915 / 1280;
+  const dpr = 1.5;
+  for (const [where, sceneScale] of [['the creator preview', 1.62], ['a room', 1.033]]) {
+    const canvas = scaledCanvas(sceneScale * view * dpr);
+    drawCharacter(canvas, painted(1, 3), 1);
+    const plain = scaledCanvas(sceneScale * view * dpr);
+    drawCharacter(plain, bare(), 1);
+    // Three nails is three more fills than a bare hand, per hand.
+    assert.ok(canvas.fills() - plain.fills() >= 6,
+      `${where} draws all three nails on both hands`);
+  }
+});
+
+test('what is left at cutaway size is her colour and nothing white', () => {
+  // The crude version put a near-white ellipse on the end of the hand for the
+  // gel designs, which at that size is a hand dipped in paint rather than a
+  // manicure.
+  const [french] = LOCKED_PARTS.filter((p) => p.key === 'nails');
+  const canvas = scaledCanvas(1.033 * 0.43 * (915 / 1280) * 1.5);
+  drawCharacter(canvas, painted(french.index, 3), 1);
+  assert.equal(canvas.colours().includes('#fdf8f4'), false, 'no white tip down there');
+});
