@@ -417,12 +417,30 @@ function drawArms(ctx, skin, sway) {
   }
 }
 
-/** Hands, drawn after the sleeves so a long sleeve stops at the wrist. */
+/**
+ * Where the forearm starts, as a fraction of the arm.
+ *
+ * Below every sleeve in the game: the longest of them runs 68 from the shoulder
+ * and the arm is 100, so nothing drawn past this point can cover a cuff.
+ */
+const FOREARM_FROM = 0.72;
+
+/**
+ * Hands, drawn after the sleeves so a long sleeve stops at the wrist.
+ *
+ * The forearm comes with them, and that is the point. Arms are drawn behind the
+ * clothes so a sleeve can cover the shoulder, but a skirt is wider than the arm
+ * that hangs beside it — so the skirt painted over the middle of the arm and
+ * the hand reappeared on top of it as a bare circle with nothing joining it to
+ * her. Bringing the forearm forward with the hand puts the whole limb in front
+ * of the skirt, which is where an arm actually is.
+ */
 function drawHands(ctx, skin, sway, spec) {
   for (const side of [-1, 1]) {
     ctx.save();
     ctx.translate(B.armX * side, B.shoulderY);
     ctx.rotate(armAngle(sway, side));
+    capsule(ctx, 0, B.armLen * FOREARM_FROM, B.armLen, B.armW, skin);
     fillEllipse(ctx, 0, B.armLen + 2, B.armW * 0.5, B.armW * 0.62, skin);
     drawNails(ctx, spec);
     ctx.restore();
@@ -1204,17 +1222,20 @@ function sleeve(ctx, side, length, color, sway, flare = 6) {
   ctx.quadraticCurveTo(-top - 2, length * 0.5, -cuff, length);
   ctx.quadraticCurveTo(0, length + 5, cuff, length);
   ctx.quadraticCurveTo(top + 2, length * 0.5, top, -10);
+  /*
+   * A domed head on the sleeve rather than a flat lid.
+   *
+   * Closing the path straight across the top left a hard horizontal edge over
+   * the arm, which met the garment's own flat shoulder and made everybody look
+   * like they were wearing a box. A sleeve is gathered over the top of the
+   * shoulder, so the seam is a curve.
+   */
+  ctx.quadraticCurveTo(0, -10 - top * 0.8, -top, -10);
   ctx.closePath();
   ctx.fill();
   ctx.restore();
 }
 
-/**
- * The body of a garment: shoulders, waist and hem, following the build.
- *
- * `neck` cuts the collar lower for a vest or a scoop; `shoulder` widens it
- * enough to meet the sleeves so there is no seam between them.
- */
 /**
  * The outline of a garment, as a path on the context.
  *
@@ -1231,18 +1252,31 @@ function garmentPath(ctx, options = {}) {
   const hw = B.hipW + 5;
   const waist = Math.max(top + 22, Math.min(B.waistY, bottom - 12));
 
+  /*
+   * The shoulder line slopes, and turns into the armhole without a corner.
+   *
+   * It used to run flat from the neck to the shoulder tip and then break
+   * straight down, which is a coat hanger, not a person — and with the sleeve's
+   * flat lid beside it everyone came out looking boxed. A neck sits higher than
+   * a shoulder tip, so the line falls `SHOULDER_DROP` on the way out, and the
+   * first control point sits directly above the tip so the curve leaves it
+   * travelling straight up — which is the tangent the side seam arrives on, and
+   * so the join is smooth instead of a notch.
+   */
+  const tipY = top + SHOULDER_DROP;
+
   ctx.beginPath();
-  ctx.moveTo(-sw, top + 14);
-  ctx.quadraticCurveTo(-sw + 2, top, -sw * neck, top + 4);
-  ctx.quadraticCurveTo(0, top + 14, sw * neck, top + 4);
-  ctx.quadraticCurveTo(sw - 2, top, sw, top + 14);
+  ctx.moveTo(-sw, tipY);
+  ctx.bezierCurveTo(-sw, top + 4, -sw * 0.78, top - 1, -sw * neck, top + 5);
+  ctx.quadraticCurveTo(0, top + 19, sw * neck, top + 5);
+  ctx.bezierCurveTo(sw * 0.78, top - 1, sw, top + 4, sw, tipY);
   ctx.quadraticCurveTo(ww, waist - 12, ww, waist);
   ctx.quadraticCurveTo(hw, bottom - 14, hw, bottom + 2);
   // The hem dips in the middle and lifts at the sides, the way cloth hangs.
   ctx.quadraticCurveTo(hw * 0.45, bottom + 12, 0, bottom + 9);
   ctx.quadraticCurveTo(-hw * 0.45, bottom + 12, -hw, bottom + 2);
   ctx.quadraticCurveTo(-hw, bottom - 14, -ww, waist);
-  ctx.quadraticCurveTo(-ww, waist - 12, -sw, top + 14);
+  ctx.quadraticCurveTo(-ww, waist - 12, -sw, tipY);
   ctx.closePath();
 
   return { top, bottom, waist, sw, ww, hw };
@@ -1282,6 +1316,9 @@ function withinGarment(ctx, draw, options = {}) {
 
 /** How many bands a striped top gets, whatever the build. */
 const STRIPE_COUNT = 6;
+
+/** How far a shoulder falls from the neck to the tip. Nobody is a coat hanger. */
+const SHOULDER_DROP = 18;
 
 /**
  * One band of a stripe, sagging slightly in the middle.
