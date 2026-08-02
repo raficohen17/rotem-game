@@ -1062,7 +1062,14 @@ function sleeve(ctx, side, length, color, sway, flare = 6) {
  * `neck` cuts the collar lower for a vest or a scoop; `shoulder` widens it
  * enough to meet the sleeves so there is no seam between them.
  */
-function garment(ctx, color, options = {}) {
+/**
+ * The outline of a garment, as a path on the context.
+ *
+ * Split out from the fill so that a pattern can be clipped to the same shape
+ * the garment was drawn from. Returns the measurements a caller needs to lay
+ * something out inside it.
+ */
+function garmentPath(ctx, options = {}) {
   const top = options.top ?? B.torsoTop - 5;
   const bottom = options.bottom ?? B.hipY + 8;
   const neck = options.neck ?? 0.42;
@@ -1071,7 +1078,6 @@ function garment(ctx, color, options = {}) {
   const hw = B.hipW + 5;
   const waist = Math.max(top + 22, Math.min(B.waistY, bottom - 12));
 
-  ctx.fillStyle = litFill(ctx, top, bottom - top, color, 0.12);
   ctx.beginPath();
   ctx.moveTo(-sw, top + 14);
   ctx.quadraticCurveTo(-sw + 2, top, -sw * neck, top + 4);
@@ -1085,17 +1091,66 @@ function garment(ctx, color, options = {}) {
   ctx.quadraticCurveTo(-hw, bottom - 14, -ww, waist);
   ctx.quadraticCurveTo(-ww, waist - 12, -sw, top + 14);
   ctx.closePath();
+
+  return { top, bottom, waist, sw, ww, hw };
+}
+
+/**
+ * The body of a garment: shoulders, waist and hem, following the build.
+ *
+ * `neck` cuts the collar lower for a vest or a scoop; `shoulder` widens it
+ * enough to meet the sleeves so there is no seam between them.
+ */
+function garment(ctx, color, options = {}) {
+  const { top, bottom } = garmentPath(ctx, options);
+  ctx.fillStyle = litFill(ctx, top, bottom - top, color, 0.12);
   ctx.fill();
 }
 
-/** Keeps a pattern inside the garment it belongs to. */
-function withinGarment(ctx, draw, top = B.torsoTop - 5, bottom = B.hipY + 10) {
+/**
+ * Keeps a pattern inside the garment it belongs to.
+ *
+ * Clipped to the garment's own outline, not to a box around it. A box is the
+ * width of the hips at every height, so a stripe drawn across the waist — where
+ * the garment is at its narrowest — carried on out past the side of the dress
+ * into thin air. Pass the same options the garment was drawn with, or the
+ * pattern is clipped to a shape the garment does not have.
+ *
+ * The callback is handed the measurements, so a pattern can be laid out against
+ * the garment it is going into rather than against numbers typed in by hand.
+ */
+function withinGarment(ctx, draw, options = {}) {
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(-B.hipW - 6, top, (B.hipW + 6) * 2, bottom - top);
+  const shape = garmentPath(ctx, options);
   ctx.clip();
-  draw();
+  draw(shape);
   ctx.restore();
+}
+
+/** How many bands a striped top gets, whatever the build. */
+const STRIPE_COUNT = 6;
+
+/**
+ * One band of a stripe, sagging slightly in the middle.
+ *
+ * A body has a front and two sides, so a stripe running round it is a shallow
+ * curve seen head on, not a straight rule. Drawn dead straight, six of them
+ * stacked up read as rungs on a ladder laid over a flat board — which is
+ * exactly what they looked like.
+ *
+ * Drawn wider than the body on purpose: the caller clips to the garment, and
+ * letting the clip cut the ends is what makes a stripe follow the silhouette.
+ */
+function stripeBand(ctx, y, reach, thickness, color) {
+  const sag = thickness * 0.7;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(-reach, y);
+  ctx.quadraticCurveTo(0, y + sag, reach, y);
+  ctx.lineTo(reach, y + thickness);
+  ctx.quadraticCurveTo(0, y + sag + thickness, -reach, y + thickness);
+  ctx.closePath();
+  ctx.fill();
 }
 
 /** A turned collar, the detail that makes a shirt read as a shirt. */
@@ -1130,22 +1185,39 @@ function drawTop(ctx, style, color, sway) {
       sleeve(ctx, -1, 34, color, sway);
       sleeve(ctx, 1, 34, color, sway);
       garment(ctx, color);
-      withinGarment(ctx, () => {
-        for (let i = 0; i < 6; i += 1) {
-          fillRR(ctx, -60, top + 12 + i * 15, 120, 6, 3, shade(color, 0.42));
+      /*
+       * Bands drawn wider than the body and cut back by the clip, so each one
+       * ends exactly where the shirt does and pulls in through the waist with
+       * it. They were 120 wide whatever the build, on a box-shaped clip, which
+       * left them hanging out either side of the narrowest part of the dress.
+       *
+       * Spaced off the garment's own height rather than every 15px: a petite
+       * torso is shorter than six fixed steps, so the last stripe used to fall
+       * past the hem and get sliced in half.
+       */
+      withinGarment(ctx, ({ top: gTop, bottom: gBottom }) => {
+        const first = gTop + 16;
+        const step = (gBottom - 6 - first) / STRIPE_COUNT;
+        for (let i = 0; i < STRIPE_COUNT; i += 1) {
+          stripeBand(ctx, first + i * step, B.hipW + 30,
+            Math.min(7, step * 0.44), shade(color, 0.42));
         }
       });
       break;
-    case 5: // chunky knit
+    case 5: { // chunky knit
       sleeve(ctx, -1, 64, color, sway, 9);
       sleeve(ctx, 1, 64, color, sway, 9);
-      garment(ctx, color, { top: top - 3, bottom: B.hipY + 14 });
-      withinGarment(ctx, () => {
+      const knit = { top: top - 3, bottom: B.hipY + 14 };
+      garment(ctx, color, knit);
+      // The same options the garment was drawn with, so the ribs stop at the
+      // knit's own hem instead of at a default one it does not have.
+      withinGarment(ctx, ({ top: gTop, bottom: gBottom }) => {
         for (let i = -1; i <= 1; i += 1) {
-          strokeLine(ctx, i * 15, top + 12, i * 15, B.hipY, shade(color, -0.16), 3);
+          strokeLine(ctx, i * 15, gTop + 14, i * 15, gBottom + 6, shade(color, -0.16), 3);
         }
-      });
+      }, knit);
       break;
+    }
     case 6: // dungarees, straps over a bare shoulder
       garment(ctx, color, { top: top + 34, shoulder: -8 });
       fillRR(ctx, -B.shoulderW * 0.55, top, 12, 46, 4, color);
@@ -1163,7 +1235,27 @@ function drawTop(ctx, style, color, sway) {
       sleeve(ctx, -1, 62, color, sway);
       sleeve(ctx, 1, 62, color, sway);
       garment(ctx, color);
-      withinGarment(ctx, () => fillRR(ctx, -11, top, 22, 110, 4, shade(color, 0.4)));
+      /*
+       * The shirt underneath, with the cardigan's two front edges either side
+       * of it and buttons down one band.
+       *
+       * It used to be a lighter tint of the cardigan's own colour with no edges
+       * — which is not a layer, it is a pale stripe, and it read as a scarf.
+       * A shirt is a different garment, so it gets a different colour, and the
+       * edges are what actually say the cardigan is hanging open.
+       *
+       * Measured off the garment: a fixed 110 stopped short of the hem on a
+       * tall build and ran past it on a small one.
+       */
+      withinGarment(ctx, ({ top: gTop, bottom: gBottom }) => {
+        const edge = shade(color, -0.26);
+        fillRR(ctx, -12, gTop, 24, gBottom - gTop + 14, 3, PAPER);
+        strokeLine(ctx, -12, gTop, -12, gBottom + 11, edge, 2.5);
+        strokeLine(ctx, 12, gTop, 12, gBottom + 11, edge, 2.5);
+        for (let i = 0; i < 3; i += 1) {
+          fillCircle(ctx, 17, gTop + 30 + i * 24, 2.6, edge);
+        }
+      });
       break;
     case 9: // crop top
       sleeve(ctx, -1, 26, color, sway);
