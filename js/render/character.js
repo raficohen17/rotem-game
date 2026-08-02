@@ -225,7 +225,18 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   // Breathing, a slow head tilt and a little arm sway. Small enough that
   // dragging still feels precise, alive enough that a still room isn't dead.
   const walking = motion?.walking ?? false;
-  const stride = walking ? Math.sin(time * 9) : 0;
+  /*
+   * A floor-length gown shortens her step.
+   *
+   * Not a flourish. The legs pivot up to a third of a radian at the hip, which
+   * throws a foot forty out from where it stands, and a gown cut close to the
+   * knee cannot follow that — the legs came out through the sides of the
+   * skirt. Somebody in a long dress takes small steps for exactly this reason,
+   * so the fix and the truth are the same thing.
+   */
+  const stride = walking
+    ? Math.sin(time * 9) * (FLOOR_LENGTH.has(spec.bottom) ? 0.42 : 1)
+    : 0;
 
   const breath = Math.sin(time * 1.9);
   // While walking the arms swing properly rather than drifting.
@@ -274,6 +285,8 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   paperLayer(ctx, () => {
     if (spec.bottom === GALA_GOWN) {
       drawGalaGown(ctx, CLOTH_COLORS[spec.bottomColor]);
+    } else if (spec.bottom === GLITTER_GOWN) {
+      drawGlitterGown(ctx, CLOTH_COLORS[spec.bottomColor]);
     } else if (spec.bottom === 4) {
       drawDress(ctx, CLOTH_COLORS[spec.bottomColor]);
     } else {
@@ -1049,7 +1062,14 @@ function sleeve(ctx, side, length, color, sway, flare = 6) {
  * `neck` cuts the collar lower for a vest or a scoop; `shoulder` widens it
  * enough to meet the sleeves so there is no seam between them.
  */
-function garment(ctx, color, options = {}) {
+/**
+ * The outline of a garment, as a path on the context.
+ *
+ * Split out from the fill so that a pattern can be clipped to the same shape
+ * the garment was drawn from. Returns the measurements a caller needs to lay
+ * something out inside it.
+ */
+function garmentPath(ctx, options = {}) {
   const top = options.top ?? B.torsoTop - 5;
   const bottom = options.bottom ?? B.hipY + 8;
   const neck = options.neck ?? 0.42;
@@ -1058,7 +1078,6 @@ function garment(ctx, color, options = {}) {
   const hw = B.hipW + 5;
   const waist = Math.max(top + 22, Math.min(B.waistY, bottom - 12));
 
-  ctx.fillStyle = litFill(ctx, top, bottom - top, color, 0.12);
   ctx.beginPath();
   ctx.moveTo(-sw, top + 14);
   ctx.quadraticCurveTo(-sw + 2, top, -sw * neck, top + 4);
@@ -1072,17 +1091,66 @@ function garment(ctx, color, options = {}) {
   ctx.quadraticCurveTo(-hw, bottom - 14, -ww, waist);
   ctx.quadraticCurveTo(-ww, waist - 12, -sw, top + 14);
   ctx.closePath();
+
+  return { top, bottom, waist, sw, ww, hw };
+}
+
+/**
+ * The body of a garment: shoulders, waist and hem, following the build.
+ *
+ * `neck` cuts the collar lower for a vest or a scoop; `shoulder` widens it
+ * enough to meet the sleeves so there is no seam between them.
+ */
+function garment(ctx, color, options = {}) {
+  const { top, bottom } = garmentPath(ctx, options);
+  ctx.fillStyle = litFill(ctx, top, bottom - top, color, 0.12);
   ctx.fill();
 }
 
-/** Keeps a pattern inside the garment it belongs to. */
-function withinGarment(ctx, draw, top = B.torsoTop - 5, bottom = B.hipY + 10) {
+/**
+ * Keeps a pattern inside the garment it belongs to.
+ *
+ * Clipped to the garment's own outline, not to a box around it. A box is the
+ * width of the hips at every height, so a stripe drawn across the waist — where
+ * the garment is at its narrowest — carried on out past the side of the dress
+ * into thin air. Pass the same options the garment was drawn with, or the
+ * pattern is clipped to a shape the garment does not have.
+ *
+ * The callback is handed the measurements, so a pattern can be laid out against
+ * the garment it is going into rather than against numbers typed in by hand.
+ */
+function withinGarment(ctx, draw, options = {}) {
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(-B.hipW - 6, top, (B.hipW + 6) * 2, bottom - top);
+  const shape = garmentPath(ctx, options);
   ctx.clip();
-  draw();
+  draw(shape);
   ctx.restore();
+}
+
+/** How many bands a striped top gets, whatever the build. */
+const STRIPE_COUNT = 6;
+
+/**
+ * One band of a stripe, sagging slightly in the middle.
+ *
+ * A body has a front and two sides, so a stripe running round it is a shallow
+ * curve seen head on, not a straight rule. Drawn dead straight, six of them
+ * stacked up read as rungs on a ladder laid over a flat board — which is
+ * exactly what they looked like.
+ *
+ * Drawn wider than the body on purpose: the caller clips to the garment, and
+ * letting the clip cut the ends is what makes a stripe follow the silhouette.
+ */
+function stripeBand(ctx, y, reach, thickness, color) {
+  const sag = thickness * 0.7;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(-reach, y);
+  ctx.quadraticCurveTo(0, y + sag, reach, y);
+  ctx.lineTo(reach, y + thickness);
+  ctx.quadraticCurveTo(0, y + sag + thickness, -reach, y + thickness);
+  ctx.closePath();
+  ctx.fill();
 }
 
 /** A turned collar, the detail that makes a shirt read as a shirt. */
@@ -1117,22 +1185,39 @@ function drawTop(ctx, style, color, sway) {
       sleeve(ctx, -1, 34, color, sway);
       sleeve(ctx, 1, 34, color, sway);
       garment(ctx, color);
-      withinGarment(ctx, () => {
-        for (let i = 0; i < 6; i += 1) {
-          fillRR(ctx, -60, top + 12 + i * 15, 120, 6, 3, shade(color, 0.42));
+      /*
+       * Bands drawn wider than the body and cut back by the clip, so each one
+       * ends exactly where the shirt does and pulls in through the waist with
+       * it. They were 120 wide whatever the build, on a box-shaped clip, which
+       * left them hanging out either side of the narrowest part of the dress.
+       *
+       * Spaced off the garment's own height rather than every 15px: a petite
+       * torso is shorter than six fixed steps, so the last stripe used to fall
+       * past the hem and get sliced in half.
+       */
+      withinGarment(ctx, ({ top: gTop, bottom: gBottom }) => {
+        const first = gTop + 16;
+        const step = (gBottom - 6 - first) / STRIPE_COUNT;
+        for (let i = 0; i < STRIPE_COUNT; i += 1) {
+          stripeBand(ctx, first + i * step, B.hipW + 30,
+            Math.min(7, step * 0.44), shade(color, 0.42));
         }
       });
       break;
-    case 5: // chunky knit
+    case 5: { // chunky knit
       sleeve(ctx, -1, 64, color, sway, 9);
       sleeve(ctx, 1, 64, color, sway, 9);
-      garment(ctx, color, { top: top - 3, bottom: B.hipY + 14 });
-      withinGarment(ctx, () => {
+      const knit = { top: top - 3, bottom: B.hipY + 14 };
+      garment(ctx, color, knit);
+      // The same options the garment was drawn with, so the ribs stop at the
+      // knit's own hem instead of at a default one it does not have.
+      withinGarment(ctx, ({ top: gTop, bottom: gBottom }) => {
         for (let i = -1; i <= 1; i += 1) {
-          strokeLine(ctx, i * 15, top + 12, i * 15, B.hipY, shade(color, -0.16), 3);
+          strokeLine(ctx, i * 15, gTop + 14, i * 15, gBottom + 6, shade(color, -0.16), 3);
         }
-      });
+      }, knit);
       break;
+    }
     case 6: // dungarees, straps over a bare shoulder
       garment(ctx, color, { top: top + 34, shoulder: -8 });
       fillRR(ctx, -B.shoulderW * 0.55, top, 12, 46, 4, color);
@@ -1150,7 +1235,27 @@ function drawTop(ctx, style, color, sway) {
       sleeve(ctx, -1, 62, color, sway);
       sleeve(ctx, 1, 62, color, sway);
       garment(ctx, color);
-      withinGarment(ctx, () => fillRR(ctx, -11, top, 22, 110, 4, shade(color, 0.4)));
+      /*
+       * The shirt underneath, with the cardigan's two front edges either side
+       * of it and buttons down one band.
+       *
+       * It used to be a lighter tint of the cardigan's own colour with no edges
+       * — which is not a layer, it is a pale stripe, and it read as a scarf.
+       * A shirt is a different garment, so it gets a different colour, and the
+       * edges are what actually say the cardigan is hanging open.
+       *
+       * Measured off the garment: a fixed 110 stopped short of the hem on a
+       * tall build and ran past it on a small one.
+       */
+      withinGarment(ctx, ({ top: gTop, bottom: gBottom }) => {
+        const edge = shade(color, -0.26);
+        fillRR(ctx, -12, gTop, 24, gBottom - gTop + 14, 3, PAPER);
+        strokeLine(ctx, -12, gTop, -12, gBottom + 11, edge, 2.5);
+        strokeLine(ctx, 12, gTop, 12, gBottom + 11, edge, 2.5);
+        for (let i = 0; i < 3; i += 1) {
+          fillCircle(ctx, 17, gTop + 30 + i * 24, 2.6, edge);
+        }
+      });
       break;
     case 9: // crop top
       sleeve(ctx, -1, 26, color, sway);
@@ -1392,6 +1497,155 @@ function drawGalaGown(ctx, color) {
   fillRR(ctx, -ww - 2, waist - 6, (ww + 2) * 2, 13, 6, shade(color, -0.28));
   fillRR(ctx, -ww - 2, waist - 6, (ww + 2) * 2, 4, 2, shade(color, -0.08));
   fillCircle(ctx, 0, waist + 0.5, 4.5, shade(color, 0.45));
+}
+
+/**
+ * The second gown: `bottom` index 11, also behind a code.
+ *
+ * Where the first gown is an A-line that falls from the waist, this one is a
+ * column — held against the body from the bust to below the knee and only then
+ * breaking into a mermaid flare. Two gowns that differ in trim would be one
+ * gown twice; two that differ in silhouette are two, and the option grid draws
+ * them at the size of a thumbnail, where the outline is all there is to go on.
+ *
+ * A plunging sweetheart neckline, strands of jewels draped off the shoulders
+ * instead of straps, and lines of stones following the seams rather than a
+ * fabric print. The glitter is the point of this one, so it is drawn as
+ * separate stones and not as a lighter colour.
+ */
+const GLITTER_GOWN = 11;
+
+/**
+ * Bottoms that reach the floor, and so shorten her step.
+ *
+ * Read by `drawCharacter` when it works out the stride. Declared here rather
+ * than at the top of the file so it sits with the two gowns it names.
+ */
+const FLOOR_LENGTH = new Set([GALA_GOWN, GLITTER_GOWN]);
+
+/**
+ * Stones along a line, fading toward the ends.
+ *
+ * Placed off a fixed pattern rather than a random one: the option cells are
+ * cached bitmaps, so anything random redraws differently every time the cache
+ * is missed and the dress appears to twinkle when nothing has changed.
+ */
+function beading(ctx, x1, y1, x2, y2, count, color, size = 1.7) {
+  for (let i = 0; i < count; i += 1) {
+    const t = (i + 0.5) / count;
+    // Biggest in the middle of the run, so a line of stones has a highlight
+    // along it instead of reading as a dotted rule.
+    const r = size * (0.55 + 0.45 * Math.sin(t * Math.PI));
+    fillCircle(ctx, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, r, color);
+  }
+}
+
+function drawGlitterGown(ctx, color) {
+  const bust = B.torsoTop + 14;
+  const waist = B.waistY;
+  const hip = B.hipY;
+
+  /*
+   * Where the column breaks into the flare.
+   *
+   * Below the knee standing. Sitting, the whole thing is pulled up over the
+   * lap like the other gown — a floor-length hem measured while seated pools
+   * where the chair is and hides the legs.
+   */
+  const hem = POSE === 'sit' ? hip + 46 : -26;
+  // Above the hem, so minus. Plus put the break below the floor, and the skirt
+  // ran down past her feet and flared back up into two spikes.
+  const knee = POSE === 'sit' ? hip + 26 : hem - 34;
+  const flare = B.hipW + 26;
+  const sparkle = shade(color, 0.55);
+
+  const hw = B.hipW + 4;
+  /*
+   * The narrowest the column gets.
+   *
+   * Cut to the leg it covers, it was narrower than her stride: walking, the
+   * legs swung out past the sides of the dress and came through it. A gown is
+   * allowed to be tight, not to be transparent — so this is the width of the
+   * widest step rather than of a leg standing still.
+   */
+  const kw = B.legW + 15;
+
+  // The column: bust, waist, hip, then held close to the knee.
+  ctx.fillStyle = litFill(ctx, bust, hem - bust, color, 0.16);
+  ctx.beginPath();
+  ctx.moveTo(-B.shoulderW * 0.72, bust + 2);
+  // The plunging sweetheart: two curves that meet low in the middle.
+  ctx.quadraticCurveTo(-B.shoulderW * 0.3, bust - 6, -1, bust + 34);
+  ctx.quadraticCurveTo(B.shoulderW * 0.3, bust - 6, B.shoulderW * 0.72, bust + 2);
+  ctx.quadraticCurveTo(B.waistW + 5, waist - 26, B.waistW + 3, waist);
+  ctx.quadraticCurveTo(hw, hip - 16, hw, hip + 6);
+  ctx.quadraticCurveTo(kw + 4, knee - 40, kw, knee);
+  // The mermaid break. The control point sits near the knee's own width so the
+  // skirt eases outward — level with the break it bulged straight sideways and
+  // the hem came out as a flat pancake round her feet.
+  ctx.quadraticCurveTo(kw + 7, hem - 16, flare, hem);
+  ctx.quadraticCurveTo(flare * 0.55, hem + 15, flare * 0.3, hem + 5);
+  ctx.quadraticCurveTo(0, hem + 17, -flare * 0.3, hem + 5);
+  ctx.quadraticCurveTo(-flare * 0.55, hem + 15, -flare, hem);
+  ctx.quadraticCurveTo(-kw - 7, hem - 16, -kw, knee);
+  ctx.quadraticCurveTo(-kw - 4, knee - 40, -hw, hip + 6);
+  ctx.quadraticCurveTo(-hw, hip - 16, -B.waistW - 3, waist);
+  ctx.quadraticCurveTo(-B.waistW - 5, waist - 26, -B.shoulderW * 0.72, bust + 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Two soft creases either side of the front, so the column has a front and
+  // two sides. A single line down the middle read as a zip, or worse as a slit.
+  for (const side of [-1, 1]) {
+    strokeLine(ctx, side * B.waistW * 0.5, waist - 6, side * kw * 0.5, knee,
+      shade(color, -0.08), 2);
+  }
+
+  /*
+   * The stones.
+   *
+   * Skipped entirely when the figure is too small to resolve them: a fifty
+   * stone dress drawn two thirds of a pixel at a time is a smudge that costs
+   * fifty fills, which is the whole reason `FINE` exists.
+   */
+  if (FINE) {
+    // Following the seams, the way the real one traces the silhouette.
+    for (const side of [-1, 1]) {
+      beading(ctx, side * (B.shoulderW * 0.66), bust + 6,
+        side * (B.waistW + 4), waist, 7, sparkle);
+      beading(ctx, side * (B.waistW + 4), waist, side * hw, hip + 4, 4, sparkle);
+      beading(ctx, side * hw, hip + 4, side * kw, knee, 6, sparkle, 1.5);
+    }
+    // The neckline, which is the edge the eye lands on first.
+    beading(ctx, -B.shoulderW * 0.66, bust + 4, -1, bust + 32, 5, sparkle, 1.9);
+    beading(ctx, 1, bust + 32, B.shoulderW * 0.66, bust + 4, 5, sparkle, 1.9);
+    // And a scatter over the skirt, dense at the break and thinning downward.
+    for (let i = 0; i < 14; i += 1) {
+      const t = i / 13;
+      const y = knee + (hem - knee) * t;
+      const spread = kw + (flare - kw) * t;
+      fillCircle(ctx, (i % 2 ? 1 : -1) * spread * (0.28 + 0.5 * ((i * 7) % 5) / 4),
+        y, 1.5 - t * 0.5, sparkle);
+    }
+  }
+
+  /*
+   * Jewels draped off the shoulders, in place of straps.
+   *
+   * The neckline is cut too low to hold itself up, and a plain strap on a
+   * dress made of stones looks like a strap somebody forgot to finish.
+   */
+  for (const side of [-1, 1]) {
+    const sx = side * B.shoulderW * 0.78;
+    ctx.strokeStyle = sparkle;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(sx, B.torsoTop - 1);
+    ctx.quadraticCurveTo(sx * 1.04, bust + 14, side * B.shoulderW * 0.6, bust + 8);
+    ctx.stroke();
+    if (FINE) beading(ctx, sx, B.torsoTop + 3, side * B.shoulderW * 0.62, bust + 8, 4, sparkle, 1.6);
+    fillCircle(ctx, sx, B.torsoTop - 1, 2.6, sparkle);
+  }
 }
 
 /**

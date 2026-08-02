@@ -148,6 +148,12 @@ export const LOCKED_PARTS = [
     codeHash: 'a1e7cbe1376a8825d08fb448a15502fc7b08920cd42b44190ce9c8c95f811bb0',
   },
   {
+    key: 'bottom',
+    index: 11,
+    name: 'Glitter dress',
+    codeHash: '195076ef65baa5e38f28da1d2368f9331567802ddbed5e79b461c666410c1e54',
+  },
+  {
     key: 'held',
     index: 6,
     name: 'Magic sword',

@@ -6,7 +6,8 @@ import {
   LIP_COLORS, createCharacterSpec, clampSpec, nextPart, countCombinations,
   LOOKS, applyLook, BUILDS, HELD_ITEMS,
 } from '../js/model/character.js';
-import { headBounds, seatedMetrics, standMetrics } from '../js/render/character.js';
+import { headBounds, seatedMetrics, standMetrics, drawCharacter } from '../js/render/character.js';
+import { recordingContext } from './helpers/recorder.js';
 
 /** The agreed floor for how many different characters can be made. */
 const REQUIRED_CHARACTERS = 50_000;
@@ -360,9 +361,40 @@ test('the wardrobe grew rather than shifted', () => {
   // insert anywhere earlier would silently redress everybody already made.
   assert.equal(HELD_ITEMS[6], 'sword', 'the sword is last in hand');
   assert.equal(PART_COUNTS.held, HELD_ITEMS.length);
-  assert.equal(PART_COUNTS.bottom, 11, 'the gown is bottom index 10');
+  assert.equal(PART_COUNTS.bottom, 12, 'the two gowns are bottom 10 and 11');
 
   // The five held items that were there before are still where they were.
   assert.deepEqual(HELD_ITEMS.slice(0, 6),
     ['none', 'book', 'wand', 'basket', 'flowers', 'teddy']);
+});
+
+test('a floor-length gown is not stepped out of', () => {
+  /*
+   * The legs pivot up to a third of a radian at the hip, which throws a foot
+   * about forty out from where it stands. A gown cut close to the knee cannot
+   * follow that, and the legs came out through the sides of the skirt — so a
+   * floor-length bottom shortens her step, the way a long dress really does.
+   *
+   * Measured as a silhouette: in a gown, walking is no wider than standing,
+   * because the dress is what sets the outline. Trousers are the control.
+   */
+  const base = createCharacterSpec();
+  const widest = (bottom, motion) => {
+    let widest = 0;
+    for (let i = 0; i < 24; i += 1) {
+      const recorder = recordingContext();
+      drawCharacter(recorder.ctx, { ...base, bottom, build: 4 }, i * 0.13, motion);
+      const b = recorder.bounds();
+      widest = Math.max(widest, b.maxX - b.minX);
+    }
+    return widest;
+  };
+
+  for (const gown of [10, 11]) {
+    assert.equal(widest(gown, { walking: true }), widest(gown, null),
+      `bottom ${gown} keeps its outline while walking`);
+  }
+
+  assert.ok(widest(0, { walking: true }) > widest(0, null) + 20,
+    'trousers still stride properly');
 });
