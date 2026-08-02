@@ -1003,9 +1003,29 @@ function drawBackHair(ctx, style, color) {
         fillCircle(ctx, x, y, r, color);
       }
       break;
-    case 6: // sharp blunt bob
-      fillRR(ctx, -62, -38, 124, 96, 12, color);
+    case 6: { // sharp blunt bob
+      /*
+       * A dome over the crown, then straight down to a blunt hem.
+       *
+       * It was a 124x96 rectangle with a 12 radius, which is a box: the top
+       * corners squared off well above the widest part of the skull, so the
+       * bob sat on her head like a shoebox rather than growing out of it. The
+       * blunt cut belongs at the bottom, which is the only place hair is ever
+       * actually blunt.
+       */
+      const hem = 58;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(-62, hem);
+      ctx.lineTo(-62, -16);
+      ctx.quadraticCurveTo(-62, -54, 0, -54);
+      ctx.quadraticCurveTo(62, -54, 62, -16);
+      ctx.lineTo(62, hem);
+      ctx.quadraticCurveTo(0, hem + 7, -62, hem);
+      ctx.closePath();
+      ctx.fill();
       break;
+    }
     case 7: // space buns
       for (const side of [-1, 1]) {
         fillCircle(ctx, side * 52, -50, 25, color);
@@ -1028,14 +1048,31 @@ function drawBackHair(ctx, style, color) {
       tress(ctx, -68, -40, 132, 30, color, -1.3);
       break;
     case 12: // beehive
+      /*
+       * Tall, but not twice her head.
+       *
+       * It rose to 118 above the head's centre against a skull radius of 58 —
+       * so the hair was as tall again as the person, and read as a helmet
+       * rather than as a hairdo. It reaches 38 above the crown now and gathers
+       * inward on the way, which is the shape a beehive actually is.
+       */
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.moveTo(-56, 4);
-      ctx.bezierCurveTo(-78, -60, -46, -118, 0, -118);
-      ctx.bezierCurveTo(46, -118, 78, -60, 56, 4);
+      ctx.bezierCurveTo(-70, -46, -52, -96, 0, -96);
+      ctx.bezierCurveTo(52, -96, 70, -46, 56, 4);
       ctx.closePath();
       ctx.fill();
       fillRR(ctx, -58, -30, 116, 76, 34, color);
+      // The sweep round the mound, which is what tells a beehive from a bun.
+      if (FINE) {
+        ctx.strokeStyle = shade(color, -0.17);
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.moveTo(-45, -28);
+        ctx.quadraticCurveTo(0, -64, 45, -32);
+        ctx.stroke();
+      }
       break;
     case 13: // feathered flicks
       tress(ctx, -56, -22, 104, 32, dark, -1.6);
@@ -1129,7 +1166,23 @@ function drawFrontHair(ctx, style, color, shape) {
       fillCircle(ctx, 36, -30, 21, color);
       break;
     case 6: // heavy blunt fringe
-      fillRR(ctx, -60, -HEAD_TOP - 6, 120, 56, 8, color);
+      /*
+       * A fringe is blunt along the bottom only.
+       *
+       * Drawn as a 120x56 rounded rectangle with a radius of 8, and drawn
+       * outside the clip that keeps the rest of the front hair on the face, it
+       * was a box sitting on her head — wider than the skull and square at the
+       * top corners. This is the shoebox that made the blunt bob look boxed,
+       * and it was in the fringe rather than in the bob.
+       */
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(-54, -12);
+      ctx.quadraticCurveTo(-58, -HEAD_TOP - 2, 0, -HEAD_TOP - 4);
+      ctx.quadraticCurveTo(58, -HEAD_TOP - 2, 54, -12);
+      ctx.quadraticCurveTo(0, -5, -54, -12);
+      ctx.closePath();
+      ctx.fill();
       break;
     case 7: // small fringe under the buns
       fillEllipse(ctx, 0, -40, 46, 20, color);
