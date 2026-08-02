@@ -24,11 +24,12 @@
 
 import {
   fillRR, fillCircle, fillEllipse, fillPoly, strokeLine, shade, paperLayer, detailLayer,
+  worthDrawing,
 } from './shapes.js';
 import { litFill } from './materials.js';
 import {
   SKIN_TONES, HAIR_COLORS, CLOTH_COLORS, LIP_COLORS, EYE_COLORS, FACE_SHAPES,
-  BUILDS, SIZES, clampSpec,
+  BUILDS, SIZES, NAIL_STYLES, clampSpec,
 } from '../model/character.js';
 
 /** How far the skull rises above the head origin. */
@@ -203,6 +204,25 @@ export function headBounds(rawSpec) {
 }
 
 /**
+ * Where a hand is, for anything that needs to frame one.
+ *
+ * The creator's nail cells use it the way the hairstyle cells use headBounds:
+ * a hand is ten pixels across at body size, so a cell showing a whole figure
+ * would be a grid of identical people.
+ */
+export function handBounds(rawSpec) {
+  const spec = clampSpec(rawSpec);
+  const size = sizeOf(spec);
+  const metrics = metricsFor(BUILDS[spec.build], size.scale);
+  return {
+    x: metrics.armX,
+    y: metrics.shoulderY + metrics.armLen + 2,
+    // A little more than the hand itself, so a long nail is inside the frame.
+    size: metrics.armW * 2.6,
+  };
+}
+
+/**
  * @param {CanvasRenderingContext2D} ctx
  * @param {object} rawSpec
  * @param {number} time seconds, driving the idle animation
@@ -300,7 +320,7 @@ export function drawCharacter(ctx, rawSpec, time = 0, motion = null) {
   // coherent — a cardigan under a dress is never what anyone meant.
   detailLayer(ctx, () => drawLayer(ctx, spec.layer, CLOTH_COLORS[spec.layerColor], sway));
 
-  detailLayer(ctx, () => drawHands(ctx, skin, sway));
+  detailLayer(ctx, () => drawHands(ctx, skin, sway, spec));
   if (FINE) detailLayer(ctx, () => drawHeld(ctx, spec.held, sway));
   onHead(() => drawHead(ctx, skin, spec, shape, hairColor, blinking));
 
@@ -398,14 +418,147 @@ function drawArms(ctx, skin, sway) {
 }
 
 /** Hands, drawn after the sleeves so a long sleeve stops at the wrist. */
-function drawHands(ctx, skin, sway) {
+function drawHands(ctx, skin, sway, spec) {
   for (const side of [-1, 1]) {
     ctx.save();
     ctx.translate(B.armX * side, B.shoulderY);
     ctx.rotate(armAngle(sway, side));
     fillEllipse(ctx, 0, B.armLen + 2, B.armW * 0.5, B.armW * 0.62, skin);
+    drawNails(ctx, spec);
     ctx.restore();
   }
+}
+
+/**
+ * Nails, across the end of a hand.
+ *
+ * Three of them, not one and not five. One nail the width of the whole hand
+ * reads as a mitten with the end painted; five at the size a hand is drawn are
+ * sub-pixel slivers. Three across the fingertips suggest the fingers that are
+ * not drawn — the hand itself is a single shape — and stay legible down to the
+ * size where the size rule takes them away altogether.
+ */
+function drawNails(ctx, spec) {
+  const shape = NAIL_STYLES[spec.nails ?? 0];
+  if (!shape?.wide) return;
+
+  const rx = B.armW * 0.5;
+  const ry = B.armW * 0.62;
+  const hy = B.armLen + 2;
+  // One nail of three, inset so the outer two sit inside the hand's curve.
+  const half = rx * shape.wide * 0.3;
+  const color = CLOTH_COLORS[spec.nailColor ?? 0];
+
+  if (!worthDrawing(ctx, half * 2)) {
+    // Too small for three nails — but not too small to see that they are
+    // painted. Fewer and fatter, the way a bookshelf loses half its books
+    // rather than all of them: one tinted fingertip, so a red manicure is
+    // still a red manicure across a room.
+    drawTintedTip(ctx, shape, color, rx, ry, hy);
+    return;
+  }
+  for (const [i, at] of [-0.5, 0, 0.5].entries()) {
+    /*
+     * How far down the hand this nail sits.
+     *
+     * Set into the fingertip rather than stuck on the end of it: measured from
+     * the hand's lowest point, the first attempt put every nail past the
+     * silhouette, which reads as claws rather than as a manicure. The middle
+     * finger reaches furthest, so the outer two sit higher, which is also what
+     * stops three identical ovals reading as a row of tiles.
+     */
+    const drop = ry * (0.82 - Math.abs(at) * 0.26);
+    const bed = hy + drop - ry * 1.5 * shape.deep;
+    const tip = hy + drop + B.armW * shape.over;
+    ctx.save();
+    ctx.translate(rx * at, 0);
+    nailPath(ctx, shape, half, bed, tip);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.clip();
+    if (shape.gel === 'french') drawFrenchTip(ctx, half, bed, tip);
+    else if (shape.gel === 'ombre') drawGlitterOmbre(ctx, half, bed, tip, i);
+    // A single gloss highlight, up near the bed where the light catches.
+    ctx.globalAlpha = 0.28;
+    fillEllipse(ctx, -half * 0.22, bed + (tip - bed) * 0.32, half * 0.26,
+      (tip - bed) * 0.13, '#ffffff');
+    ctx.restore();
+  }
+}
+
+/**
+ * The whole set of nails as one shape, for when three of them will not fit.
+ *
+ * Clipped to the hand so it is the fingertip that is coloured rather than a
+ * blob stuck on the end of it, and a gel design keeps its pale tip, because
+ * that is the half of it that survives at this size.
+ */
+function drawTintedTip(ctx, shape, color, rx, ry, hy) {
+  if (!worthDrawing(ctx, rx)) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0, hy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.clip();
+  const top = hy + ry * 0.32;
+  fillEllipse(ctx, 0, hy + ry, rx * 1.1, ry - (top - hy), color);
+  if (shape.gel) {
+    fillEllipse(ctx, 0, hy + ry * 1.06, rx * 0.92, ry * 0.34, '#fdf8f4');
+  }
+  ctx.restore();
+}
+
+/** The outline of one nail: a bed, two sides, and an end of the given shape. */
+function nailPath(ctx, shape, half, bed, tip) {
+  ctx.beginPath();
+  ctx.moveTo(-half, bed);
+  ctx.lineTo(half, bed);
+  if (shape.tip === 'point') {
+    ctx.quadraticCurveTo(half * 0.9, tip - (tip - bed) * 0.34, 0, tip);
+    ctx.quadraticCurveTo(-half * 0.9, tip - (tip - bed) * 0.34, -half, bed);
+  } else if (shape.tip === 'square') {
+    const r = half * 0.34;
+    ctx.lineTo(half, tip - r);
+    ctx.quadraticCurveTo(half, tip, half - r, tip);
+    ctx.lineTo(-half + r, tip);
+    ctx.quadraticCurveTo(-half, tip, -half, tip - r);
+  } else {
+    ctx.quadraticCurveTo(half, tip, 0, tip);
+    ctx.quadraticCurveTo(-half, tip, -half, bed);
+  }
+  ctx.closePath();
+}
+
+/**
+ * A French tip: a pale crescent across the very end of the nail.
+ *
+ * Shallow on purpose. Half the nail in white is a sock; the thing that reads
+ * as a French manicure is a thin band with a curve on it, so the ellipse is
+ * wider than the nail and mostly below it, and the clip does the rest.
+ */
+function drawFrenchTip(ctx, half, bed, tip) {
+  const depth = (tip - bed) * 0.46;
+  fillEllipse(ctx, 0, tip - depth * 0.18, half * 1.6, depth, '#fdf8f4');
+}
+
+/**
+ * A glitter ombré: her colour fading into sparkle towards the tip.
+ *
+ * The fade stays in the last third — a gradient over the whole nail turns her
+ * colour into a pale smudge — and the sparkle is one dot per nail, placed
+ * differently on each so the three of them read as scattered glitter rather
+ * than as three identical spots.
+ */
+function drawGlitterOmbre(ctx, half, bed, tip, index) {
+  const span = tip - bed;
+  const wash = ctx.createLinearGradient(0, bed + span * 0.45, 0, tip);
+  wash.addColorStop(0, 'rgba(255,250,246,0)');
+  wash.addColorStop(1, 'rgba(255,251,246,0.85)');
+  ctx.fillStyle = wash;
+  ctx.fillRect(-half, bed + span * 0.45, half * 2, span * 0.55);
+
+  const spark = [[-0.3, 0.58], [0.26, 0.5], [0.04, 0.66]][index % 3];
+  fillCircle(ctx, half * spark[0], bed + span * spark[1], half * 0.2,
+    'rgba(255,255,255,0.95)');
 }
 
 // ------------------------------------------------------------------- head

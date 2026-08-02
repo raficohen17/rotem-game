@@ -21,7 +21,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
  * a present for a seven year old rather than a secret. `codes never appear in
  * anything shipped` below is what actually matters, and it skips this folder.
  */
-const CODES = { 'bottom:10': 'tyyffk', 'bottom:11': 'shimmr', 'held:6': 'zibbon' };
+const CODES = {
+  'bottom:10': 'tyyffk',
+  'bottom:11': 'shimmr',
+  'held:6': 'zibbon',
+  'nails:6': 'cherry',
+  'nails:7': 'sparks',
+};
 
 test('sha256 matches the published vectors', () => {
   assert.equal(sha256(''),

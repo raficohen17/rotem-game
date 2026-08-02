@@ -511,6 +511,29 @@ export const ICONS = {
     fillRR(ctx, 4, 1, 7, 14, 3.5, c);
   },
 
+  /* A hand with a painted nail on it, for the nails tab. */
+  nails(ctx, c) {
+    // The hand: a palm and a thumb, kept simple enough to read at 44px.
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(-11, 20);
+    ctx.quadraticCurveTo(-15, 2, -11, -10);
+    ctx.quadraticCurveTo(-2, -18, 8, -12);
+    ctx.quadraticCurveTo(15, -6, 13, 8);
+    ctx.quadraticCurveTo(11, 20, 0, 21);
+    ctx.closePath();
+    ctx.fill();
+    // The nail, cut out of the fingertip so it reads on any background.
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.moveTo(-7, -8);
+    ctx.quadraticCurveTo(-1, -20, 5, -8);
+    ctx.quadraticCurveTo(-1, -3, -7, -8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  },
+
   check(ctx, c) {
     stroke(ctx, c, 7);
     ctx.beginPath();

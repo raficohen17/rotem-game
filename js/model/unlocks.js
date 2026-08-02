@@ -154,6 +154,18 @@ export const LOCKED_PARTS = [
     codeHash: '195076ef65baa5e38f28da1d2368f9331567802ddbed5e79b461c666410c1e54',
   },
   {
+    key: 'nails',
+    index: 6,
+    name: 'French tips',
+    codeHash: 'ef0067862a65a8c881b4acc3ec386fdff47e3af115fcbcdd23d8530f3624e9f9',
+  },
+  {
+    key: 'nails',
+    index: 7,
+    name: 'Glitter gel',
+    codeHash: '91b7b3ed9b4ce8abb548a8691c6ed3776e43464e698b56123dca826fe1610a0c',
+  },
+  {
     key: 'held',
     index: 6,
     name: 'Magic sword',

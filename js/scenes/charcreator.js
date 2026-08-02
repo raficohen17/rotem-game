@@ -13,7 +13,7 @@ import { button, hitTest, drawButtons, drawPanel, COLORS, TOUCH } from '../ui/wi
 import { drawIcon } from '../ui/icons.js';
 import { openTextField } from '../ui/textfield.js';
 import { fillRR } from '../render/shapes.js';
-import { drawCharacter, headBounds, charHeight } from '../render/character.js';
+import { drawCharacter, headBounds, handBounds, charHeight } from '../render/character.js';
 import {
   EDITABLE_PARTS, PART_COUNTS, CLOTH_COLORS, HAIR_COLORS, LIP_COLORS, EYE_COLORS,
   SKIN_TONES, LOOKS, applyLook, createCharacterSpec, clampSpec,
@@ -22,6 +22,9 @@ import { lockFor, lockId, isLocked, redeem, cleanCode, CODE_LENGTH } from '../mo
 
 /** Parts shown as a head close-up; the rest are shown full length. */
 const HEAD_PARTS = new Set(['face', 'skin', 'hair', 'hairColor', 'brows', 'eyes', 'nose', 'mouth', 'extra']);
+
+/** Parts shown as a hand close-up, because a hand is ten pixels at body size. */
+const HAND_PARTS = new Set(['nails']);
 
 /** Parts where the difference is small enough to need a tighter crop. */
 const FEATURE_PARTS = new Set(['brows', 'eyes', 'nose', 'mouth']);
@@ -35,6 +38,7 @@ const PALETTES = {
   bottomColor: CLOTH_COLORS,
   shoesColor: CLOTH_COLORS,
   extraColor: CLOTH_COLORS,
+  nailColor: CLOTH_COLORS,
 };
 
 // Eleven parts no longer fit in one column at a finger-sized target, so the
@@ -349,6 +353,7 @@ function drawLookCard(ctx, control, spec) {
 /** How closely a cell should frame the character for a given part. */
 function cropFor(key) {
   if (FEATURE_PARTS.has(key)) return 'feature';
+  if (HAND_PARTS.has(key)) return 'hand';
   return HEAD_PARTS.has(key) ? 'head' : 'body';
 }
 
@@ -428,6 +433,7 @@ const MINI_SCALE = 2;
  * shoes are.
  */
 const MINI_KEYS = {
+  hand: ['build', 'size', 'skin', 'nails', 'nailColor', 'top', 'topColor', 'layer', 'layerColor'],
   feature: ['build', 'face', 'skin', 'brows', 'eyes', 'eyeColor', 'nose', 'mouth', 'mouthColor', 'hair', 'hairColor'],
   head: ['build', 'face', 'skin', 'hair', 'hairColor', 'hairpin', 'hairpinColor', 'brows', 'eyes', 'eyeColor', 'nose', 'mouth', 'mouthColor'],
 };
@@ -460,6 +466,26 @@ function drawMini(ctx, spec, box, crop, time) {
     // with the face is the only framing in which the options are comparable.
     const scale = (box.h * 0.92) / head.height;
     ctx.translate(cx, box.y + box.h * 0.5 - head.centre * scale);
+    ctx.scale(scale, scale);
+  } else if (crop === 'hand') {
+    /*
+     * Her hand, filling the cell.
+     *
+     * Framed off her own arm rather than off a constant, the way the head crop
+     * is framed off her own head: a grown-up's hand hangs lower and further out
+     * than a child's, and a fixed spot would have shown one of them a forearm.
+     */
+    const hand = handBounds(spec);
+    const scale = (box.h * 0.98) / hand.size;
+    /*
+     * The hand sits low in the cell rather than in the middle of it.
+     *
+     * Nothing is drawn below a hand, so centring it left the bottom third of
+     * every cell empty and the hand itself small. Dropping it to two thirds
+     * fills the frame with the arm above and puts the nails where the eye
+     * lands.
+     */
+    ctx.translate(cx - hand.x * scale, box.y + box.h * 0.66 - hand.y * scale);
     ctx.scale(scale, scale);
   } else if (crop === 'head') {
     // Head, hair and a little shoulder. What tells fourteen hairstyles apart

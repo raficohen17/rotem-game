@@ -133,6 +133,29 @@ export const BUILDS = [
 ];
 
 /**
+ * Nails.
+ *
+ * A shape and a colour, like a top and its colour. The first is bare, so every
+ * character ever saved keeps the hands she already had.
+ *
+ * The last two are held back behind a code. Both are defined at the tip of the
+ * nail, which is the part that survives being small: a design in the middle of
+ * a nail — a flower, a heart, a marble swirl — is a smudge at the size a hand
+ * is drawn, and nothing at all in the cutaway.
+ */
+export const NAIL_STYLES = [
+  { id: 'bare' },
+  { id: 'short', wide: 0.78, deep: 0.42, over: -0.04, tip: 'round' },
+  { id: 'round', wide: 0.80, deep: 0.50, over: 0.01, tip: 'round' },
+  { id: 'almond', wide: 0.76, deep: 0.56, over: 0.10, tip: 'point' },
+  { id: 'square', wide: 0.84, deep: 0.52, over: 0.04, tip: 'square' },
+  { id: 'long', wide: 0.74, deep: 0.60, over: 0.20, tip: 'round' },
+  // Behind a code, and appended so nothing already saved moves.
+  { id: 'french', wide: 0.80, deep: 0.56, over: 0.06, tip: 'round', gel: 'french' },
+  { id: 'ombre', wide: 0.78, deep: 0.56, over: 0.08, tip: 'point', gel: 'ombre' },
+];
+
+/**
  * How big somebody is.
  *
  * Two sizes, because a school needs somebody in charge of it and a teacher the
@@ -154,6 +177,8 @@ export const SIZES = [
  */
 export const PART_COUNTS = {
   size: SIZES.length,
+  nails: NAIL_STYLES.length,
+  nailColor: CLOTH_COLORS.length,
   build: BUILDS.length,
   face: FACE_SHAPES.length,
   skin: SKIN_TONES.length,
@@ -217,15 +242,24 @@ export const EDITABLE_PARTS = [
    * The part itself stays in the spec, so no saved character changes.
    */
   { key: 'hairColor', colorKey: null, icon: 'hairColor' },
+  /*
+   * Mouths are gone from the rail as well.
+   *
+   * Eight of the twelve colours are a lipstick, and a pair of painted lips on
+   * a face this size is a dark smudge across the chin rather than a mouth —
+   * Rotem's word for the tab was that it was not pretty. Like brows, the part
+   * stays in the spec so no saved character changes, and the face still has a
+   * mouth: it is the choosing of it that was worth less than the room it took.
+   */
   { key: 'hairpin', colorKey: 'hairpinColor', icon: 'hairpin' },
   { key: 'eyes', colorKey: 'eyeColor', icon: 'eyes' },
   { key: 'nose', colorKey: null, icon: 'nose' },
-  { key: 'mouth', colorKey: 'mouthColor', icon: 'mouth' },
   { key: 'top', colorKey: 'topColor', icon: 'top' },
   { key: 'layer', colorKey: 'layerColor', icon: 'layer' },
   { key: 'bottom', colorKey: 'bottomColor', icon: 'bottom' },
   { key: 'socks', colorKey: 'socksColor', icon: 'socks' },
   { key: 'shoes', colorKey: 'shoesColor', icon: 'shoes' },
+  { key: 'nails', colorKey: 'nailColor', icon: 'nails' },
   { key: 'held', colorKey: null, icon: 'held' },
   { key: 'extra', colorKey: 'extraColor', icon: 'extra' },
 ];
@@ -235,10 +269,14 @@ export function createCharacterSpec() {
     size: 0,
     build: 2, face: 0, skin: 3, hair: 0, hairColor: 1,
     hairpin: 0, hairpinColor: 0, brows: 0,
-    eyes: 0, eyeColor: 0, nose: 1, mouth: 0, mouthColor: 0,
+    eyes: 0, eyeColor: 0, nose: 1, mouth: 0,
+    // A natural tone rather than the lipstick at index 0: a new face is not
+    // wearing make-up until somebody asks it to.
+    mouthColor: 8,
     top: 0, topColor: 0, layer: 0, layerColor: 3,
     bottom: 0, bottomColor: 5, socks: 0, socksColor: 8,
     shoes: 0, shoesColor: 9, held: 0, extra: 0, extraColor: 2,
+    nails: 0, nailColor: 1,
   };
 }
 
