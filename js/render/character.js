@@ -1363,14 +1363,61 @@ function drawTop(ctx, style, color, sway) {
     case 2: // vest, cut away at the shoulder
       garment(ctx, color, { shoulder: -6, neck: 0.3 });
       break;
-    case 3: // hoodie
+    case 3: { // hoodie
       sleeve(ctx, -1, 62, color, sway, 8);
       sleeve(ctx, 1, 62, color, sway, 8);
-      garment(ctx, color, { top: top - 4, bottom: B.hipY + 14 });
-      fillEllipse(ctx, 0, top + 2, B.shoulderW * 0.9, 15, shade(color, -0.2));
-      strokeLine(ctx, -8, top + 22, -8, top + 44, shade(color, 0.45), 3);
-      strokeLine(ctx, 8, top + 22, 8, top + 44, shade(color, 0.45), 3);
+      const hood = { top: top - 4, bottom: B.hipY + 14 };
+      const { bottom: hoodHem } = garmentPath(ctx, hood);
+      garment(ctx, color, hood);
+
+      /*
+       * A hood bunched at the neck, and a pocket across the front.
+       *
+       * The hood was a flat ellipse as wide as her shoulders sitting at the
+       * collar line, which is not a hood — it is a bib. A hood gathers *around*
+       * the neck and rises behind it, so this is a narrower shape that comes up
+       * past the shoulder line, with the opening cut into it. The pocket is the
+       * other half of what makes a hoodie read as a hoodie, and it was missing
+       * altogether.
+       */
+      const cowl = B.shoulderW * 0.56;
+      ctx.fillStyle = shade(color, -0.16);
+      ctx.beginPath();
+      ctx.moveTo(-cowl, top + 20);
+      ctx.quadraticCurveTo(-cowl - 2, top - 20, 0, top - 22);
+      ctx.quadraticCurveTo(cowl + 2, top - 20, cowl, top + 20);
+      ctx.quadraticCurveTo(0, top + 30, -cowl, top + 20);
+      ctx.closePath();
+      ctx.fill();
+      // The opening, so the hood has a hollow rather than being a lump.
+      ctx.fillStyle = shade(color, -0.34);
+      ctx.beginPath();
+      ctx.moveTo(-cowl * 0.72, top + 10);
+      ctx.quadraticCurveTo(0, top + 24, cowl * 0.72, top + 10);
+      ctx.quadraticCurveTo(0, top - 2, -cowl * 0.72, top + 10);
+      ctx.closePath();
+      ctx.fill();
+
+      // Drawstrings, hanging from the cowl with a knot on each.
+      for (const side of [-1, 1]) {
+        strokeLine(ctx, side * 8, top + 20, side * 9, top + 46, PAPER, 2.6);
+        fillCircle(ctx, side * 9, top + 48, 2.6, PAPER);
+      }
+
+      // The kangaroo pocket: a band across the front, open at both ends.
+      const pw = B.hipW + 1;
+      ctx.fillStyle = shade(color, -0.1);
+      ctx.beginPath();
+      ctx.moveTo(-pw, hoodHem - 34);
+      ctx.lineTo(pw, hoodHem - 34);
+      ctx.lineTo(pw, hoodHem - 2);
+      ctx.quadraticCurveTo(0, hoodHem + 4, -pw, hoodHem - 2);
+      ctx.closePath();
+      ctx.fill();
+      strokeLine(ctx, -pw, hoodHem - 34, -pw * 0.62, hoodHem - 30, shade(color, -0.3), 2.4);
+      strokeLine(ctx, pw, hoodHem - 34, pw * 0.62, hoodHem - 30, shade(color, -0.3), 2.4);
       break;
+    }
     case 4: // stripes
       sleeve(ctx, -1, 34, color, sway);
       sleeve(ctx, 1, 34, color, sway);
@@ -1399,21 +1446,86 @@ function drawTop(ctx, style, color, sway) {
       sleeve(ctx, 1, 64, color, sway, 9);
       const knit = { top: top - 3, bottom: B.hipY + 14 };
       garment(ctx, color, knit);
-      // The same options the garment was drawn with, so the ribs stop at the
-      // knit's own hem instead of at a default one it does not have.
-      withinGarment(ctx, ({ top: gTop, bottom: gBottom }) => {
-        for (let i = -1; i <= 1; i += 1) {
-          strokeLine(ctx, i * 15, gTop + 14, i * 15, gBottom + 6, shade(color, -0.16), 3);
+
+      /*
+       * Ribs that pinch at the waist with the jumper, and a ribbed hem.
+       *
+       * Three dead-straight lines at a fixed 15 apart said nothing about the
+       * body underneath and nothing about knitwear either — they read as a
+       * barcode on a slab. A rib runs down the garment, so it follows the same
+       * curve the side seam does: out at the chest, in at the waist, out again
+       * over the hip. Each one is placed as a fraction of the garment's own
+       * width at each of those three heights, which is what makes them fan.
+       *
+       * The ribbed hem is the giveaway detail. A chunky jumper ends in a band
+       * that grips, and without one this was a sack.
+       */
+      withinGarment(ctx, ({ top: gTop, bottom: gBottom, waist, sw, ww, hw }) => {
+        const rib = shade(color, -0.17);
+        ctx.strokeStyle = rib;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        for (const f of [-0.62, -0.21, 0.21, 0.62]) {
+          ctx.beginPath();
+          ctx.moveTo(f * sw * 0.72, gTop + 16);
+          ctx.quadraticCurveTo(f * ww, waist, f * hw, gBottom + 8);
+          ctx.stroke();
+        }
+
+        // The band at the hem, with its own finer ribbing across it.
+        fillRR(ctx, -hw - 2, gBottom - 12, (hw + 2) * 2, 18, 4, shade(color, -0.1));
+        if (FINE) {
+          for (let i = -5; i <= 5; i += 1) {
+            strokeLine(ctx, i * 7, gBottom - 10, i * 7, gBottom + 4, rib, 1.8);
+          }
         }
       }, knit);
+
+      // A rolled collar, so the neck of a jumper is not a raw edge.
+      fillRR(ctx, -B.shoulderW * 0.42, top - 8, B.shoulderW * 0.84, 15, 7,
+        shade(color, -0.1));
       break;
     }
-    case 6: // dungarees, straps over a bare shoulder
+    case 6: { // dungarees, straps over a bare shoulder
       garment(ctx, color, { top: top + 34, shoulder: -8 });
-      fillRR(ctx, -B.shoulderW * 0.55, top, 12, 46, 4, color);
-      fillRR(ctx, B.shoulderW * 0.55 - 12, top, 12, 46, 4, color);
-      fillRR(ctx, -18, top + 38, 36, 22, 5, shade(color, 0.16));
+
+      /*
+       * A bib joined to the straps, and the straps angled out to the shoulder.
+       *
+       * The bib was a 36-wide rounded rect floating at chest height with two
+       * vertical bars behind it, and nothing about that said the three pieces
+       * were one garment. A bib is part of the front of the dungarees, so it
+       * rises out of the body rather than sitting on it, and the straps run
+       * from its top corners out and up — shoulders are wider than a bib, so a
+       * strap that goes straight up is a strap that misses the shoulder.
+       */
+      const bib = B.waistW + 2;
+      const bibTop = top + 26;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(-bib, bibTop + 6);
+      ctx.quadraticCurveTo(-bib, bibTop, -bib + 6, bibTop);
+      ctx.lineTo(bib - 6, bibTop);
+      ctx.quadraticCurveTo(bib, bibTop, bib, bibTop + 6);
+      ctx.lineTo(bib, top + 46);
+      ctx.lineTo(-bib, top + 46);
+      ctx.closePath();
+      ctx.fill();
+
+      for (const side of [-1, 1]) {
+        // Out to the shoulder, and thinner than the bib it grows from.
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 11;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(side * (bib - 5), bibTop + 2);
+        ctx.quadraticCurveTo(side * (bib + 4), top + 10, side * B.shoulderW * 0.62, top + 2);
+        ctx.stroke();
+        // The button that holds it on, where the strap meets the bib.
+        fillCircle(ctx, side * (bib - 5), bibTop + 4, 3, shade(color, -0.32));
+      }
       break;
+    }
     case 7: // blouse with a collar and buttons
       sleeve(ctx, -1, 38, color, sway);
       sleeve(ctx, 1, 38, color, sway);
@@ -1447,11 +1559,17 @@ function drawTop(ctx, style, color, sway) {
         }
       });
       break;
-    case 9: // crop top
+    case 9: { // crop top
       sleeve(ctx, -1, 26, color, sway);
       sleeve(ctx, 1, 26, color, sway);
-      garment(ctx, color, { bottom: B.hipY - 26, neck: 0.32 });
+      const crop = { bottom: B.hipY - 26, neck: 0.32 };
+      const { bottom: cropHem, ww } = garmentPath(ctx, crop);
+      garment(ctx, color, crop);
+      // A finished band at the hem. Cut off square, the shape read as a top
+      // that had been cropped by the drawing rather than by a pattern cutter.
+      fillRR(ctx, -ww - 2, cropHem - 4, (ww + 2) * 2, 9, 4, shade(color, -0.18));
       break;
+    }
     case 10: {
       // A field jacket: heavy, with lapels, chest pockets and a zip.
       sleeve(ctx, -1, 68, shade(color, -0.1), sway, 9);
